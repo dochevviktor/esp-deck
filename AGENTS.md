@@ -1,6 +1,9 @@
 # ESP Deck
 
 Read STREAM_DECK_ESPHOME_CODEX_HANDOVER.md and docs/decisions/usb-transport.md.
+For the next stage, read docs/implementation-plan.md: HA owns runtime bindings
+and visual configuration; the ESP renders images/text. It supersedes the original
+handover's deferral of runtime text and URL-loaded artwork, not its hardware rules.
 Target only Stream Deck Original 0FD9:0060 on XIAO ESP32-S3 Plus, ESP-IDF.
 Keep protocol/scheduling independent of ESPHome and test against pinned upstream
 fixtures. Native USB belongs to the host; logs use UART0. VBUS is external and

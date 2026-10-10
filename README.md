@@ -25,6 +25,13 @@ qualification and HA acceptance remain pending. See
 The original [handover](STREAM_DECK_ESPHOME_CODEX_HANDOVER.md) is preserved.
 Start with the [hardware checklist](docs/hardware.md) before connecting anything.
 
+The approved next stage is [Home Assistant runtime control](docs/implementation-plan.md):
+HA owns bindings and visual configuration; the ESP downloads/caches artwork and
+renders outlined labels locally. This planned feature is not implemented yet.
+The plan contains the current working baseline, staged acceptance tests and the
+starting point for the next chat. Example 03 remains a fixed-entity demo, not the
+intended runtime rebinding workflow.
+
 ## Develop and test without a board
 
 From this repository, with Python 3.14, Git and a C++17 compiler:
