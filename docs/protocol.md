@@ -14,12 +14,13 @@ Logical keys viewed from the front:
 ```
 
 Wire indices reverse each row: `[4,3,2,1,0,9,8,7,6,5,14,13,12,11,10]`.
-Input is exactly 16 bytes, with each key at `1 + wire_index`. Only zero/one state
-bytes are accepted. Malformed input preserves previous state and increments the
-error counter. The default ignores byte zero, matching the reference; it logs
-the first observed header. An optional `input_report_id` enforces a byte after
-the owner's descriptor/capture establishes it. We do not assign an unobserved ID.
-Extra/padded report lengths are rejected until supported with evidence.
+Each key is at `1 + wire_index`. The codec accepts the reference's 16-byte read
+and the captured 17-byte key report: ID `0x01`, 15 zero/one key states, then one
+zero reserved byte. The latter must have ID 1 and a zero trailer; input IDs A0/A1
+are not interpreted as keys. Other lengths and non-binary states are rejected,
+preserving previous state and incrementing the error counter. ESPHome's
+`input_report_id` now defaults to the observed `0x01` for both supported lengths.
+The standalone codec can still omit the ID filter for 16-byte upstream fixtures.
 
 For network debugging, each connection retains the first nonempty input's length
 and up to 32 bytes of hex before validation. API configuration dumps repeat that
@@ -28,11 +29,12 @@ count. This does not change decoding or turn malformed input into key events.
 
 The first [desktop capture](hardware.md#desktop-observations-2026-10-10) declares
 input IDs `0x01`, `0xa0`, `0xa1` with 17 bytes including ID. This differs from the
-pinned library's 16-byte read limit. Capture actual interrupt reports before
-deciding whether to accept an additional byte or filter non-key IDs; no input
-contract change is claimed from the descriptor alone.
-The S3's 512-byte endpoints advertised at full speed are now handled by a narrow
-host-side descriptor correction, without changing this input contract; see the
+pinned library's 16-byte read limit. A later real S3 interrupt capture after HID
+SET_IDLE initialization established a 17-byte ID-1 report with a zero trailer;
+it is saved in `tests/fixtures/s3_0060/first_key_input.hex` and tested by the codec.
+The previous strict-16 decoder was rejecting these received packets.
+The S3's 512-byte endpoints advertised at full speed are handled experimentally
+by a narrow host-side descriptor correction; see the
 [hardware record](hardware.md#network-and-s3-usb-session-2026-10-10).
 
 The first valid report of each connection establishes a baseline without user
@@ -65,7 +67,13 @@ state survives USB reconnects; an MCU reboot uses YAML's `initial_brightness`
 
 ## Configuration and actions
 
-The numbered examples are validated configurations. The hub supports:
+The numbered examples are validated configurations. Every driver sends standard
+HID SET_IDLE(0, all report IDs) before scheduler initialization. The optional
+`usb_diagnostics: true` setting (example 04) runs bounded read-only EP0 queries
+for configuration, HID report descriptor and firmware feature 4 around that
+initialization request. Results are
+retained in API log dumps; they are not key states or display readback.
+The hub supports:
 
 - `id`, `initial_brightness`, optional `input_report_id`.
 - `images`: list of `{id, file}` native BMPs, embedded into flash during code generation.
@@ -90,9 +98,12 @@ Native image objects and their data must be immutable and live for the firmware'
 entire lifetime. Invalid runtime keys/images return false without queuing work.
 
 Every key defaults to a flash-resident blank BMP. After connection the driver
-redraws all 15 desired images, clearing displays retained from a previous run.
+requests a redraw of all 15 desired images to clear displays retained from a
+previous run. Physical rendering is still unverified; host completion is not
+display readback.
 Only changed desired assets are sent during normal operation. No network image
-uploads, fonts, animation engine, pages, device serial storage or firmware queries.
+uploads, fonts, animation engine, pages or device serial storage. Firmware feature
+4 is read only by the optional diagnostic path described above.
 
 ## Home Assistant example
 

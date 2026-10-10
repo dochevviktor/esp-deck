@@ -10,7 +10,7 @@ import sys
 import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
-EXAMPLES = ("01_usb_probe", "02_keys_brightness", "03_images_home_assistant")
+EXAMPLES = ("01_usb_probe", "02_keys_brightness", "03_images_home_assistant", "04_hardware_test")
 
 
 def stage(folder, device_secrets=None):
@@ -60,6 +60,8 @@ def check(folder, name, compile_firmware=False, extra=None, deployment=False):
         if "CONFIG_ESP_CONSOLE_SECONDARY_USB_SERIAL_JTAG=y" in actual.read_text():
             raise RuntimeError("The secondary USB console must be disabled for native USB host operation")
         if name != "01_usb_probe":
+            if "CONFIG_USB_HOST_HW_BUFFER_BIAS_PERIODIC_OUT=y" not in actual.read_text():
+                raise RuntimeError("The Original 512-byte output endpoint requires the periodic-OUT FIFO bias")
             commands = json.loads((build / "build" / "compile_commands.json").read_text())
             if not any(Path(command["file"]).name == "usbh_stream_deck.c" for command in commands):
                 raise RuntimeError("The build did not compile the pinned Stream Deck USB compatibility source")

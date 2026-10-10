@@ -20,7 +20,7 @@ HOOK = '''
                                          dev_obj->constant.desc->idProduct,
                                          dev_obj->constant.speed == USB_SPEED_FULL,
                                          (uint8_t *)new_desc, config_desc_full->wTotalLength)) {
-        ESP_LOGW(USBH_TAG, "Stream Deck Original full-speed endpoint quirk: 512 -> 64");
+        ESP_LOGW(USBH_TAG, "Stream Deck Original full-speed quirk: IN 64, OUT 512");
     }
 '''
 

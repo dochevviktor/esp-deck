@@ -11,6 +11,10 @@ from convert_assets import convert
 
 
 class AssetTests(unittest.TestCase):
+    def test_hardware_pattern_matches_upstream_fixture(self):
+        self.assertEqual((ROOT / "assets/native/transport_test.bmp").read_bytes(),
+                         (ROOT / "tests/fixtures/asymmetric.native.bmp").read_bytes())
+
     def test_reference_reproducible(self):
         subprocess.run([sys.executable, "tools/generate_reference_fixtures.py", "--check"], cwd=ROOT, check=True)
 

@@ -49,7 +49,7 @@ struct __attribute__((packed)) usb_config_desc_t {
   uint16_t wTotalLength;
   uint8_t bNumInterfaces, bConfigurationValue, iConfiguration, bmAttributes, bMaxPower;
 };
-struct usb_device_info_t { usb_speed_t speed; uint8_t bConfigurationValue; };
+struct usb_device_info_t { usb_speed_t speed; uint8_t bConfigurationValue; uint8_t bMaxPacketSize0{64}; };
 esp_err_t usb_host_install(const usb_host_config_t *);
 esp_err_t usb_host_uninstall();
 esp_err_t usb_host_client_register(const usb_host_client_config_t *, usb_host_client_handle_t *);

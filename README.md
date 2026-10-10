@@ -7,15 +7,22 @@ encrypted ESPHome API; encrypted OTA is configured.
 
 Implemented: protocol, asynchronous USB transport, reconnect/recovery, all 15 key
 entities, brightness, diagnostics, images and a state-driven HA lamp example.
-Compiled: all three examples on ESPHome 2026.9.0 / ESP-IDF 5.5.5.
+Compiled: all four examples on ESPHome 2026.9.0 / ESP-IDF 5.5.5.
 Unit-tested: upstream byte fixtures, scheduler/input behavior, simulated USB
 transfers, schema validation and captured desktop descriptors.
 Hardware-verified: desktop descriptors, ESP chip/flash identity, 8 MB PSRAM
 initialization, Wi-Fi, encrypted API and encrypted OTA. The S3 enumerates the
-deck at full speed. A targeted host-side correction handles its incorrect
-512-byte endpoint descriptors; the driver now initializes and completes all 32
-startup reports with zero reported USB errors. Physical key/visual image checks,
-electrical qualification and HA acceptance remain pending. See
+deck at full speed. A targeted host-side descriptor hook permits interface
+claiming and 32 host-reported startup completions. However, with both endpoints
+limited to 64 bytes the owner still saw the logo and no key input was received.
+An experimental IN-64 / OUT-512 build also produced no visible test pattern or
+key reports, even after deck reconnects and a whole-system power cycle.
+Display/key operation is **not working in these tests**. USB completion alone does not prove
+the deck processed a report. Electrical qualification and HA acceptance also
+remain pending. The latest diagnostic build adds control-response capture and
+HID SET_IDLE initialization. Control replies work and 17-byte key reports now
+arrive; the decoder has been corrected to accept that captured format. End-to-end
+button actions and rendering still need verification. See
 [validation and remaining gates](docs/testing.md).
 
 The original [handover](STREAM_DECK_ESPHOME_CODEX_HANDOVER.md) is preserved.
@@ -65,6 +72,7 @@ API and encrypted OTA. No real credentials are committed.
 | `examples/01_usb_probe.yaml` | Core USB enumeration only; no images or key decoding |
 | `examples/02_keys_brightness.yaml` | All keys, brightness and diagnostics; blanks the displays |
 | `examples/03_images_home_assistant.yaml` | Key 0 toggles `light.example_lamp`; actual HA feedback selects ON/OFF/? |
+| `examples/04_hardware_test.yaml` | Standalone RGB/arrow patterns on keys 0/7/14; received presses show ON, releases restore the pattern; no HA actions |
 
 For the HA example change `light_entity` to your entity. Add the ESPHome integration
 at `streamdeck-original.local`, port 6053, with your API key, and allow the device
@@ -97,7 +105,7 @@ images or brightness:
 The probe selects exactly one `0FD9:0060`, omits serial numbers, keeps the kernel
 driver attached, and reports permission/query failures explicitly. See the
 [desktop observations](docs/hardware.md#desktop-observations-2026-10-10) for the
-captured full-speed configuration and unresolved input-report length.
+captured configurations; the later S3 session established 17-byte key input.
 
 First use the probe after the [unpowered wiring checks](docs/hardware.md).
 Before plugging the XIAO USB-C into a computer, **physically disconnect the
@@ -138,6 +146,9 @@ After Wi-Fi works, OTA and logs use the network:
 .venv/bin/python tools/check_firmware.py --compile --example 02_keys_brightness --deploy
 .venv/bin/esphome upload examples/02_keys_brightness.yaml --device streamdeck-original.local --file .build/deploy/02_keys_brightness/build/firmware.ota.bin
 .venv/bin/esphome logs examples/02_keys_brightness.yaml --device streamdeck-original.local
+# Standalone visual/input diagnosis before enabling HA actions.
+.venv/bin/python tools/check_firmware.py --compile --example 04_hardware_test --deploy
+.venv/bin/esphome upload examples/04_hardware_test.yaml --device streamdeck-original.local --file .build/deploy/04_hardware_test/build/firmware.ota.bin
 # Move to the HA example after qualifying the full large-report path.
 .venv/bin/python tools/check_firmware.py --compile --example 03_images_home_assistant --deploy
 .venv/bin/esphome upload examples/03_images_home_assistant.yaml --device streamdeck-original.local --file .build/deploy/03_images_home_assistant/build/firmware.ota.bin

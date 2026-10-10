@@ -7,6 +7,7 @@ from PIL import Image, ImageDraw
 
 from convert_assets import convert
 from reference import PILLOW_VERSION, REVISION
+from generate_reference_fixtures import asymmetric_image
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -16,6 +17,7 @@ def main():
     (folder / "source").mkdir(parents=True, exist_ok=True)
     (folder / "native").mkdir(parents=True, exist_ok=True)
     manifest = {"reference_revision": REVISION, "pillow": PILLOW_VERSION, "files": {}}
+    artworks = {"transport_test": asymmetric_image()}
     for name, fill, label in (("light_on", "#eec84b", "ON"), ("light_off", "#526170", "OFF"),
                               ("unknown", "#dc7054", "?")):
         artwork = Image.new("RGB", (72, 72), "#101820")
@@ -25,12 +27,14 @@ def main():
         draw.rectangle((29, 37, 42, 49), fill=fill)
         draw.line((29, 53, 42, 53), fill="white", width=2)
         draw.text((27 if len(label) == 2 else 24, 58), label, fill="white")
+        artworks[name] = artwork
+    for name, artwork in artworks.items():
         artwork.save(folder / "source" / f"{name}.png")
         native = convert(artwork, "#101820", "contain")
         (folder / "native" / f"{name}.bmp").write_bytes(native)
         manifest["files"][f"{name}.bmp"] = {"size": len(native), "sha256": hashlib.sha256(native).hexdigest()}
     (folder / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
-    print("Generated three firmware-resident demo images")
+    print("Generated four firmware-resident demo/test images")
 
 
 if __name__ == "__main__":

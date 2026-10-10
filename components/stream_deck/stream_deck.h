@@ -25,6 +25,7 @@ class StreamDeck : public Component {
   void set_heap_sensor(sensor::Sensor *sensor) { heap_sensor_ = sensor; }
   void set_min_heap_sensor(sensor::Sensor *sensor) { min_heap_sensor_ = sensor; }
   void set_input_report_id(int id) { transport_.set_input_report_id(id); }
+  void set_usb_diagnostics(bool enabled) { transport_.set_usb_diagnostics(enabled); }
   bool set_image(int key, const NativeImage *image) { return scheduler_.set_image(key, image); }
   bool set_brightness(float percent) { return scheduler_.set_brightness(percent); }
   uint8_t brightness() const { return scheduler_.brightness(); }

@@ -2,10 +2,12 @@
 
 Status: USB flashing, Wi-Fi, encrypted API, 8 MB PSRAM initialization and encrypted
 OTA verified on 2026-10-10. The deck's invalid full-speed packet-size descriptor
-persists after a confirmed 20-second power removal. A targeted host-side fix is
-deployed: the S3 claims the deck at MPS 64 and completes the full stream reset,
-brightness request and all 30 blank-image pages. Physical key mapping, visual
-image/brightness confirmation, loaded electrical qualification and HA tests remain pending.
+persists after a confirmed 20-second power removal. The S3 claims an experimental
+IN-64 / OUT-512 layout and reports completed writes, but those did not produce
+visible images in the owner's tests. Two-way EP0 replies are verified. After HID
+SET_IDLE startup, 17-byte key reports arrived and exposed a strict-16 decoder
+bug, now corrected. Physical key/action mapping, visual image/brightness output,
+loaded electrical qualification, reconnect recovery and HA tests remain pending.
 The handover is the hardware source of truth; this is its operational checklist.
 
 ```text
@@ -94,10 +96,10 @@ descriptor declares output ID `0x02` with 8190 payload bytes (8191 with ID),
 feature IDs `0x03`, `0x04`, `0x05` and `0x0b` with 16 payload bytes, and input
 IDs `0x01`, `0xa0`, `0xa1` with 16 payload bytes each (17 with ID).
 
-Input length remains unresolved: the pinned Python library requests only 16
+Input length was unresolved at this desktop stage: the pinned Python library requests only 16
 bytes, whereas this HID descriptor declares 17. Our decoder currently requires
-exactly 16; capture a real press/release with a 512-byte hidraw read before
-changing the contract. The descriptor's additional input IDs must not be assumed
+exactly 16 at that point. A later S3 interrupt capture below establishes 17-byte
+ID-1 input and justifies the decoder change. The descriptor's additional input IDs must not be assumed
 to carry key states. A trial GET_REPORT(Input 1) with a 64-byte buffer returned
 64 zero bytes, without the requested ID; this is not a validated initial-state
 read. An initial 3-second observation and a subsequent 180-second passive capture
@@ -200,8 +202,9 @@ physical peripheral power removal; it is not retained state from the desktop.
 ## Compatibility fix and successful reports, 2026-10-10
 
 The [transport decision](decisions/usb-transport.md#original-full-speed-descriptor-compatibility)
-documents the source-pinned, build-local IDF correction. It normalizes only the
-known Original full-speed descriptor, before IDF publishes its owned copy.
+documents the source-pinned, build-local IDF correction. This first attempt
+normalized both endpoints of the known Original full-speed descriptor to MPS 64,
+before IDF published its owned copy. The current experiment below supersedes it.
 
 The fixed example 02 was compiled at `2026-10-10 20:38:07 +0200` and deployed by
 encrypted OTA in 22.18 seconds total. Its OTA image is 813,152 bytes, SHA-256
@@ -222,15 +225,135 @@ Stream Deck brightness: 30
 The 32 completions comprise one complete 8191-byte stream reset, one 17-byte
 brightness feature and 30 complete 8191-byte blank-image pages (two per key).
 The transport checks successful status and exact lengths for every interrupt
-batch/control transfer before incrementing its report counter. This passes the
-large-report transport gate for these bytes, not visual orientation/color checks.
-The brightness value is requested state with successful transfer, not readback.
+batch/control transfer before incrementing its report counter. These are
+**host-side completions**, not proof the peripheral processed the reports. The
+owner's subsequent observation below means the functional large-report gate is
+still open. Brightness is requested state, not measured display output.
 
 While two API clients were active, sampled internal free heap was 233,632–239,580 B
 and the minimum counter reached 212,000 B. These are short-session measurements,
 not a leak/soak result. No key input was captured in this session yet; a top-left
 press/release test and visual confirmation of the blank displays were requested.
 All electrical measurements and the remaining release tests stay pending.
+
+## Logo retained and 512-byte OUT experiment, 2026-10-10
+
+The owner pressed the top-left key twice and several other keys. Nothing visibly
+changed; the displays stayed blank apart from the placeholder logo. The API
+still reported USB ready, zero USB errors/queue overflows, queue high-water zero,
+and no retained first-input report. Therefore the failure is not merely a
+16-versus-17-byte decoder rejection: no nonempty interrupt input reached the
+capture point before validation. Example 02 has no per-key visual action, but
+the retained logo and lack of input leave functional output/input unproven.
+
+The next experiment keeps IN MPS 64 and preserves the device's advertised OUT
+MPS 512. The host uses the periodic-OUT FIFO allocation. Each 8191-byte output
+now uses one 16-packet transfer rather than four batches of 64-byte packets.
+The hypothesis is that short 64-byte OUT packets prevent the deck from assembling
+its reports. This remains a hypothesis until visual or application-level
+evidence confirms it; nonstandard full-speed packet framing is not qualified.
+
+`examples/04_hardware_test.yaml` requests the pinned asymmetric RGB/TL/right-arrow
+fixture on logical keys 0 (top-left), 7 (centre), and 14 (bottom-right) at startup.
+The other keys get the blank image. Received press edges are logged and select
+the yellow ON icon; release edges are logged and restore the arrow fixture.
+There are no Home Assistant actions. Initial-state synchronization still
+suppresses baseline/held-at-connect actions, so two deliberate press/release
+pairs are requested for the initial input check.
+
+The diagnostic image was compiled at `2026-10-10 21:33:56 +0200`, is 845,008 bytes,
+and has SHA-256
+`963cf20cc9f1bac1d74a80392d443a42e3aaa22831d8fa8d67b5e6099acdeab7`.
+Encrypted OTA completed in 31.49 seconds total. After reboot the encrypted API
+reported initialization complete, generation 1, 32 host report completions,
+IN `0x81` MPS 64 and OUT `0x02` MPS 512 on interface 0/0. PSRAM was available at
+8192 KB; Wi-Fi RSSI was around -42 to -43 dBm. Safe mode reported a successful
+boot. No first-input snapshot was present. Visual patterns, button events and
+brightness response were awaiting owner confirmation at this point.
+
+The owner subsequently confirmed **no arrows and no button messages**, including
+after two deck disconnect/reconnect cycles and one quick whole-system power cut
+and restoration. The IN-64 / OUT-512 attempt therefore also failed the functional
+display/input test. After this report the API still showed the same firmware,
+generation 1, 32 host completions, zero USB errors/overflows and high-water zero.
+
+The API also retained an abort from the previous boot. Decoding against that
+exact deployment ELF resolved the relevant stack to `root_port_recycle`
+(`hub.c:493`) → `hub_port_recycle` → `usbh_event_callback` → `handle_free` →
+`usbh_process` → `usb_host_lib_handle_events` → the USB library task. The previous
+ELF/OTA image are retained privately under `.build/backups/usb-crash-8hEU6V/`.
+The transport was requesting root-port power-off even after `DEV_GONE`; in the
+pinned SDK this replaces the expected RECOVERY state with NOT_POWERED, which
+`root_port_recycle` does not accept. The revised path lets IDF retire/recycle a
+physically detached device and never requests another port-off for it. Native
+tests cover detach both idle and during output and check no port-off call occurs.
+This fixes a demonstrated recovery defect; it does not explain the original
+missing display/input. Physical reconnect qualification must still be repeated.
+
+## Two-way EP0 replies and HID startup test, 2026-10-10
+
+The first control-diagnostic build (compiled `2026-10-10 21:49:46 +0200`, OTA size
+846,144 bytes, SHA-256 `ae9bde16045fa1a6c0ad0ab1639bbc646fdd293231deca044a50df9fd7f63480`)
+was uploaded successfully in 148.84 seconds, including 148.28 seconds transferring.
+After reboot it retained three completed control replies with exact lengths:
+
+| Request | Actual bytes, including 8-byte setup | Reply |
+| --- | ---: | --- |
+| GET_CONFIGURATION | 9 | Configuration 1 |
+| HID report descriptor | 275 | All 267 bytes, equal to the desktop HID descriptor |
+| GET_REPORT(Feature 4) | 25 | `04 55 aa d4 04` followed by firmware `1.0.191203` and two NULs |
+
+The captured replies and provenance are saved in
+`tests/fixtures/s3_0060/control_probes.json`. A fixture consistency test checks
+lengths and equality to the earlier desktop evidence. These establish two-way
+control traffic to the actual deck, not just cached descriptors or host write
+completion. No serial feature was requested. The build still reported 32 output
+completions and no retained interrupt input; no new physical display observation
+was obtained during this short diagnostic step.
+
+The next bench build adds the standard HID SET_IDLE(0, all reports) request before
+fetching the HID descriptor, following Linux usbhid's initialization sequence.
+It does not reset the device firmware or change external VBUS. This tests an
+initialization difference from the desktop, not an established cause.
+
+That build was compiled at `2026-10-10 21:53:55 +0200`, OTA size 846,208 bytes,
+SHA-256 `7173e9bde3419dead1f2b9b674f4ec305eba2fad3c8f3e1107d5f7448eb101a8`.
+Encrypted OTA succeeded in 103.81 seconds total. The subsequent API dump retained
+a successful SET_IDLE completion (status 0, actual 8 bytes including setup), the
+same configuration/HID/firmware replies, generation 1 and 32 output completions.
+No first-input snapshot was initially present. The owner was asked to check the
+patterns and perform two top-left press/release pairs without another power
+cycle. Visual output, key receipt and physical-detach recovery remain unverified
+on this latest build; the successful control request alone is not a fix claim.
+
+During that requested key test, interrupt input **did arrive**. The first retained
+report was 17 bytes:
+
+```text
+01 00 00 00 00 01 00 00 00 00 00 00 00 00 00 00 00
+```
+
+ID is 1, payload offset 5 is set (logical key 0 by the reference mapping), and
+the trailing reserved byte is zero. The old decoder requires exactly 16 and
+therefore rejects it: USB errors remained zero while malformed-input totals rose
+through 6, 18, 30, 35 and 50. The raw bytes and build provenance are preserved in
+`tests/fixtures/s3_0060/first_key_input.hex` and `control_probes.json`.
+
+The revised decoder accepts both the reference's 16-byte form and this captured
+17-byte form, enforcing ID 1 and a zero trailer for the latter. ESPHome defaults
+its input ID filter to 1. Native tests exercise the captured packet, every logical
+key, press/release through the production transport, bad states, nonzero trailers
+and rejection of A0/A1. SET_IDLE is now part of every driver connection; the
+extra three read-only queries remain optional. Receiving raw input is verified;
+action delivery, all physical positions and visual output are separate gates.
+
+The decoder-corrected example 04 was compiled at `2026-10-10 21:59:20 +0200` and
+deployed successfully over encrypted OTA in 23.84 seconds total. Its OTA image
+is 846,240 bytes, SHA-256
+`69854221b91d08647a7f64e0fb6d35535896a085dfdf0aa763ca9c286e88ad12`.
+The post-reboot API confirms that build, successful control probes, the expected
+IN-64 / OUT-512 layout and 32 startup output completions. A new two-click input
+and visual-feedback check has been requested without further unplugging.
 
 ## Supervised loaded qualification
 

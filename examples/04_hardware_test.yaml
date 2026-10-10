@@ -1,0 +1,45 @@
+# Standalone USB/input/image bench test. No Home Assistant actions.
+packages:
+  base: !include packages/base.yaml
+  deck: !include packages/deck.yaml
+
+esphome:
+  on_boot:
+    priority: 600
+    then:
+      - stream_deck.set_image:
+          id: deck
+          key: 0
+          image: usb_test_pattern
+      - stream_deck.set_image:
+          id: deck
+          key: 7
+          image: usb_test_pattern
+      - stream_deck.set_image:
+          id: deck
+          key: 14
+          image: usb_test_pattern
+
+stream_deck:
+  usb_diagnostics: true
+  images:
+    - id: usb_test_pattern
+      file: ../assets/native/transport_test.bmp
+    - id: key_pressed_image
+      file: ../assets/native/light_on.bmp
+  on_key_press:
+    - logger.log:
+        format: "Physical press: key %u"
+        args: [key]
+    - stream_deck.set_image:
+        id: deck
+        key: !lambda return key;
+        image: key_pressed_image
+  on_key_release:
+    - logger.log:
+        format: "Physical release: key %u"
+        args: [key]
+    - stream_deck.set_image:
+        id: deck
+        key: !lambda return key;
+        image: usb_test_pattern

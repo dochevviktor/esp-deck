@@ -27,7 +27,10 @@ The fixture tool checks the installed upstream commit and Pillow version before
 generating or checking bytes. No desktop library runs on the ESP.
 
 The build uses 16 MB flash, DIO flash mode, octal PSRAM at 80 MHz, UART0 logs,
-secondary USB console disabled and (driver examples) USB control data cap 8192.
+secondary USB console disabled and (driver examples) USB control data cap 8192
+and periodic-OUT FIFO bias. The current Original descriptor experiment corrects
+only IN to MPS 64 and keeps OUT at its advertised MPS 512; functional validation
+of this nonstandard full-speed layout remains pending.
 The generated partition table has two 7936 KiB OTA slots. These are compile-time
 settings, not proven OTA behavior. A desktop `esptool 5.3.1 flash-id` query on
 2026-10-10 detected ESP32-S3 revision v0.2 and 16 MB flash and reported embedded

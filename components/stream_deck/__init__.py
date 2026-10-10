@@ -52,7 +52,8 @@ CONFIG_SCHEMA = cv.All(
     cv.Schema({
         cv.GenerateID(): cv.declare_id(StreamDeck),
         cv.Optional("initial_brightness", default=30): cv.int_range(min=0, max=100),
-        cv.Optional("input_report_id"): cv.hex_uint8_t,
+        cv.Optional("input_report_id", default=0x01): cv.hex_uint8_t,
+        cv.Optional("usb_diagnostics", default=False): cv.boolean,
         cv.Optional("images", default=[]): cv.ensure_list(IMAGE_SCHEMA),
         cv.Optional("connected"): binary_sensor_component.binary_sensor_schema(
             device_class="connectivity", entity_category="diagnostic"),
@@ -94,6 +95,9 @@ async def usb_sdkconfig():
     esp32.add_idf_sdkconfig_option("CONFIG_ESP_CONSOLE_SECONDARY_NONE", True)
     esp32.add_idf_sdkconfig_option("CONFIG_USB_HOST_CONTROL_TRANSFER_MAX_SIZE", 8192)
     esp32.add_idf_sdkconfig_option("CONFIG_USB_HOST_HUBS_SUPPORTED", False)
+    esp32.add_idf_sdkconfig_option("CONFIG_USB_HOST_HW_BUFFER_BIAS_BALANCED", False)
+    esp32.add_idf_sdkconfig_option("CONFIG_USB_HOST_HW_BUFFER_BIAS_IN", False)
+    esp32.add_idf_sdkconfig_option("CONFIG_USB_HOST_HW_BUFFER_BIAS_PERIODIC_OUT", True)
 
 
 async def to_code(config):
@@ -108,6 +112,7 @@ async def to_code(config):
     var = cg.new_Pvariable(config[CONF_ID])
     await cg.register_component(var, config)
     cg.add(var.set_brightness(config["initial_brightness"]))
+    cg.add(var.set_usb_diagnostics(config["usb_diagnostics"]))
     if "input_report_id" in config:
         cg.add(var.set_input_report_id(config["input_report_id"]))
     if "connected" in config:
@@ -117,13 +122,15 @@ async def to_code(config):
         if name in config:
             entity = await sensor.new_sensor(config[name])
             cg.add(getattr(var, setter)(entity))
-    for name, getter in (("on_key_press", "get_press_trigger"), ("on_key_release", "get_release_trigger")):
-        if name in config:
-            await automation.build_automation(getattr(var, getter)(), [(cg.uint8, "key")], config[name])
+    # Key automations can reference this hub's own images. Declare the assets
+    # before awaiting action generation, or get_variable(image) deadlocks here.
     for asset in config["images"]:
         data = asset[CONF_FILE].read_bytes()
         raw = cg.progmem_array(asset["raw_data_id"], [HexInt(byte) for byte in data])
         cg.new_Pvariable(asset[CONF_ID], raw, len(data))
+    for name, getter in (("on_key_press", "get_press_trigger"), ("on_key_release", "get_release_trigger")):
+        if name in config:
+            await automation.build_automation(getattr(var, getter)(), [(cg.uint8, "key")], config[name])
 
 
 @automation.register_action("stream_deck.set_image", SetImageAction, cv.Schema({

@@ -20,8 +20,10 @@ static inline bool stream_deck_normalize_config(uint16_t vendor, uint16_t produc
   if (vendor != 0x0fd9 || product != 0x0060 || !full_speed || config == NULL ||
       size != sizeof(observed) || memcmp(config, observed, sizeof(observed)) != 0)
     return false;
-  // wMaxPacketSize only: preserve the HID report lengths and power declaration.
-  config[31] = config[38] = 64;
-  config[32] = config[39] = 0;
+  // IN carries the small key report. Preserve the device's 512-byte OUT framing:
+  // forcing OUT to 64 produced ACKs but left the deck in its logo/idle state.
+  // The host's periodic-OUT FIFO bias accommodates that nonstandard FS endpoint.
+  config[31] = 64;
+  config[32] = 0;
   return true;
 }

@@ -13,9 +13,10 @@ class USBTransport {
   void loop(uint32_t now);
   void shutdown();
   void dump_status() const;
-  bool attached() const { return device_ != nullptr && claimed_ && !closing_; }
+  bool attached() const { return device_ != nullptr && claimed_ && !closing_ && probe_index_ == PROBE_COUNT; }
   uint32_t generation() const { return generation_; }
   void set_input_report_id(int id) { input_report_id_ = id; }
+  void set_usb_diagnostics(bool enabled) { usb_diagnostics_ = enabled; }
   bool send(const Job &job, uint32_t now);
   bool take_completion(Job &job);
   bool pop_input(InputReport &report) { return input_queue_.pop(report); }
@@ -34,6 +35,9 @@ class USBTransport {
   void drain_(uint32_t now);
   void handle_input_();
   void handle_output_(uint32_t now);
+  void start_probe_(uint32_t now);
+  void handle_probe_(uint32_t now);
+  void dump_probe_(size_t index) const;
   bool submit_input_();
   bool submit_output_();
   void fail_(uint32_t now, const char *operation, esp_err_t error);
@@ -47,6 +51,15 @@ class USBTransport {
   uint32_t generation_{0}, input_generation_{0}, output_generation_{0};
   uint32_t errors_{0}, malformed_inputs_{0};
   uint32_t completed_reports_{0};
+  static constexpr size_t PROBE_COUNT = 4, PROBE_MAX_SIZE = 320;
+  struct ProbeResult {
+    bool attempted{false};
+    int status{-1}, actual{0};
+    size_t requested{0}, captured{0};
+    uint8_t data[PROBE_MAX_SIZE]{};
+  } probes_[PROBE_COUNT]{};
+  size_t probe_index_{PROBE_COUNT};
+  uint8_t control_mps_{64};
   int first_input_length_{0};
   char first_input_hex_[3 * 32 + 1]{};
   uint32_t next_discovery_{0}, output_started_{0}, recovery_started_{0}, last_drain_warning_{0};
@@ -57,5 +70,6 @@ class USBTransport {
   bool input_pending_{false}, output_pending_{false};
   bool input_done_flag_{false}, output_done_flag_{false}, completion_ready_{false};
   bool output_control_{false}, logged_input_id_{false};
+  bool usb_diagnostics_{false};
 };
 }  // namespace esphome::stream_deck

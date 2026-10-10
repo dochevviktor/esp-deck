@@ -12,8 +12,7 @@ from reference import PILLOW_VERSION, REVISION, make_deck
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def generate():
-    deck, recording = make_deck()
+def asymmetric_image():
     image = Image.new("RGB", (72, 72), (18, 22, 29))
     draw = ImageDraw.Draw(image)
     draw.rectangle((0, 0, 17, 17), fill="red")
@@ -21,6 +20,12 @@ def generate():
     draw.rectangle((0, 54, 17, 71), fill="blue")
     draw.polygon([(18, 29), (45, 29), (45, 21), (63, 36), (45, 51), (45, 42), (18, 42)], fill="white")
     draw.text((3, 19), "TL", fill="yellow")
+    return image
+
+
+def generate():
+    deck, recording = make_deck()
+    image = asymmetric_image()
     native = PILHelper.to_native_key_format(deck, image)
     files = {"asymmetric.native.bmp": native}
     for percent in (0, 1, 50, 100):

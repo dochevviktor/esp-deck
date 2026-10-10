@@ -7,7 +7,7 @@
 namespace esphome::stream_deck::protocol {
 
 constexpr size_t KEY_COUNT = 15;
-constexpr size_t INPUT_SIZE = 16;
+constexpr size_t INPUT_SIZE = 16;  // Reference read size; captured ID-1 reports carry one additional zero byte.
 constexpr size_t FEATURE_SIZE = 17;
 constexpr size_t IMAGE_SIZE = 15606;
 constexpr size_t PAGE_SIZE = 7803;

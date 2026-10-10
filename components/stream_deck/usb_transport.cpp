@@ -61,11 +61,13 @@ void USBTransport::input_done_(usb_transfer_t *transfer) {
   auto *self = static_cast<USBTransport *>(transfer->context);
   self->input_pending_ = false;
   self->input_done_flag_ = true;
+  if (transfer->status == USB_TRANSFER_STATUS_NO_DEVICE) self->gone_ = true;
 }
 void USBTransport::output_done_(usb_transfer_t *transfer) {
   auto *self = static_cast<USBTransport *>(transfer->context);
   self->output_pending_ = false;
   self->output_done_flag_ = true;
+  if (transfer->status == USB_TRANSFER_STATUS_NO_DEVICE) self->gone_ = true;
 }
 
 void USBTransport::discover_(uint32_t now) {
@@ -131,6 +133,11 @@ void USBTransport::discover_(uint32_t now) {
     first_input_length_ = 0;
     first_input_hex_[0] = '\0';
     gone_ = completion_ready_ = false;
+    control_mps_ = info.bMaxPacketSize0;
+    // Every driver sends standard HID SET_IDLE before reporting attachment.
+    // The bench option additionally captures the three read-only queries.
+    probe_index_ = usb_diagnostics_ ? 0 : 1;
+    for (auto &probe : probes_) probe = ProbeResult{};
     input_->device_handle = device_;
     input_->bEndpointAddress = found.in_endpoint;
     input_->callback = input_done_;
@@ -145,7 +152,8 @@ void USBTransport::discover_(uint32_t now) {
     ESP_LOGI(TAG, "Output route: %s; report=8191, control allocation=%u bytes, config=%u, declared power=%u mA",
              found.out_endpoint ? "interrupt OUT (bounded packet batches)" : "EP0 SET_REPORT(Output)",
              unsigned(output_->data_buffer_size), info.bConfigurationValue, unsigned(config->bMaxPower) * 2);
-    if (!submit_input_()) fail_(now, "input submit", ESP_FAIL);
+    if (!submit_input_()) { fail_(now, "input submit", ESP_FAIL); return; }
+    if (probe_index_ < PROBE_COUNT) start_probe_(now);
     return;
   }
 }
@@ -197,6 +205,80 @@ void USBTransport::dump_status() const {
   }
   if (logged_input_id_)
     ESP_LOGI(TAG, "First input: length=%d, first <=32 bytes=%s", first_input_length_, first_input_hex_);
+  if (usb_diagnostics_)
+    for (size_t i = 0; i < PROBE_COUNT; i++) dump_probe_(i);
+}
+
+void USBTransport::start_probe_(uint32_t now) {
+  // Standard HID initialization plus optional EP0 evidence, once per attachment.
+  // Linux usbhid sends SET_IDLE(0, all reports) before reading the HID descriptor.
+  // Never query the serial-number feature (ID 3) or reset the device firmware.
+  auto &probe = probes_[probe_index_];
+  const uint8_t requests[PROBE_COUNT][8] = {
+    {0x80, 0x08, 0, 0, 0, 0, 1, 0},  // GET_CONFIGURATION (device recipient)
+    {0x21, 0x0a, 0, 0, interface_.number, 0, 0, 0},  // SET_IDLE(0): report changes only
+    {0x81, 0x06, 0, 0x22, interface_.number, 0, 0, 0},  // HID report descriptor
+    {0xa1, 0x01, 4, 3, interface_.number, 0, 17, 0},  // GET_REPORT(Feature 4)
+  };
+  probe.requested = probe_index_ == 2 ? interface_.report_descriptor_size : (probe_index_ == 0 ? 1 : (probe_index_ == 1 ? 0 : 17));
+  if ((probe.requested == 0 && probe_index_ != 1) || probe.requested > PROBE_MAX_SIZE ||
+      (control_mps_ != 8 && control_mps_ != 16 && control_mps_ != 32 && control_mps_ != 64)) {
+    fail_(now, "diagnostic request bounds", ESP_ERR_INVALID_ARG);
+    return;
+  }
+  std::memset(output_->data_buffer, 0, output_->data_buffer_size);
+  std::memcpy(output_->data_buffer, requests[probe_index_], protocol::SETUP_SIZE);
+  output_->data_buffer[6] = uint8_t(probe.requested);
+  output_->data_buffer[7] = uint8_t(probe.requested >> 8);
+  output_->bEndpointAddress = 0;
+  // IDF requires room for complete IN packets, while wLength remains exact.
+  output_->num_bytes = protocol::SETUP_SIZE +
+      ((probe.requested + control_mps_ - 1) / control_mps_) * control_mps_;
+  output_control_ = true;
+  output_generation_ = generation_;
+  output_started_ = now;
+  probe.attempted = true;
+  if (!submit_output_()) fail_(now, "diagnostic control submit", ESP_FAIL);
+}
+
+void USBTransport::handle_probe_(uint32_t now) {
+  auto &probe = probes_[probe_index_];
+  probe.status = int(output_->status);
+  probe.actual = output_->actual_num_bytes;
+  if (probe.actual >= int(protocol::SETUP_SIZE) && size_t(probe.actual) <= output_->data_buffer_size) {
+    const size_t size = size_t(probe.actual) - protocol::SETUP_SIZE;
+    probe.captured = size < PROBE_MAX_SIZE ? size : PROBE_MAX_SIZE;
+    std::memcpy(probe.data, output_->data_buffer + protocol::SETUP_SIZE, probe.captured);
+  }
+  if (output_->status != USB_TRANSFER_STATUS_COMPLETED ||
+      probe.actual != int(probe.requested + protocol::SETUP_SIZE)) errors_++;
+  dump_probe_(probe_index_);
+  // USBH retires and clears a stalled EP0. A diagnostic STALL/short reply is
+  // evidence, not a reason for an endless reset loop. Timeouts still recover.
+  if (!usb_diagnostics_) {
+    probe_index_ = PROBE_COUNT;
+  } else if (++probe_index_ < PROBE_COUNT) {
+    start_probe_(now);
+  }
+}
+
+void USBTransport::dump_probe_(size_t index) const {
+  static const char *const names[] = {"GET_CONFIGURATION", "SET_IDLE(0)", "HID report descriptor", "firmware feature 4"};
+  const auto &probe = probes_[index];
+  ESP_LOGI(TAG, "EP0 %s: attempted=%s status=%d requested=%u actual incl setup=%d",
+           names[index], probe.attempted ? "yes" : "no", probe.status, unsigned(probe.requested), probe.actual);
+  constexpr char HEX[] = "0123456789ABCDEF";
+  for (size_t offset = 0; offset < probe.captured; offset += 16) {
+    char hex[3 * 16 + 1]{};
+    const size_t count = probe.captured - offset < 16 ? probe.captured - offset : 16;
+    for (size_t n = 0; n < count; n++) {
+      const auto byte = probe.data[offset + n];
+      hex[3 * n] = HEX[byte >> 4];
+      hex[3 * n + 1] = HEX[byte & 15];
+      hex[3 * n + 2] = n + 1 < count ? ' ' : '\0';
+    }
+    ESP_LOGI(TAG, "EP0 probe %u bytes %u/%u: %s", unsigned(index), unsigned(offset), unsigned(probe.captured), hex);
+  }
 }
 
 bool USBTransport::send(const Job &job, uint32_t now) {
@@ -248,6 +330,7 @@ bool USBTransport::submit_output_() {
 void USBTransport::handle_output_(uint32_t now) {
   output_done_flag_ = false;
   if (output_generation_ != generation_) return;
+  if (probe_index_ < PROBE_COUNT) { handle_probe_(now); return; }
   if (output_->status != USB_TRANSFER_STATUS_COMPLETED || output_->actual_num_bytes != output_->num_bytes) {
     ESP_LOGW(TAG, "Transfer status=%d, actual=%d, requested=%d", int(output_->status),
              output_->actual_num_bytes, output_->num_bytes);
@@ -292,17 +375,21 @@ void USBTransport::begin_recovery_(uint32_t now, const char *reason) {
   input_queue_.clear();
   completion_ready_ = false;
   recovery_started_ = last_drain_warning_ = now;
-  // The public endpoint halt/flush API cannot cancel EP0 in this IDF version.
-  // A logical root-port disconnect retires control transfers through DEV_GONE.
-  // This does NOT operate a physical power switch on the XIAO.
-  const auto err = usb_host_lib_set_root_port_power(false);
-  port_disabled_ = err == ESP_OK;
-  if (err != ESP_OK) ESP_LOGW(TAG, "Controller disconnect failed: %s; waiting for drain/unplug", esp_err_to_name(err));
-  if (claimed_ && input_pending_) {
+  // A physical detach already puts IDF's port into RECOVERY and cancels its
+  // transfers. Switching it to NOT_POWERED here makes root_port_recycle abort
+  // when the device is freed (observed on IDF 5.5.5). Leave that recovery to IDF.
+  // For a software fault while connected, a logical disconnect also retires
+  // EP0, which the public endpoint halt/flush API cannot address. No VBUS switch.
+  if (!gone_) {
+    const auto err = usb_host_lib_set_root_port_power(false);
+    port_disabled_ = err == ESP_OK;
+    if (err != ESP_OK) ESP_LOGW(TAG, "Controller disconnect failed: %s; waiting for drain/unplug", esp_err_to_name(err));
+  }
+  if (!gone_ && claimed_ && input_pending_) {
     usb_host_endpoint_halt(device_, interface_.in_endpoint);
     usb_host_endpoint_flush(device_, interface_.in_endpoint);
   }
-  if (claimed_ && output_pending_ && !output_control_) {
+  if (!gone_ && claimed_ && output_pending_ && !output_control_) {
     usb_host_endpoint_halt(device_, interface_.out_endpoint);
     usb_host_endpoint_flush(device_, interface_.out_endpoint);
   }

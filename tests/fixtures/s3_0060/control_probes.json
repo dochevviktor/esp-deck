@@ -1,0 +1,45 @@
+{
+  "date": "2026-10-10",
+  "firmware": "04_hardware_test with read-only EP0 diagnostics and physical-detach recovery correction",
+  "compilation_time": "2026-10-10 21:49:46 +0200",
+  "firmware_ota_sha256": "ae9bde16045fa1a6c0ad0ab1639bbc646fdd293231deca044a50df9fd7f63480",
+  "source": "Retained control replies in encrypted API configuration dump after OTA reboot",
+  "host": "XIAO ESP32-S3 Plus, ESP-IDF 5.5.5",
+  "vid_pid": "0fd9:0060",
+  "speed": "USB_SPEED_FULL",
+  "get_configuration": {
+    "setup_hex": "80 08 00 00 00 00 01 00",
+    "status": "USB_TRANSFER_STATUS_COMPLETED",
+    "actual_including_setup": 9,
+    "data_hex": "01"
+  },
+  "hid_report_descriptor": {
+    "setup_hex": "81 06 00 22 00 00 0b 01",
+    "status": "USB_TRANSFER_STATUS_COMPLETED",
+    "actual_including_setup": 275,
+    "data_hex": "05 0c 09 01 a1 01 09 01 05 09 19 01 29 10 15 00 26 ff 00 75 08 95 10 85 01 81 02 0a 00 ff 15 00 26 ff 00 75 08 95 10 85 a0 81 02 0a 00 ff 15 00 26 ff 00 75 08 95 10 85 a1 81 02 0a 00 ff 15 00 26 ff 00 75 08 96 fe 1f 85 02 91 02 a1 00 0a 00 ff 15 00 26 ff 00 75 08 95 10 85 03 b1 02 c0 a1 00 0a 00 ff 15 00 26 ff 00 75 08 95 10 85 04 b1 02 c0 a1 00 0a 00 ff 15 00 26 ff 00 75 08 95 10 85 05 b1 02 c0 a1 00 0a 00 ff 15 00 26 ff 00 75 08 95 01 85 06 b1 02 c0 a1 00 0a 00 ff 15 00 26 ff 00 75 08 95 10 85 07 b1 04 c0 a1 00 0a 00 ff 15 00 26 ff 00 75 08 95 01 85 08 b1 04 c0 a1 00 0a 00 ff 15 00 26 ff 00 75 08 95 10 85 09 b1 04 c0 a1 00 0a 00 ff 15 00 26 ff 00 75 08 95 10 85 0a b1 04 c0 a1 00 0a 00 ff 15 00 26 ff 00 75 08 95 10 85 0b b1 04 c0 a1 00 0a 00 ff 15 00 26 ff 00 75 08 95 10 85 a3 b1 04 c0 c0"
+  },
+  "firmware_feature_4": {
+    "setup_hex": "a1 01 04 03 00 00 11 00",
+    "status": "USB_TRANSFER_STATUS_COMPLETED",
+    "actual_including_setup": 25,
+    "data_hex": "04 55 aa d4 04 31 2e 30 2e 31 39 31 32 30 33 00 00"
+  },
+  "key_input_followup": {
+    "firmware_compilation_time": "2026-10-10 21:53:55 +0200",
+    "firmware_ota_sha256": "7173e9bde3419dead1f2b9b674f4ec305eba2fad3c8f3e1107d5f7448eb101a8",
+    "difference": "Added SET_IDLE(0, all reports) before fetching the HID descriptor; completed successfully",
+    "source": "First nonempty interrupt-IN snapshot during requested top-left test, retained in API logs",
+    "file": "first_key_input.hex",
+    "length": 17,
+    "report_id": 1,
+    "protocol_logical_mask": 1,
+    "observation": "Input now arrives; the old strict-16 decoder rejects it and increments malformed inputs",
+    "limits": "Physical key mapping and display output are not inferred solely from this byte capture"
+  },
+  "limits": [
+    "These replies establish two-way EP0 communication, not interrupt input or image rendering",
+    "No SET_IDLE request was sent by this build",
+    "No serial-number feature, device reset or physical power switching was requested"
+  ]
+}

@@ -10,18 +10,30 @@ electrical measurement or live HA action has been performed. A further network
 session verified Wi-Fi, encrypted API, initialized PSRAM and two encrypted OTA
 updates. It captured a full-speed descriptor mismatch before any HID report
 could be sent. A confirmed 20-second deck power removal did not change it. The
-source-pinned compatibility fix now completes all 32 startup reports on hardware
-with zero reported USB errors. Physical input/visual checks remain pending.
-Deployment-tool, diagnostic and compatibility changes remain in the working tree.
+source-pinned compatibility hook completed all 32 startup reports from the host's
+perspective, with zero reported USB errors. However, the owner then confirmed
+only the logo/blank keys and no response to presses; no interrupt input was
+captured. The IN-64 / OUT-64 attempt is not a functional success. An experimental
+IN-64 / OUT-512 diagnostic build likewise showed no arrows or key reports after
+two reconnects and a full-system power cycle. A retained crash backtrace identified
+an additional physical-detach recovery defect. That path is corrected and
+regression-tested; read-only EP0 diagnostics returned configuration 1, the same
+267-byte HID descriptor as on desktop, and firmware 1.0.191203. The latest bench
+build also sends standard HID SET_IDLE(0) before the descriptor read; the deck
+acknowledges it successfully. During the next button test, real 17-byte ID-1 input
+arrived and was rejected by the strict-16 decoder. That captured layout is now
+accepted and regression-tested; end-to-end actions/rendering still need checking.
+The prior compatibility work is committed as `84e2851`; the new experiment,
+diagnostic artwork/example and code-generation ordering fix are in the working tree.
 
 ## Evidence categories
 
 | Category | Result |
 | --- | --- |
-| Implemented | Codec, scheduler, USB transport/entities/images/recovery, diagnostics, desktop probe, private builds and a source-pinned IDF descriptor compatibility hook |
-| Unit-tested | 21 Python cases including native C++ suites, raw/normalized S3 descriptor fixtures, full-report production-transport simulation, build-hook source guards and private staging |
-| Compiled | All three numbered examples with synthetic credentials; examples 01 and 02 also built privately for deployment, ESP-IDF 5.5.5 / ESPHome 2026.9.0 |
-| Hardware-verified | Identity/flash, Wi-Fi, encrypted API/OTA, 8 MB PSRAM initialization, interface claim, full 8191-byte reset, brightness feature and 30 blank-image pages; physical key mapping/visual correctness remain pending |
+| Implemented | Codec, scheduler, USB transport/entities/images/recovery, diagnostics, desktop probe, private builds, a source-pinned IDF descriptor hook and standalone visual/input test |
+| Unit-tested | 23 Python cases including native C++ suites, raw/normalized S3 descriptors, 64-/512-byte full-report transport simulation, physical-detach recovery, EP0 requests/lifetime and captured reply consistency, pinned artwork, build-hook guards and private staging |
+| Compiled | All four numbered examples with synthetic credentials; examples 01, 02 and 04 also built privately for deployment, ESP-IDF 5.5.5 / ESPHome 2026.9.0 |
+| Hardware-verified | Identity/flash, Wi-Fi, encrypted API/OTA, 8 MB PSRAM initialization, interface claim, EP0 configuration/HID/firmware replies, SET_IDLE completion, 17-byte interrupt key packets and host-side output completions. Decoded action delivery, rendering and brightness response are not yet verified |
 | Remote CI | Workflow provided; not executed in this session |
 
 Commands actually run:
@@ -42,17 +54,19 @@ errors and assertions enabled, without sanitizers. `SANITIZE=1` enables ASan/UBS
 on a machine with those runtimes; the CI workflow requests them. This document
 does not claim a local sanitizer run passed.
 
-Initial baseline builds after disabling the secondary USB console:
+Latest synthetic builds, including the IN-64 / OUT-512 experiment:
 
 | Example | Static RAM estimate | Application flash estimate |
 | --- | ---: | ---: |
 | 01 USB probe | 108,371 B / 341,760 B | 783,987 B / 8,126,464 B |
-| 02 keys/brightness | 109,083 B / 341,760 B | 812,095 B / 8,126,464 B |
-| 03 images/HA | 109,555 B / 341,760 B | 867,699 B / 8,126,464 B |
+| 02 keys/brightness | 110,563 B / 341,760 B | 814,279 B / 8,126,464 B |
+| 03 images/HA | 111,027 B / 341,760 B | 869,975 B / 8,126,464 B |
+| 04 standalone hardware test | 110,723 B / 341,760 B | 846,139 B / 8,126,464 B |
 
 These linker estimates exclude runtime USB/task/network allocation and are not
 free-heap measurements. The checker also verifies the actual generated control
-cap (8192 for driver examples) and disabled secondary USB console. Firmware
+cap (8192 for driver examples), periodic-OUT FIFO bias and disabled secondary USB
+console. Firmware
 validation binaries remain ignored and contain synthetic credentials; do not
 flash them. Explicit `--deploy` builds use local credentials and are stored
 separately in private `.build/deploy/` directories.
@@ -72,9 +86,13 @@ validation builds, and rejection of an incomplete deployment command.
 - The upstream encoder with a recording transport generated brightness 0/1/50/100,
   device-reset, stream-reset and both image reports for keys 0/4/5/10/14. Committed
   fixtures and their SHA-256 manifest reproduce byte-for-byte under the pins.
+  The standalone hardware example's native RGB/arrow artwork matches the pinned
+  asymmetric BMP fixture exactly.
 - Native C++ compares full reports, report IDs, padding, BMP split and setup bytes.
   It tests all key mappings, short/malformed input, simultaneous keys, duplicates,
-  brightness bounds, invalid keys/assets and BMP headers.
+  brightness bounds, invalid keys/assets and BMP headers. The real 17-byte S3
+  key fixture decodes alongside the reference's 16-byte form; A0/A1 IDs, nonzero
+  reserved byte and non-binary key values are rejected without changing state.
 - Scheduler tests cover change coalescing during an active image, consecutive
   pages, fairness, brightness between images, redraws, stale generations and
   disconnect during either page. Input tests cover rapid press/release order,
@@ -84,6 +102,9 @@ validation builds, and rejection of an incomplete deployment command.
   exercise discovered non-default endpoint/interface values, idle absence, wrong
   models, malformed input, short output, STALL, software deadline, retained
   buffers while cancellation is delayed, and reattachment afterward.
+  Physical detach must not request root-port power-off again. Standard SET_IDLE
+  and optional EP0 probes have exact setup bytes, MPS-rounded capacity, no scheduler interleaving, bounded
+  capture and safe STALL/timeout/detach handling; their completions are not images.
 - All example schemas pass; invalid keys, duplicate key/number bindings, malformed
   BMPs, initial-state triggers, other MCUs, Arduino and competing USB/logging
   ownership are rejected. Firmware compilation checks the real IDF signatures.
@@ -104,16 +125,30 @@ exercise the exact-layout correction, untouched unrelated layouts/IDs/speeds,
 and an upstream-golden 8191-byte report through the corrected interface. Three
 build-hook tests cover patch placement, source hashes and SDK preservation.
 
-The [fixed firmware](hardware.md#compatibility-fix-and-successful-reports-2026-10-10)
-completed 32 startup reports on the S3: full reset, brightness and two blank-image
-pages for every key. The encrypted API reports USB ready, zero USB errors and
-zero queue overflows. All three examples compile with synthetic secrets; the
-checker verifies the corrected USBH source is actually compiled for driver
-examples. Physical key mapping and visual/color/orientation checks are next.
+The [first descriptor correction](hardware.md#compatibility-fix-and-successful-reports-2026-10-10)
+produced 32 host startup completions: full reset, brightness and two blank-image
+pages for every key. USB ready and zero errors/overflows were observed, but the
+owner still saw the logo and no key report arrived after presses. Host completion
+therefore does not establish the functional large-report gate.
 
-Desktop descriptor collection is complete; results and the 16-versus-17-byte
-input-report question are recorded in [hardware observations](hardware.md#desktop-observations-2026-10-10).
-The full-speed configuration is advertised evidence, not a physical S3 capture.
+The [next experiment](hardware.md#logo-retained-and-512-byte-out-experiment-2026-10-10)
+preserves 512-byte OUT packet framing and uses the required periodic-OUT FIFO
+bias. Example 04 was compiled and deployed over encrypted OTA; it reports the
+expected IN-64 / OUT-512 layout and 32 startup completions, but the owner confirmed
+no arrow patterns or button messages after reconnects and a whole-system power
+cycle. Both packet-size attempts fail functional acceptance. A retained
+`root_port_recycle` abort identified the separate detach recovery bug now covered
+by the production-transport regression suite. All four examples compile with
+synthetic secrets. The checker verifies both the FIFO setting and actual
+compilation of the patched USBH source. Example 04 also catches an image-ID
+code-generation ordering bug: a hub's image objects must exist before generating
+its own press/release actions that reference those objects.
+
+Desktop descriptor collection is complete. Later S3 capture resolved the
+16-versus-17-byte discrepancy: the physical key packet is 17 bytes, while the
+pinned library reads only 16. See [hardware observations](hardware.md#two-way-ep0-replies-and-hid-startup-test-2026-10-10).
+The desktop other-speed configuration is advertised evidence; the separate S3
+fixture is a physical full-speed capture and differs as described above.
 Additional commands run for this session:
 
 ```sh
@@ -147,8 +182,9 @@ its backup, upload command and verified image hash are recorded in
    output completion byte counts. The ready diagnostic only turns on after an
    **8191-byte** stream reset and brightness request succeed. Test brightness
    0, 1, 50, 100; a 17-byte brightness success alone is not the image gate.
-4. Display the asymmetric RGB/TL/arrow fixture and then numbered images on all 15
-   positions. Check mapping, both flips, BGR channels and both pages. Determine
+4. Run example 04 to display the asymmetric RGB/TL/arrow fixture on keys 0/7/14,
+   then test numbered images on all 15 positions. Check mapping, both flips,
+   BGR channels and both pages. Determine
    whether the deck supplies an initial key state before the first press; otherwise
    first-change baseline behavior needs a descriptor-supported initialization read.
 5. Unplug during page 1 and page 2 and while holding multiple keys. Confirm no

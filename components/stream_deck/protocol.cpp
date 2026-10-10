@@ -27,7 +27,12 @@ int wire_key(int logical) {
 }
 
 bool decode_input(const uint8_t *data, size_t size, uint16_t &mask, int report_id) {
-  if (data == nullptr || size != INPUT_SIZE || (report_id >= 0 && data[0] != report_id)) return false;
+  if (data == nullptr || (size != INPUT_SIZE && size != INPUT_SIZE + 1)) return false;
+  if (report_id >= 0 && data[0] != report_id) return false;
+  // The desktop library truncates reads to 16 bytes. The captured S3 key report
+  // is ID 1 + 15 key states + a zero reserved byte, matching the HID descriptor.
+  // Do not decode other 17-byte input IDs (A0/A1) or arbitrary padding as keys.
+  if (size == INPUT_SIZE + 1 && (data[0] != 1 || data[INPUT_SIZE] != 0)) return false;
   uint16_t decoded = 0;
   for (int key = 0; key < int(KEY_COUNT); key++) {
     const auto value = data[1 + wire_key(key)];
@@ -95,7 +100,7 @@ bool set_report_setup(uint8_t report_type, uint8_t report_id, uint8_t interface_
 }
 
 size_t interrupt_chunk(size_t remaining, uint16_t max_packet_size) {
-  if (max_packet_size == 0 || max_packet_size > 64) return 0;
+  if (max_packet_size == 0 || (max_packet_size > 64 && max_packet_size != 512)) return 0;
   return std::min(remaining, size_t(max_packet_size) * 32);
 }
 
@@ -135,14 +140,16 @@ bool find_interface(const uint8_t *config, size_t size, Interface &result) {
     } else if (hid && d[1] == 5) {
       if (length < 7 || (d[3] & 3) != 3 || (d[2] & 0x0f) == 0 || (d[2] & 0x70)) return false;
       const auto mps = le16(d + 4);
-      if (mps == 0 || mps > 64 || d[6] == 0) return false;
+      if (mps == 0 || d[6] == 0) return false;
       endpoints++;
       if (d[2] & 0x80) {
-        if (candidate.in_endpoint || mps < INPUT_SIZE) return false;
+        if (candidate.in_endpoint || mps < INPUT_SIZE || mps > 64) return false;
         candidate.in_endpoint = d[2];
         candidate.in_packet_size = mps;
       } else {
-        if (candidate.out_endpoint) return false;
+        // Original 0060 advertises and may require a nonstandard 512-byte OUT
+        // endpoint at full speed. The IDF periodic-OUT FIFO bias is mandatory.
+        if (candidate.out_endpoint || (mps > 64 && mps != 512)) return false;
         candidate.out_endpoint = d[2];
         candidate.out_packet_size = mps;
       }

@@ -63,7 +63,7 @@ void test_protocol() {
   assert(p::set_report_setup(2, 2, 3, 8191, setup, sizeof(setup)));
   assert(std::equal(std::begin(expected), std::end(expected), setup));
   assert(p::CONTROL_SIZE == 8199);
-  for (uint16_t mps : {8, 16, 32, 64}) {
+  for (uint16_t mps : {8, 16, 32, 64, 512}) {
     size_t remaining = p::REPORT_SIZE, total = 0;
     while (remaining) {
       size_t size = p::interrupt_chunk(remaining, mps);
@@ -75,6 +75,9 @@ void test_protocol() {
     assert(total == 8191);
   }
   assert(p::interrupt_chunk(8191, 0) == 0);
+  assert(p::interrupt_chunk(8191, 512) == 8191);
+  assert(p::interrupt_chunk(8191, 128) == 0);
+  assert(p::interrupt_chunk(8191, 1024) == 0);
 }
 
 void test_input() {
@@ -87,7 +90,8 @@ void test_input() {
     assert(mask == uint16_t((1U << (key + 1)) - 1));
   }
   assert(!p::decode_input(report, 15, mask) && mask == 0x7fff);
-  assert(!p::decode_input(report, 17, mask));
+  const uint8_t oversized[18]{};
+  assert(!p::decode_input(oversized, sizeof(oversized), mask));
   assert(!p::decode_input(report, 16, mask, 1));
   assert(p::decode_input(report, 16, mask, 0x7d));
   report[3] = 2;
@@ -110,6 +114,28 @@ void test_input() {
   for (size_t i = 0; i <= InputQueue::CAPACITY; i++) queue.push(2, 1);
   assert(queue.overflows() == 1 && queue.high_water() == InputQueue::CAPACITY);
   assert(queue.pop(item) && item.resync && item.generation == 2);
+
+  std::ifstream observed("tests/fixtures/s3_0060/first_key_input.hex");
+  std::vector<uint8_t> captured;
+  unsigned byte;
+  while (observed >> std::hex >> byte) { assert(byte <= 255); captured.push_back(uint8_t(byte)); }
+  assert(observed.eof() && captured.size() == 17);
+  assert(p::decode_input(captured.data(), captured.size(), mask, 1) && mask == 1);
+  assert(p::decode_input(captured.data(), 16, mask, 1) && mask == 1);  // Reference truncation.
+  for (int key = 0; key < 15; key++) {
+    std::fill(captured.begin() + 1, captured.end(), 0);
+    captured[1 + p::wire_key(key)] = 1;
+    assert(p::decode_input(captured.data(), captured.size(), mask) && mask == (1U << key));
+  }
+  const auto previous = mask;
+  for (uint8_t id : {0, 0xa0, 0xa1}) {
+    captured[0] = id;
+    assert(!p::decode_input(captured.data(), captured.size(), mask) && mask == previous);
+  }
+  captured[0] = 1; captured[16] = 1;
+  assert(!p::decode_input(captured.data(), captured.size(), mask) && mask == previous);
+  captured[16] = 0; captured[5] = 2;
+  assert(!p::decode_input(captured.data(), captured.size(), mask) && mask == previous);
 }
 
 void test_scheduler() {
@@ -218,11 +244,11 @@ void test_original_descriptor_quirk() {
   p::Interface descriptor;
   assert(p::find_interface(normalized.data(), normalized.size(), descriptor));
   assert(descriptor.number == 0 && descriptor.in_endpoint == 0x81 && descriptor.out_endpoint == 0x02);
-  assert(descriptor.in_packet_size == 64 && descriptor.out_packet_size == 64);
+  assert(descriptor.in_packet_size == 64 && descriptor.out_packet_size == 512);
   assert(descriptor.report_descriptor_size == 267 && normalized[8] == 200);
   for (size_t i = 0; i < raw.size(); i++) {
-    if (i == 31 || i == 38) assert(normalized[i] == 64);
-    else if (i == 32 || i == 39) assert(normalized[i] == 0);
+    if (i == 31) assert(normalized[i] == 64);
+    else if (i == 32) assert(normalized[i] == 0);
     else assert(normalized[i] == raw[i]);
     auto unexpected = raw;
     unexpected[i] ^= 1;

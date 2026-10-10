@@ -2,6 +2,10 @@
   "reference_revision": "43666bb454186d1d7adeba9402f689449705d0b9",
   "pillow": "12.3.0",
   "files": {
+    "transport_test.bmp": {
+      "size": 15606,
+      "sha256": "97553f9da8c94f34bb5711f52b6980755265e2705f46ec356f48f9ec6180a343"
+    },
     "light_on.bmp": {
       "size": 15606,
       "sha256": "dc9ea8f732bdcacf93f11184f6dfc200edbccc85e7cfff6b588cead19ed876e0"
