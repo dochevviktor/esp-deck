@@ -1,5 +1,6 @@
 """Original 0FD9:0060 only. Owns the native IDF USB host exclusively."""
 import struct
+from pathlib import Path
 
 from esphome import automation
 import esphome.codegen as cg
@@ -97,6 +98,10 @@ async def usb_sdkconfig():
 
 async def to_code(config):
     esp32.include_builtin_idf_component("usb")
+    # A project component named usb overrides the built-in component. Copy only
+    # our build recipe/helper; its CMake reads the pinned SDK without editing it.
+    for name in ("CMakeLists.txt", "Kconfig", "prepare.py", "stream_deck_quirk.h"):
+        esp32.add_extra_build_file(f"components/usb/{name}", Path(__file__).parent / "idf_usb" / name)
     # IDF's cap sizes enumeration/configuration data stages. The dedicated client
     # buffer separately includes the 8-byte setup header (8199 bytes minimum).
     CORE.add_job(usb_sdkconfig)

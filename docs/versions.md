@@ -7,7 +7,7 @@ credentials, C6 pin assignments and device-specific workarounds were not copied.
 | --- | --- |
 | ESPHome | 2026.9.0; source `c6e4c87e525dd343e470d8dea368957a002f6505` |
 | ESP-IDF | 5.5.5 (ESPHome-supported default, also explicit in YAML); source `b774170ff46c393eeb5e495ea37936038d3f4f4f` |
-| USB host | IDF built-in `components/usb` at that IDF revision; no separate HID/USB package |
+| USB host | IDF `components/usb` at that revision, with the build-local Original full-speed descriptor hook in `components/stream_deck/idf_usb/`; no separate HID driver package |
 | Xtensa compiler | GCC 14.2.0, Espressif `esp-14.2.0_20260121` |
 | Build system | Native ESP-IDF/CMake 3.30.2; Ninja 1.13.0 |
 | Python used locally | 3.14.7, Linux x86_64 (Fedora kernel 7.1.8-200.fc44) |
@@ -31,8 +31,17 @@ secondary USB console disabled and (driver examples) USB control data cap 8192.
 The generated partition table has two 7936 KiB OTA slots. These are compile-time
 settings, not proven OTA behavior. A desktop `esptool 5.3.1 flash-id` query on
 2026-10-10 detected ESP32-S3 revision v0.2 and 16 MB flash and reported embedded
-8 MB PSRAM. Boot PSRAM initialization/testing and board revision still need
-validation; no firmware was flashed in that session.
+8 MB PSRAM. A later encrypted API session confirmed PSRAM initialized and 8192 KB
+available. Stress testing and PCB revision remain unverified. That identity query
+did not write flash; subsequent USB/OTA uploads and the full-speed descriptor
+mismatch are recorded in [hardware acceptance](hardware.md#network-and-s3-usb-session-2026-10-10).
+
+The compatibility hook checks four original SDK file SHA-256 values stored in
+`components/stream_deck/idf_usb/prepare.py` before generating the patched USBH
+source. CMake configuration depends on those files and the generator; unreviewed
+SDK changes fail the build. The checker verifies that the compiler used the
+generated source. No installed framework source is modified. The generated
+source remains byte-identical for validation and deployment builds.
 
 Primary pinned sources:
 

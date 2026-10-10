@@ -12,6 +12,7 @@ class USBTransport {
   bool setup();
   void loop(uint32_t now);
   void shutdown();
+  void dump_status() const;
   bool attached() const { return device_ != nullptr && claimed_ && !closing_; }
   uint32_t generation() const { return generation_; }
   void set_input_report_id(int id) { input_report_id_ = id; }
@@ -45,6 +46,9 @@ class USBTransport {
   Job job_{};
   uint32_t generation_{0}, input_generation_{0}, output_generation_{0};
   uint32_t errors_{0}, malformed_inputs_{0};
+  uint32_t completed_reports_{0};
+  int first_input_length_{0};
+  char first_input_hex_[3 * 32 + 1]{};
   uint32_t next_discovery_{0}, output_started_{0}, recovery_started_{0}, last_drain_warning_{0};
   size_t output_remaining_{0}, output_chunk_{0};
   int input_report_id_{-1};

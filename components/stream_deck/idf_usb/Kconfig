@@ -1,0 +1,2 @@
+# Keep the pinned framework's USB configuration schema.
+source "$IDF_PATH/components/usb/Kconfig"

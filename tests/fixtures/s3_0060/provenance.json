@@ -1,0 +1,22 @@
+{
+  "date": "2026-10-10",
+  "repository_baseline": "c5583e8",
+  "firmware": "02_keys_brightness with working-tree USB diagnostic changes",
+  "compilation_time": "2026-10-10 20:08:51 +0200",
+  "host": "XIAO ESP32-S3 Plus, ESP-IDF 5.5.5",
+  "vid_pid": "0fd9:0060",
+  "source": "Encrypted API log of usb_host_get_active_config_descriptor, bounded byte dump",
+  "device_info_result": "ESP_OK",
+  "configuration_result": "ESP_OK",
+  "speed": "USB_SPEED_FULL (1), 12 Mbps",
+  "configuration_bytes": 41,
+  "observation": "Interrupt IN 0x81 and OUT 0x02 both advertise MPS 512 on a full-speed link",
+  "parser_result": "Rejected before interface claim or any feature/image output",
+  "cold_power_test": "Owner removed deck power for at least 20 seconds, reconnected it, and supplied the same descriptor bytes",
+  "limits": [
+    "This file preserves the raw device descriptor before host-side normalization",
+    "Desktop OTHER_SPEED_CONFIGURATION advertised 64-byte endpoints; this is the actual S3 active configuration",
+    "The bytes equal the desktop high-speed configuration, but the observed bus speed is full speed",
+    "No device serial or network credentials are included"
+  ]
+}

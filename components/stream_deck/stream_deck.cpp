@@ -20,6 +20,8 @@ void StreamDeck::dump_config() {
   ESP_LOGCONFIG(TAG, "  Desired brightness: %u%% (no readback)", scheduler_.brightness());
   ESP_LOGCONFIG(TAG, "  Native USB host, UART0 logs; external unswitched VBUS");
   ESP_LOGCONFIG(TAG, "  USB protocol/hardware qualification pending; see docs/testing.md");
+  ESP_LOGCONFIG(TAG, "  Stream initialization completed: %s", ready_ ? "yes" : "no");
+  transport_.dump_status();
   LOG_BINARY_SENSOR("  ", "USB ready", connected_sensor_);
 }
 

@@ -9,6 +9,8 @@ Preserve local changes and secrets. Never commit credentials or build binaries.
 Report implemented, compiled, unit-tested and hardware-verified separately.
 
 Use .venv/bin/python -m unittest discover -s tests -v for host tests.
-Use .venv/bin/python tools/check_firmware.py --compile for all firmware builds
-with temporary synthetic secrets. No hardware is required for either command.
+Use .venv/bin/python tools/check_firmware.py --compile for firmware validation
+with temporary synthetic secrets. For an explicitly requested device flash, add
+--deploy --example NAME to build privately with local examples/secrets.yaml;
+never upload the synthetic validation images. No hardware is required to build.
 Hardware gates and measurements in docs/hardware.md remain pending until tested.

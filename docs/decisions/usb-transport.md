@@ -1,7 +1,9 @@
 # USB transport decision
 
-Status: implemented and exercised without hardware. Real full-report transfers
-remain an acceptance gate. The attached handover is preserved unchanged at
+Status: implemented, unit-tested, compiled and exercised on the S3. A narrowly
+scoped descriptor correction enabled interface claiming and 32 completed startup
+reports, including full 8191-byte outputs. Physical key mapping, visual image
+checks and release qualification remain pending. The handover is preserved at
 `STREAM_DECK_ESPHOME_CODEX_HANDOVER.md`.
 
 Use ESP-IDF 5.5.5's asynchronous USB host API directly. `stream_deck` installs the
@@ -44,10 +46,44 @@ the only short packet at the end. At MPS 64 the lengths are 2048, 2048, 2048,
 no report ID, HID header, padding or ZLP and cannot interleave another report.
 The host packetizes each batch. Fake-IDF tests concatenate the submissions and
 compare all 8191 bytes with the upstream fixture. The owner's desktop capture
-now shows interrupt OUT at both speeds, with MPS 64 in its advertised full-speed
-configuration. This selects the interrupt branch if the S3 enumerates it as
-advertised; physical S3 enumeration and full-report transmission remain pending.
-See [captured descriptors](../hardware.md#desktop-observations-2026-10-10).
+shows interrupt OUT at both speeds, with MPS 64 in the advertised other-speed
+configuration. Actual S3 enumeration at full speed returned the **512-byte**
+configuration instead, including after the owner removed deck power for over
+20 seconds. The compatibility correction below is now hardware-tested: the
+driver claims MPS-64 endpoints and completes the full reports. See the
+[S3 observations](../hardware.md#network-and-s3-usb-session-2026-10-10).
+
+## Original full-speed descriptor compatibility
+
+A parser-only relaxation cannot correct this: IDF's `usb_host_interface_claim`
+allocates every endpoint from its cached configuration, and `hcd_dwc.c` separately
+checks packet sizes against controller FIFO limits. Linux's USB core
+[clamps oversized full-speed interrupt descriptors to 64 bytes](https://github.com/torvalds/linux/blob/v6.12/drivers/usb/core/config.c),
+but the pinned IDF public interface-claim API has no descriptor-override argument.
+
+`components/stream_deck/idf_usb/` provides an IDF project-component override named
+`usb`, copied into the individual firmware build by ESPHome's extra-build-file
+API. [IDF gives project components precedence over built-ins](https://docs.espressif.com/projects/esp-idf/en/v5.5.5/esp32s3/api-guides/build-system.html#multiple-components-with-the-same-name).
+It compiles the installed 5.5.5 USB sources with a generated copy of `usbh.c`.
+The generator checks SHA-256 pins for `usbh.c`, `usb_host.c`, `Kconfig` and the
+upstream CMake recipe, and rejects unexpected versions or patch locations.
+The SDK installation is never written. The firmware checker also requires the
+generated `usbh_stream_deck.c` to appear in the actual compiler commands.
+
+The hook runs inside `usbh_dev_set_config_desc` after allocation/copy and before
+the descriptor is published. It changes the two endpoint MPS fields from 512
+to 64 only for full speed, VID/PID `0FD9:0060`, and a byte-for-byte match with the
+captured 41-byte layout. The 400 mA declaration and HID report sizes remain
+unchanged. Already-correct, high-speed, other-device and unrecognized layouts
+are not altered. There is no const cast on a descriptor borrowed by the class
+driver, no extra host installer, and no relaxed protocol-parser limit.
+
+Native tests cover the exact correction, every single-byte layout mutation,
+wrong IDs/speed, idempotence, and a complete golden stream reset through the
+production transport with the corrected layout. Build-hook tests verify source
+pins, unpublished-copy placement and refusal to write inside the SDK source tree.
+On hardware, example 02 reports interface 0/0, IN `0x81` / OUT `0x02` at MPS 64,
+initialization complete, 32 successful reports and zero USB/input-overflow errors.
 
 ## Tasks, ordering and lifetime
 

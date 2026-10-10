@@ -1,4 +1,5 @@
 #include "usb_transport.h"
+#include "idf_usb/stream_deck_quirk.h"
 
 #include <algorithm>
 #include <cassert>
@@ -21,12 +22,14 @@ std::vector<usb_transfer_t *> completed;
 std::vector<std::vector<uint8_t>> writes;
 std::vector<uint8_t> config;
 usb_device_desc_t descriptor{0x0fd9, 0x0060};
+uint8_t interface_number = 3;
 
 void reset(bool interrupt_out) {
   assert(pending.empty() && allocations == frees);
   port = physical = true; gone = hold_cancellation = claimed = false;
   writes.clear(); completed.clear();
   descriptor = {0x0fd9, 0x0060};
+  interface_number = 3;
   config = {9,2,25,0,1,1,0,0x80,50, 9,4,3,0,1,3,0,0,0, 7,5,0x85,3,64,0,1};
   if (interrupt_out) {
     config.insert(config.end(), {7,5,6,3,64,0,1});
@@ -94,10 +97,10 @@ esp_err_t usb_host_device_info(usb_device_handle_t, usb_device_info_t *info) {
   info->speed = USB_SPEED_FULL; info->bConfigurationValue = 1; return ESP_OK;
 }
 esp_err_t usb_host_interface_claim(usb_host_client_handle_t, usb_device_handle_t, uint8_t number, uint8_t alt) {
-  assert(number == 3 && alt == 0); fake::claimed = true; return ESP_OK;
+  assert(number == fake::interface_number && alt == 0); fake::claimed = true; return ESP_OK;
 }
 esp_err_t usb_host_interface_release(usb_host_client_handle_t, usb_device_handle_t, uint8_t number) {
-  assert(number == 3 && fake::pending.empty()); fake::claimed = false; return ESP_OK;
+  assert(number == fake::interface_number && fake::pending.empty()); fake::claimed = false; return ESP_OK;
 }
 esp_err_t usb_host_transfer_alloc(size_t size, int, usb_transfer_t **out) {
   *out = new usb_transfer_t{new uint8_t[size]{}, size}; fake::allocations++; return ESP_OK;
@@ -117,7 +120,7 @@ esp_err_t usb_host_transfer_submit(usb_transfer_t *t) {
 esp_err_t usb_host_transfer_submit_control(usb_host_client_handle_t, usb_transfer_t *t) {
   assert(t->bEndpointAddress == 0 && size_t(t->num_bytes) <= t->data_buffer_size);
   assert(t->num_bytes == 8 + t->data_buffer[6] + 256 * t->data_buffer[7]);
-  assert(t->data_buffer[4] == 3);  // No hardcoded interface zero.
+  assert(t->data_buffer[4] == fake::interface_number);  // Synthetic tests also exercise interface 3.
   fake::writes.emplace_back(t->data_buffer, t->data_buffer + t->num_bytes);
   fake::pending.insert(t); return ESP_OK;
 }
@@ -234,8 +237,78 @@ void test_absence_and_wrong_model() {
   fake::finish(transport, 2001);
 }
 
+std::vector<uint8_t> observed_config() {
+  std::ifstream input("tests/fixtures/s3_0060/configuration_full_speed.hex");
+  assert(input.good());
+  std::vector<uint8_t> config;
+  unsigned byte;
+  while (input >> std::hex >> byte) {
+    assert(byte <= 0xff);
+    config.push_back(uint8_t(byte));
+  }
+  assert(input.eof() && config.size() == 41);
+  return config;
+}
+
+void test_observed_full_speed_descriptor_rejection() {
+  fake::reset(false);
+  fake::config = observed_config();
+  const auto allocations = fake::allocations;
+  USBTransport transport;
+  assert(transport.setup());
+  transport.loop(0);  // Fake device_info reports FULL, just like the S3 capture.
+  assert(!transport.attached() && transport.errors() == 1);
+  assert(!fake::claimed && fake::pending.empty() && fake::writes.empty());
+  assert(fake::allocations == allocations);
+  transport.loop(4999);
+  assert(transport.errors() == 1);  // Rejection diagnostics are rate bounded.
+  transport.loop(5000);
+  assert(transport.errors() == 2 && fake::writes.empty());
+  fake::finish(transport, 5001);
+}
+
+void test_normalized_original_descriptor_transport() {
+  fake::reset(false);
+  fake::config = observed_config();
+  // Emulate the SDK enumeration hook before clients can see the configuration.
+  assert(stream_deck_normalize_config(0x0fd9, 0x0060, true, fake::config.data(), fake::config.size()));
+  fake::interface_number = 0;
+  USBTransport transport;
+  assert(transport.setup());
+  transport.loop(0);
+  assert(transport.attached() && transport.errors() == 0);
+  assert(fake::transfer(true)->bEndpointAddress == 0x81);
+  assert(fake::transfer(true)->num_bytes == 64);
+  Job job{JobKind::RESET, transport.generation(), 1};
+  assert(transport.send(job, 1));
+  uint32_t now = 2;
+  while (fake::transfer(false)) {
+    assert(fake::transfer(false)->bEndpointAddress == 0x02);
+    fake::complete(fake::transfer(false));
+    transport.loop(now++);
+  }
+  Job done;
+  assert(transport.take_completion(done) && fake::writes.size() == 4);
+  std::vector<uint8_t> joined;
+  for (const auto &chunk : fake::writes) joined.insert(joined.end(), chunk.begin(), chunk.end());
+  std::ifstream fixture("tests/fixtures/stream_reset.bin", std::ios::binary);
+  const std::vector<uint8_t> expected{std::istreambuf_iterator<char>(fixture), {}};
+  assert(joined == expected && joined.size() == 8191);
+  job.kind = JobKind::BRIGHTNESS;
+  job.sequence++;
+  job.brightness = 30;
+  assert(transport.send(job, now++));
+  assert(fake::writes.back().size() == 25 && fake::writes.back()[4] == 0);
+  fake::complete(fake::transfer(false));
+  transport.loop(now++);
+  assert(transport.take_completion(done));
+  fake::finish(transport, now);
+}
+
 int main() {
   test_control_and_input(); test_interrupt_report_integrity();
   test_deadline_retains_buffers_until_cancelled(); test_short_and_stalled_output(); test_absence_and_wrong_model();
+  test_observed_full_speed_descriptor_rejection();
+  test_normalized_original_descriptor_transport();
   std::cout << "Production USB transport passed fake-IDF transfer and lifetime tests (no hardware)\n";
 }

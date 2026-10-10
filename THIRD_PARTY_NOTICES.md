@@ -44,3 +44,11 @@ ESPHome (MIT), ESP-IDF (Apache-2.0 and component-specific notices), Pillow
 as dependencies, not copied into this repository. The small fake-IDF test headers
 are project-owned test doubles, not an alternative SDK. Demo artwork is generated
 by `tools/generate_demo_assets.py` using Pillow primitives and its bundled font.
+
+The Stream Deck USB compatibility recipe compiles ESP-IDF 5.5.5's USB component
+from the installed pinned SDK and generates one patched `usbh.c` under the
+ignored build directory. That generated copy retains Espressif's copyright and
+Apache-2.0 header; the original SDK files are unchanged. The small hook and
+descriptor-matching helper live in `components/stream_deck/idf_usb/`. The helper
+is independently implemented from the captured device bytes; no Linux kernel
+source is incorporated.

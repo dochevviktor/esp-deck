@@ -85,11 +85,34 @@ void USBTransport::discover_(uint32_t now) {
     const usb_config_desc_t *config = nullptr;
     protocol::Interface found{};
     usb_device_info_t info{};
-    if (usb_host_device_info(device, &info) != ESP_OK || info.speed != USB_SPEED_FULL ||
-        usb_host_get_active_config_descriptor(device, &config) != ESP_OK ||
+    const auto info_error = usb_host_device_info(device, &info);
+    const auto config_error = usb_host_get_active_config_descriptor(device, &config);
+    if (info_error != ESP_OK || info.speed != USB_SPEED_FULL || config_error != ESP_OK || config == nullptr ||
         !protocol::find_interface(reinterpret_cast<const uint8_t *>(config), config->wTotalLength, found)) {
       errors_++;
       ESP_LOGW(TAG, "Rejecting unsupported/ambiguous descriptors for 0FD9:0060");
+      {
+        ESP_LOGW(TAG, "Descriptor query: info=%s speed=%d (full=%d), config=%s",
+                 esp_err_to_name(info_error), int(info.speed), int(USB_SPEED_FULL), esp_err_to_name(config_error));
+        if (config_error == ESP_OK && config != nullptr) {
+          // Bounded to 96 bytes per five-second discovery retry, including when
+          // API logging connects late. These descriptors contain no serial text.
+          const size_t captured = config->wTotalLength < 96 ? config->wTotalLength : 96;
+          const auto *bytes = reinterpret_cast<const uint8_t *>(config);
+          constexpr char HEX[] = "0123456789ABCDEF";
+          for (size_t offset = 0; offset < captured; offset += 16) {
+            char hex[3 * 16 + 1]{};
+            const size_t count = captured - offset < 16 ? captured - offset : 16;
+            for (size_t n = 0; n < count; n++) {
+              const auto byte = bytes[offset + n];
+              hex[3 * n] = HEX[byte >> 4];
+              hex[3 * n + 1] = HEX[byte & 15];
+              hex[3 * n + 2] = n + 1 < count ? ' ' : '\0';
+            }
+            ESP_LOGW(TAG, "Configuration bytes %u/%u: %s", unsigned(offset), unsigned(config->wTotalLength), hex);
+          }
+        }
+      }
       usb_host_device_close(client_, device);
       next_discovery_ = now + RECOVERY_DELAY_MS;
       return;
@@ -104,6 +127,9 @@ void USBTransport::discover_(uint32_t now) {
     if (err != ESP_OK) { fail_(now, "DMA transfer allocation", err); return; }
     generation_++;
     logged_input_id_ = false;
+    completed_reports_ = 0;
+    first_input_length_ = 0;
+    first_input_hex_[0] = '\0';
     gone_ = completion_ready_ = false;
     input_->device_handle = device_;
     input_->bEndpointAddress = found.in_endpoint;
@@ -136,17 +162,41 @@ void USBTransport::handle_input_() {
   input_done_flag_ = false;
   if (input_generation_ != generation_) return;
   if (input_->status != USB_TRANSFER_STATUS_COMPLETED) return;
+  // Wi-Fi/API logging may connect after USB initialization. Retain one bounded
+  // observation before decoding, so an unexpected length is still diagnosable.
+  if (!logged_input_id_ && input_->actual_num_bytes > 0 &&
+      size_t(input_->actual_num_bytes) <= input_->data_buffer_size) {
+    first_input_length_ = input_->actual_num_bytes;
+    constexpr char HEX[] = "0123456789ABCDEF";
+    const size_t captured = first_input_length_ < 32 ? size_t(first_input_length_) : 32;
+    for (size_t i = 0; i < captured; i++) {
+      const uint8_t byte = input_->data_buffer[i];
+      first_input_hex_[3 * i] = HEX[byte >> 4];
+      first_input_hex_[3 * i + 1] = HEX[byte & 15];
+      first_input_hex_[3 * i + 2] = i + 1 < captured ? ' ' : '\0';
+    }
+    logged_input_id_ = true;
+    ESP_LOGI(TAG, "First input: length=%d, first <=32 bytes=%s", first_input_length_, first_input_hex_);
+  }
   uint16_t mask = 0;
   if (!protocol::decode_input(input_->data_buffer, input_->actual_num_bytes, mask, input_report_id_)) {
     malformed_inputs_++;
     return;
   }
-  if (!logged_input_id_) {
-    ESP_LOGI(TAG, "Observed input header=0x%02X, length=%d (verify against HID descriptor/capture)",
-             input_->data_buffer[0], input_->actual_num_bytes);
-    logged_input_id_ = true;
-  }
   input_queue_.push(generation_, mask);
+}
+
+void USBTransport::dump_status() const {
+  ESP_LOGI(TAG, "USB status: attached=%s, generation=%lu, completed reports=%lu",
+           attached() ? "yes" : "no", static_cast<unsigned long>(generation_),
+           static_cast<unsigned long>(completed_reports_));
+  if (attached()) {
+    ESP_LOGI(TAG, "HID interface %u alt %u, IN 0x%02X MPS %u, OUT 0x%02X MPS %u, report descriptor %u bytes",
+             interface_.number, interface_.alternate, interface_.in_endpoint, interface_.in_packet_size,
+             interface_.out_endpoint, interface_.out_packet_size, interface_.report_descriptor_size);
+  }
+  if (logged_input_id_)
+    ESP_LOGI(TAG, "First input: length=%d, first <=32 bytes=%s", first_input_length_, first_input_hex_);
 }
 
 bool USBTransport::send(const Job &job, uint32_t now) {
@@ -213,6 +263,7 @@ void USBTransport::handle_output_(uint32_t now) {
     output_->num_bytes = output_chunk_;
     if (!submit_output_()) fail_(now, "interrupt continuation", ESP_FAIL);
   } else {
+    completed_reports_++;
     completion_ready_ = true;
     ESP_LOGD(TAG, "Completed report kind=%u, bytes=%u, generation=%lu", unsigned(job_.kind),
              unsigned(job_.kind == JobKind::BRIGHTNESS ? protocol::FEATURE_SIZE : protocol::REPORT_SIZE),

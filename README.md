@@ -10,9 +10,12 @@ entities, brightness, diagnostics, images and a state-driven HA lamp example.
 Compiled: all three examples on ESPHome 2026.9.0 / ESP-IDF 5.5.5.
 Unit-tested: upstream byte fixtures, scheduler/input behavior, simulated USB
 transfers, schema validation and captured desktop descriptors.
-Hardware-verified: desktop USB descriptors, deck firmware and ESP chip/flash
-identification. The ESP and deck are connected separately to the PC; ESP32 host
-operation, electrical, display, OTA and HA acceptance remain pending. See
+Hardware-verified: desktop descriptors, ESP chip/flash identity, 8 MB PSRAM
+initialization, Wi-Fi, encrypted API and encrypted OTA. The S3 enumerates the
+deck at full speed. A targeted host-side correction handles its incorrect
+512-byte endpoint descriptors; the driver now initializes and completes all 32
+startup reports with zero reported USB errors. Physical key/visual image checks,
+electrical qualification and HA acceptance remain pending. See
 [validation and remaining gates](docs/testing.md).
 
 The original [handover](STREAM_DECK_ESPHOME_CODEX_HANDOVER.md) is preserved.
@@ -30,10 +33,16 @@ python3 -m venv .venv
 .venv/bin/python tools/check_firmware.py --compile
 ```
 
-The checker stages isolated copies with synthetic Wi-Fi/API secrets. It never
-reads the reference project's credentials or modifies a local `secrets.yaml`.
-Builds/logs stay under `.build/firmware/`, ignored by Git. **These synthetic builds
-are for validation; build again with your own secrets before flashing.**
+The checker defaults to isolated copies with synthetic Wi-Fi/API secrets. It
+never reads the reference project's credentials or modifies a local
+`secrets.yaml`. Validation builds/logs stay under `.build/firmware/`, ignored by
+Git. **These synthetic builds are for validation; never flash them.**
+
+For an explicitly requested device upload, `--deploy --example NAME` uses local
+`examples/secrets.yaml` and puts the build in `.build/deploy/NAME/`. This directory
+is private (mode 0700), its artifacts may contain credentials, and raw deployment
+compiler output is kept in its private log. Both modes check USB console ownership
+in the generated SDK configuration. `--deploy` requires `--compile` and one example.
 
 The direct pins are in `requirements-dev.txt`; the resolved Python environment
 is in `requirements-lock.txt`. Toolchain/source details are in
@@ -66,7 +75,7 @@ outages, requested brightness and the intentionally conservative freshness polic
 
 ```sh
 .venv/bin/esphome config examples/03_images_home_assistant.yaml
-.venv/bin/esphome compile examples/03_images_home_assistant.yaml
+.venv/bin/python tools/check_firmware.py --compile --example 03_images_home_assistant --deploy
 ```
 
 All examples use the same device name and represent alternative firmware. The
@@ -96,20 +105,29 @@ power-inlet feed and remove the Stream Deck adapter**. The PC must be the only
 power/data source in this flashing configuration.
 
 Replace `/dev/ttyACM0` below with the actual board's serial path (prefer its stable
-`/dev/serial/by-id/` path). These upload commands have not been run on hardware.
+`/dev/serial/by-id/` path). The ROM upload path below succeeded on 2026-10-10;
+the full original flash was backed up and verified before writing.
 
 ```sh
 .venv/bin/esptool --port /dev/ttyACM0 flash-id
 # Optional first-flash backup: use a new filename; firmware contains credentials.
+umask 077
 mkdir -p .build/backups
-.venv/bin/esptool --port /dev/ttyACM0 read-flash 0 ALL .build/backups/original-flash.bin
-.venv/bin/esphome compile examples/01_usb_probe.yaml
-.venv/bin/esphome upload examples/01_usb_probe.yaml --device /dev/ttyACM0
+.venv/bin/esptool --chip esp32s3 --port /dev/ttyACM0 --no-stub read-flash 0 0x1000000 .build/backups/original-flash.bin
+.venv/bin/python tools/check_firmware.py --compile --example 01_usb_probe --deploy
+.venv/bin/esptool --chip esp32s3 --port /dev/ttyACM0 --no-stub --after no-reset write-flash --no-progress 0 .build/deploy/01_usb_probe/build/firmware.factory.bin
 ```
 
 Remove the PC cable before returning to host wiring. Then connect the deck via
 the passive C-male/A-female adapter and power the inlet from the qualified single
-5 V source. Use UART0 through a separate **3.3 V logic** adapter for bench logs:
+5 V source. The command above leaves the ESP in the ROM bootloader until that
+power cycle; Wi-Fi starts when it boots from flash. Look for
+`streamdeck-original` in the router's DHCP leases, or resolve
+`streamdeck-original.local` on the same LAN. Native API logs use TCP 6053 and the
+local encryption key. The enumeration probe
+includes OTA so the next driver can be installed over the network.
+
+Use UART0 through a separate **3.3 V logic** adapter for bench logs:
 adapter RX to XIAO D6/GPIO43/TX and GND to GND; leave its power pin disconnected.
 Optional adapter TX goes to D7/GPIO44/RX. Native USB runtime logging is unavailable
 while that controller is hosting the Stream Deck.
@@ -117,10 +135,12 @@ while that controller is hosting the Stream Deck.
 After Wi-Fi works, OTA and logs use the network:
 
 ```sh
-.venv/bin/esphome run examples/02_keys_brightness.yaml --device streamdeck-original.local
+.venv/bin/python tools/check_firmware.py --compile --example 02_keys_brightness --deploy
+.venv/bin/esphome upload examples/02_keys_brightness.yaml --device streamdeck-original.local --file .build/deploy/02_keys_brightness/build/firmware.ota.bin
 .venv/bin/esphome logs examples/02_keys_brightness.yaml --device streamdeck-original.local
 # Move to the HA example after qualifying the full large-report path.
-.venv/bin/esphome run examples/03_images_home_assistant.yaml --device streamdeck-original.local
+.venv/bin/python tools/check_firmware.py --compile --example 03_images_home_assistant --deploy
+.venv/bin/esphome upload examples/03_images_home_assistant.yaml --device streamdeck-original.local --file .build/deploy/03_images_home_assistant/build/firmware.ota.bin
 ```
 
 If native USB recovery is needed, return to the PC-only flashing configuration,

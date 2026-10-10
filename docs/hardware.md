@@ -1,9 +1,11 @@
 # Wiring and hardware acceptance
 
-Status: owner's topology documented; desktop descriptors, deck firmware and ESP
-chip/flash identity read on 2026-10-10. Exact parts, current-path qualification
-and all ESP32-to-deck tests remain pending. Both devices were attached separately
-to the PC for this session.
+Status: USB flashing, Wi-Fi, encrypted API, 8 MB PSRAM initialization and encrypted
+OTA verified on 2026-10-10. The deck's invalid full-speed packet-size descriptor
+persists after a confirmed 20-second power removal. A targeted host-side fix is
+deployed: the S3 claims the deck at MPS 64 and completes the full stream reset,
+brightness request and all 30 blank-image pages. Physical key mapping, visual
+image/brightness confirmation, loaded electrical qualification and HA tests remain pending.
 The handover is the hardware source of truth; this is its operational checklist.
 
 ```text
@@ -102,12 +104,133 @@ read. An initial 3-second observation and a subsequent 180-second passive captur
 returned no interrupt reports. No physical key press was confirmed during those
 windows; this does not establish behavior on reset or on first key press.
 
-The ESP32 probe flash is pending confirmation of PC-only power. The local
-`examples/secrets.yaml` appeared during this session; probe 01 and HA example 03
-validate with it, without displaying credentials. This does not verify Wi-Fi
-connectivity. Firmware validation builds use synthetic credentials and must not
-be flashed for network testing. Runtime UART0, PSRAM detection and every
-loaded-power gate remain open.
+The local `examples/secrets.yaml` appeared during the desktop session; probe 01
+and HA example 03 validate with it, without displaying credentials. The initial
+desktop session did not write flash; the subsequent authorized upload is below.
+
+## First firmware upload, 2026-10-10
+
+The owner confirmed the sequence: flash through PC USB-C, physically disconnect
+the PC, attach the Stream Deck and then use a separate source sufficient for both
+devices. This authorizes the PC flashing step; source/protection ratings and
+loaded electrical measurements remain unverified.
+
+Uploaded `examples/01_usb_probe.yaml` from repository baseline `c5583e8` with the
+working-tree deployment-tool changes. It includes Wi-Fi with DHCP, encrypted API
+logs, encrypted OTA, UART0 logging and stock USB enumeration of `0FD9:0060`.
+Key decoding, brightness and images are deferred to the next firmware over OTA.
+
+The deployment build used local credentials through:
+
+```sh
+.venv/bin/python tools/check_firmware.py --compile --example 01_usb_probe --deploy
+```
+
+It lives under private `.build/deploy/01_usb_probe/`; validation builds under
+`.build/firmware/` still contain synthetic credentials and must not be uploaded.
+The 849,616-byte factory image's SHA-256 is
+`5fb06f4dc16c42ed438ec689bac8e048ddfb508a5a20c1fa496a263cbbef41dd`.
+
+Before writing, the entire 16 MB flash was saved to ignored, mode-0600
+`.build/backups/pre-probe-RFqYSN/flash.bin` and verified against the device's MD5.
+Its SHA-256 is `53e18c9e68197fa13045269813bc86a94c5b8b6f02fee8ad5a906b4630c21ec0`.
+This backup may contain prior credentials and must remain private. Initial stub
+reads timed out at both 460800 and 115200 baud. ROM reads worked; a long single
+read was interrupted for performance, then `.build/backup_flash_rom.py` used
+bounded 1 MiB ROM reads and checked the full device hash. No dependency was changed.
+
+The successful write used:
+
+```sh
+.venv/bin/esptool --chip esp32s3 --port /dev/ttyACM0 --baud 115200 --no-stub --after no-reset write-flash --no-progress 0 .build/deploy/01_usb_probe/build/firmware.factory.bin
+```
+
+esptool 5.3.1 erased `0x00000000..0x000cffff`, wrote 849,616 bytes, and reported
+`Hash of data verified.` It exited successfully and left the ESP in its ROM
+bootloader. No eFuses were changed. The planned power cycle starts the new
+firmware; runtime USB Serial/JTAG will yield the native interface to USB host.
+
+The owner subsequently supplied the DHCP address and network verification
+continued as recorded below. Physical UART0 capture and every loaded-power gate
+remain open; USB and CPU resets still do not switch peripheral VBUS.
+
+## Network and S3 USB session, 2026-10-10
+
+Encrypted API device information matched `streamdeck-original`, ESPHome 2026.9.0,
+ESP32-S3 revision v0.2. The runtime configuration reported PSRAM initialized and
+8192 KB available, UART0 at 115200, Wi-Fi connected, Noise API encryption enabled,
+and OTA encryption required. This verifies PSRAM startup, not a load/soak test.
+
+Initial signal was -88 to -89 dBm, with an API request timeout, a later API ping
+timeout and one missing response in a five-ping ICMP check. Later logs reported
+-36 to -44 dBm; a new five-ping check returned all five responses, and complete
+API configuration dumps arrived promptly. The cause of the improvement was not
+confirmed; no antenna or transmitter-power change is inferred from those logs.
+
+Two encrypted OTA v2 uploads of example 02 succeeded, followed by API reconnection
+to the new firmware. The first took 16.86 seconds total, and the diagnostic update
+took 19.65 seconds. That diagnostic image was compiled at
+`2026-10-10 20:08:51 +0200`, is 812,960 bytes, and has SHA-256
+`5cf3e353f8596784bf0a1d4b5071dea0171ce8d7688a12341c4195944dc3c0d9`.
+Safe-mode logs reported successful boot and reset the boot-loop counter. These
+are development observations, not the complete warm-restart qualification.
+
+The USB host finds the original VID/PID. Both `usb_host_device_info` and
+`usb_host_get_active_config_descriptor` return `ESP_OK`; the speed is
+`USB_SPEED_FULL` (numeric 1). Its actual 41-byte configuration is preserved in
+`tests/fixtures/s3_0060/configuration_full_speed.hex` with provenance. It has one
+HID interface, number/alternate 0/0, interrupt IN `0x81` and OUT `0x02`, both
+with **MPS 512**, and a 400 mA declaration. The bytes match the desktop high-speed
+configuration, despite the physical S3 link running at 12 Mbps. The previously
+captured desktop other-speed descriptor instead advertised MPS 64 and 100 mA.
+
+Before the compatibility fix, the driver rejected this active layout before
+claiming an interface or allocating/submitting input/output transfers.
+`attached=no`, generation 0 and
+zero completed reports confirm that brightness, stream reset and image reports
+have not run. The rising error counter represents repeated descriptor rejection
+at five-second intervals, not a series of failed image writes. A fake-IDF
+regression test reproduces this rejection using the S3-captured bytes and checks
+that no interface is claimed and no transfer is submitted.
+
+The owner then unplugged only the deck for at least 20 seconds and supplied the
+same descriptor dump after reconnecting. The mismatch therefore persists across
+physical peripheral power removal; it is not retained state from the desktop.
+
+## Compatibility fix and successful reports, 2026-10-10
+
+The [transport decision](decisions/usb-transport.md#original-full-speed-descriptor-compatibility)
+documents the source-pinned, build-local IDF correction. It normalizes only the
+known Original full-speed descriptor, before IDF publishes its owned copy.
+
+The fixed example 02 was compiled at `2026-10-10 20:38:07 +0200` and deployed by
+encrypted OTA in 22.18 seconds total. Its OTA image is 813,152 bytes, SHA-256
+`eb3967f77651f266ec516fa1774f0fdd8d41b49da2a81620123321c315606b3d`.
+After reboot the encrypted API reported:
+
+```text
+Stream initialization completed: yes
+USB status: attached=yes, generation=1, completed reports=32
+HID interface 0 alt 0, IN 0x81 MPS 64, OUT 0x02 MPS 64, report descriptor 267 bytes
+Stream Deck USB ready: True
+USB errors: 0
+Input queue overflows: 0
+Input queue high water: 0
+Stream Deck brightness: 30
+```
+
+The 32 completions comprise one complete 8191-byte stream reset, one 17-byte
+brightness feature and 30 complete 8191-byte blank-image pages (two per key).
+The transport checks successful status and exact lengths for every interrupt
+batch/control transfer before incrementing its report counter. This passes the
+large-report transport gate for these bytes, not visual orientation/color checks.
+The brightness value is requested state with successful transfer, not readback.
+
+While two API clients were active, sampled internal free heap was 233,632–239,580 B
+and the minimum counter reached 212,000 B. These are short-session measurements,
+not a leak/soak result. No key input was captured in this session yet; a top-left
+press/release test and visual confirmation of the blank displays were requested.
+All electrical measurements and the remaining release tests stay pending.
 
 ## Supervised loaded qualification
 

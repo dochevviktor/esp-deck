@@ -1,5 +1,6 @@
 #include "protocol.h"
 #include "scheduler.h"
+#include "idf_usb/stream_deck_quirk.h"
 
 #include <cassert>
 #include <fstream>
@@ -177,8 +178,8 @@ void test_descriptors() {
   assert(!p::find_interface(config.data(), config.size(), descriptor));
 }
 
-std::vector<uint8_t> desktop_descriptor(const std::string &name) {
-  std::ifstream input("tests/fixtures/desktop_0060/" + name + ".hex");
+std::vector<uint8_t> desktop_descriptor(const std::string &name, const std::string &folder = "desktop_0060") {
+  std::ifstream input("tests/fixtures/" + folder + "/" + name + ".hex");
   assert(input.good());
   std::vector<uint8_t> bytes;
   unsigned byte;
@@ -210,7 +211,39 @@ void test_observed_descriptors() {
   assert(desktop_descriptor("hid_report").size() == descriptor.report_descriptor_size);
 }
 
+void test_original_descriptor_quirk() {
+  const auto raw = desktop_descriptor("configuration_full_speed", "s3_0060");
+  auto normalized = raw;
+  assert(stream_deck_normalize_config(0x0fd9, 0x0060, true, normalized.data(), normalized.size()));
+  p::Interface descriptor;
+  assert(p::find_interface(normalized.data(), normalized.size(), descriptor));
+  assert(descriptor.number == 0 && descriptor.in_endpoint == 0x81 && descriptor.out_endpoint == 0x02);
+  assert(descriptor.in_packet_size == 64 && descriptor.out_packet_size == 64);
+  assert(descriptor.report_descriptor_size == 267 && normalized[8] == 200);
+  for (size_t i = 0; i < raw.size(); i++) {
+    if (i == 31 || i == 38) assert(normalized[i] == 64);
+    else if (i == 32 || i == 39) assert(normalized[i] == 0);
+    else assert(normalized[i] == raw[i]);
+    auto unexpected = raw;
+    unexpected[i] ^= 1;
+    const auto before = unexpected;
+    assert(!stream_deck_normalize_config(0x0fd9, 0x0060, true, unexpected.data(), unexpected.size()));
+    assert(unexpected == before);
+  }
+  const auto correct = normalized;
+  assert(!stream_deck_normalize_config(0x0fd9, 0x0060, true, normalized.data(), normalized.size()));
+  assert(normalized == correct);
+  normalized = raw;
+  assert(!stream_deck_normalize_config(0x0fd9, 0x0060, false, normalized.data(), normalized.size()));
+  assert(!stream_deck_normalize_config(0x1234, 0x0060, true, normalized.data(), normalized.size()));
+  assert(!stream_deck_normalize_config(0x0fd9, 0x006d, true, normalized.data(), normalized.size()));
+  assert(!stream_deck_normalize_config(0x0fd9, 0x0060, true, nullptr, raw.size()));
+  assert(!stream_deck_normalize_config(0x0fd9, 0x0060, true, normalized.data(), raw.size() - 1));
+  assert(normalized == raw);
+}
+
 int main() {
   test_protocol(); test_input(); test_scheduler(); test_descriptors(); test_observed_descriptors();
+  test_original_descriptor_quirk();
   std::cout << "Protocol fixtures, input, scheduler and descriptor tests passed\n";
 }

@@ -3,17 +3,25 @@
 Initial software validation: 2026-10-10, without hardware, committed as `b17edee`.
 Later on the same day, both devices were connected separately to the PC. Desktop
 USB/HID descriptors, deck firmware and ESP chip/flash identity were read; no ESP
-flash write, electrical measurement, OTA upload or live HA action was performed.
-This follow-up's changes remain in the working tree.
+flash write was performed in that descriptor session (committed as `c5583e8`).
+The subsequent deployment session compiled probe 01 with local credentials,
+backed up all 16 MB and uploaded the factory image with hash verification. No
+electrical measurement or live HA action has been performed. A further network
+session verified Wi-Fi, encrypted API, initialized PSRAM and two encrypted OTA
+updates. It captured a full-speed descriptor mismatch before any HID report
+could be sent. A confirmed 20-second deck power removal did not change it. The
+source-pinned compatibility fix now completes all 32 startup reports on hardware
+with zero reported USB errors. Physical input/visual checks remain pending.
+Deployment-tool, diagnostic and compatibility changes remain in the working tree.
 
 ## Evidence categories
 
 | Category | Result |
 | --- | --- |
-| Implemented | Codec, scheduler, asynchronous USB host, key/brightness entities, diagnostics, resident images, HA example, recovery; Linux desktop descriptor/input probe |
-| Unit-tested | 16 Python test cases, including native C++ assertion suites, captured-descriptor regression coverage and production transport compiled against a fake IDF |
-| Compiled | All three numbered examples, native ESP-IDF 5.5.5 for ESP32-S3, using temporary synthetic credentials |
-| Hardware-verified | Desktop USB/HID descriptors, deck firmware, ESP32-S3 identity and 16 MB flash; embedded 8 MB PSRAM reported, boot memory test pending; no S3-to-deck operation verified |
+| Implemented | Codec, scheduler, USB transport/entities/images/recovery, diagnostics, desktop probe, private builds and a source-pinned IDF descriptor compatibility hook |
+| Unit-tested | 21 Python cases including native C++ suites, raw/normalized S3 descriptor fixtures, full-report production-transport simulation, build-hook source guards and private staging |
+| Compiled | All three numbered examples with synthetic credentials; examples 01 and 02 also built privately for deployment, ESP-IDF 5.5.5 / ESPHome 2026.9.0 |
+| Hardware-verified | Identity/flash, Wi-Fi, encrypted API/OTA, 8 MB PSRAM initialization, interface claim, full 8191-byte reset, brightness feature and 30 blank-image pages; physical key mapping/visual correctness remain pending |
 | Remote CI | Workflow provided; not executed in this session |
 
 Commands actually run:
@@ -34,7 +42,7 @@ errors and assertions enabled, without sanitizers. `SANITIZE=1` enables ASan/UBS
 on a machine with those runtimes; the CI workflow requests them. This document
 does not claim a local sanitizer run passed.
 
-Final builds after disabling the secondary USB console:
+Initial baseline builds after disabling the secondary USB console:
 
 | Example | Static RAM estimate | Application flash estimate |
 | --- | ---: | ---: |
@@ -45,7 +53,19 @@ Final builds after disabling the secondary USB console:
 These linker estimates exclude runtime USB/task/network allocation and are not
 free-heap measurements. The checker also verifies the actual generated control
 cap (8192 for driver examples) and disabled secondary USB console. Firmware
-binaries remain ignored and contain synthetic credentials; do not flash them.
+validation binaries remain ignored and contain synthetic credentials; do not
+flash them. Explicit `--deploy` builds use local credentials and are stored
+separately in private `.build/deploy/` directories.
+
+The first deployment build used
+`.venv/bin/python tools/check_firmware.py --compile --example 01_usb_probe --deploy`.
+Its static RAM estimate is 108,371 B, application estimate 783,971 B, and merged
+factory image is 849,616 B. The generated SDK disables the secondary USB console;
+the image header identifies ESP32-S3, 16 MB flash, DIO and 80 MHz. Deployment
+staging leaves local secrets untouched, sets the staged file to mode 0600, and
+keeps raw compiler output inside the mode-0700 deployment directory. The two
+additional host tests verify private secret staging, isolation from synthetic
+validation builds, and rejection of an incomplete deployment command.
 
 ## What the automated tests establish
 
@@ -74,6 +94,23 @@ always arrives, or that interrupt batching/EP0 requests work physically.
 
 ## First hardware session
 
+The [network/S3 session](hardware.md#network-and-s3-usb-session-2026-10-10)
+now confirms networking, PSRAM initialization and encrypted OTA. Its active
+configuration reports 512-byte interrupt endpoints on a full-speed link. The
+transport regression suite exercises those exact bytes at simulated full speed
+and verifies rejection before any transfer, plus the five-second retry bound.
+The owner confirmed persistence after a 20-second power-off. Additional tests
+exercise the exact-layout correction, untouched unrelated layouts/IDs/speeds,
+and an upstream-golden 8191-byte report through the corrected interface. Three
+build-hook tests cover patch placement, source hashes and SDK preservation.
+
+The [fixed firmware](hardware.md#compatibility-fix-and-successful-reports-2026-10-10)
+completed 32 startup reports on the S3: full reset, brightness and two blank-image
+pages for every key. The encrypted API reports USB ready, zero USB errors and
+zero queue overflows. All three examples compile with synthetic secrets; the
+checker verifies the corrected USBH source is actually compiled for driver
+examples. Physical key mapping and visual/color/orientation checks are next.
+
 Desktop descriptor collection is complete; results and the 16-versus-17-byte
 input-report question are recorded in [hardware observations](hardware.md#desktop-observations-2026-10-10).
 The full-speed configuration is advertised evidence, not a physical S3 capture.
@@ -94,9 +131,11 @@ redacted from `esptool`; the probe does not query device serials. Its optional
 to avoid hiding input length behind the reference library's 16-byte read buffer.
 An additional 180-second passive hidraw capture returned zero reports; no key
 press was confirmed, so input length and physical mapping remain unverified.
-Probe 01 and HA example 03 also passed configuration validation with the local
-secrets file after it appeared. That output was withheld; only synthetic secrets
-were used for firmware compilation, and no firmware was uploaded.
+During that initial desktop session, probe 01 and HA example 03 also passed
+configuration validation with the local secrets file after it appeared. That
+output was withheld. The subsequent probe deployment used real local credentials;
+its backup, upload command and verified image hash are recorded in
+[the first upload record](hardware.md#first-firmware-upload-2026-10-10).
 
 1. Complete the [power/wiring checklist](hardware.md), record parts/revision,
    and collect desktop configuration/HID descriptors. No topology redesign is

@@ -21,11 +21,19 @@ the first observed header. An optional `input_report_id` enforces a byte after
 the owner's descriptor/capture establishes it. We do not assign an unobserved ID.
 Extra/padded report lengths are rejected until supported with evidence.
 
+For network debugging, each connection retains the first nonempty input's length
+and up to 32 bytes of hex before validation. API configuration dumps repeat that
+snapshot, attachment/generation state, discovered endpoints and completed-report
+count. This does not change decoding or turn malformed input into key events.
+
 The first [desktop capture](hardware.md#desktop-observations-2026-10-10) declares
 input IDs `0x01`, `0xa0`, `0xa1` with 17 bytes including ID. This differs from the
 pinned library's 16-byte read limit. Capture actual interrupt reports before
 deciding whether to accept an additional byte or filter non-key IDs; no input
 contract change is claimed from the descriptor alone.
+The S3's 512-byte endpoints advertised at full speed are now handled by a narrow
+host-side descriptor correction, without changing this input contract; see the
+[hardware record](hardware.md#network-and-s3-usb-session-2026-10-10).
 
 The first valid report of each connection establishes a baseline without user
 actions. A key already held then also has its eventual release suppressed; its
