@@ -12,17 +12,14 @@ Unit-tested: upstream byte fixtures, scheduler/input behavior, simulated USB
 transfers, schema validation and captured desktop descriptors.
 Hardware-verified: desktop descriptors, ESP chip/flash identity, 8 MB PSRAM
 initialization, Wi-Fi, encrypted API and encrypted OTA. The S3 enumerates the
-deck at full speed. A targeted host-side descriptor hook permits interface
-claiming and 32 host-reported startup completions. However, with both endpoints
-limited to 64 bytes the owner still saw the logo and no key input was received.
-An experimental IN-64 / OUT-512 build also produced no visible test pattern or
-key reports, even after deck reconnects and a whole-system power cycle.
-Display/key operation is **not working in these tests**. USB completion alone does not prove
-the deck processed a report. Electrical qualification and HA acceptance also
-remain pending. The latest diagnostic build adds control-response capture and
-HID SET_IDLE initialization. Control replies work and 17-byte key reports now
-arrive; the decoder has been corrected to accept that captured format. End-to-end
-button actions and rendering still need verification. See
+deck at full speed. With the IN-64 / OUT-512 descriptor workaround, HID SET_IDLE
+startup and corrected 17-byte input decoder, the owner now confirms visible
+RGB/arrow images, lightbulbs while pressed and arrow images after release. Logs
+cover every key 0..14 and one successful peripheral reconnect: the saved desired
+images redraw across all 15 keys and key events resume in generation 3. Each
+edge completes both 8191-byte image pages. Detailed mapping/visual checks,
+brightness response, repeated reconnects, ESP-only restarts, electrical
+qualification and HA acceptance remain pending. See
 [validation and remaining gates](docs/testing.md).
 
 The original [handover](STREAM_DECK_ESPHOME_CODEX_HANDOVER.md) is preserved.
@@ -73,6 +70,13 @@ API and encrypted OTA. No real credentials are committed.
 | `examples/02_keys_brightness.yaml` | All keys, brightness and diagnostics; blanks the displays |
 | `examples/03_images_home_assistant.yaml` | Key 0 toggles `light.example_lamp`; actual HA feedback selects ON/OFF/? |
 | `examples/04_hardware_test.yaml` | Standalone RGB/arrow patterns on keys 0/7/14; received presses show ON, releases restore the pattern; no HA actions |
+
+In example 04, the other keys intentionally start blank. Releasing any key sets
+its desired image to the arrow pattern, so testing every key leaves all keys
+with arrows. A deck-only reconnect redraws those saved desired images one key at
+a time. An ESP restart instead reapplies the boot layout. Display updates are
+change-driven, with a full redraw on attachment; periodic display polling is not
+needed for this behaviour.
 
 For the HA example change `light_entity` to your entity. Add the ESPHome integration
 at `streamdeck-original.local`, port 6053, with your API key, and allow the device

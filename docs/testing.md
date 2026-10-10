@@ -22,9 +22,16 @@ regression-tested; read-only EP0 diagnostics returned configuration 1, the same
 build also sends standard HID SET_IDLE(0) before the descriptor read; the deck
 acknowledges it successfully. During the next button test, real 17-byte ID-1 input
 arrived and was rejected by the strict-16 decoder. That captured layout is now
-accepted and regression-tested; end-to-end actions/rendering still need checking.
-The prior compatibility work is committed as `84e2851`; the new experiment,
-diagnostic artwork/example and code-generation ordering fix are in the working tree.
+accepted and regression-tested; end-to-end actions/rendering were then requested.
+The owner's subsequent confirmation establishes visible RGB/arrow images and
+seven press/release pairs across keys 0, 7 and 14, with two complete image pages
+after each edge. This closes the initial functional display/input smoke test,
+not the full hardware acceptance gates. The compatibility baseline is `84e2851`;
+the diagnostic, HID startup and decoder changes are committed as `181c54a`.
+The next owner-supplied test covers all 15 key indices and one successful
+peripheral reconnect: full desired-image restoration and resumed input in
+generation 3. The lightbulb-on-press and image-on-release behaviour is visually
+confirmed. Firmware remained unchanged.
 
 ## Evidence categories
 
@@ -33,7 +40,7 @@ diagnostic artwork/example and code-generation ordering fix are in the working t
 | Implemented | Codec, scheduler, USB transport/entities/images/recovery, diagnostics, desktop probe, private builds, a source-pinned IDF descriptor hook and standalone visual/input test |
 | Unit-tested | 23 Python cases including native C++ suites, raw/normalized S3 descriptors, 64-/512-byte full-report transport simulation, physical-detach recovery, EP0 requests/lifetime and captured reply consistency, pinned artwork, build-hook guards and private staging |
 | Compiled | All four numbered examples with synthetic credentials; examples 01, 02 and 04 also built privately for deployment, ESP-IDF 5.5.5 / ESPHome 2026.9.0 |
-| Hardware-verified | Identity/flash, Wi-Fi, encrypted API/OTA, 8 MB PSRAM initialization, interface claim, EP0 configuration/HID/firmware replies, SET_IDLE completion, 17-byte interrupt key packets and host-side output completions. Decoded action delivery, rendering and brightness response are not yet verified |
+| Hardware-verified | Identity/flash, Wi-Fi, encrypted API/OTA, 8 MB PSRAM initialization, EP0 replies, 17-byte input, visible image feedback, press/release coverage for all 15 key indices, and one deck reconnect with full desired-image redraw and resumed input. Detailed mapping/visual/brightness checks, repeated recovery, ESP-only restarts, electrical and HA qualification remain pending |
 | Remote CI | Workflow provided; not executed in this session |
 
 Commands actually run:
@@ -48,7 +55,9 @@ Commands actually run:
 .venv/bin/python -m pip check
 ```
 
-All final commands passed. An initial sanitizer link attempt failed because this
+All final commands passed in the implementation session. The later owner-confirmation
+update changes documentation only; no firmware rebuild or upload was performed.
+An initial sanitizer link attempt failed because this
 machine lacks `/usr/lib64/libasan.so.8.0.0`. Local C++ tests ran with warnings as
 errors and assertions enabled, without sanitizers. `SANITIZE=1` enables ASan/UBSan
 on a machine with those runtimes; the CI workflow requests them. This document
@@ -136,13 +145,27 @@ preserves 512-byte OUT packet framing and uses the required periodic-OUT FIFO
 bias. Example 04 was compiled and deployed over encrypted OTA; it reports the
 expected IN-64 / OUT-512 layout and 32 startup completions, but the owner confirmed
 no arrow patterns or button messages after reconnects and a whole-system power
-cycle. Both packet-size attempts fail functional acceptance. A retained
+cycle. Both packet-size-only attempts failed functional acceptance. A retained
 `root_port_recycle` abort identified the separate detach recovery bug now covered
 by the production-transport regression suite. All four examples compile with
 synthetic secrets. The checker verifies both the FIFO setting and actual
 compilation of the patched USBH source. Example 04 also catches an image-ID
 code-generation ordering bug: a hub's image objects must exist before generating
 its own press/release actions that reference those objects.
+
+After adding HID startup and correcting the 17-byte decoder, the owner
+[confirmed visible patterns and local key actions](hardware.md#first-confirmed-images-and-local-key-actions-2026-10-10).
+The supplied excerpt has seven press/release pairs and 28 image-page completions
+in generation 1. The current combined implementation works for that smoke test;
+it does not isolate which output MPS is necessary or qualify all release gates.
+
+The [subsequent all-key/reconnect test](hardware.md#all-keys-and-one-successful-peripheral-reconnect-2026-10-10)
+covers every key index in generation 1, reinitialization and all 30 redraw pages
+in generation 3, followed by further input. The owner confirms the expected
+sequential redraw. This establishes one recovery without the prior abort, not
+repeated recovery or ESP-only restart qualification. The first key-0 packet after
+attachment is still a silent baseline; adding a display refresh timer would not
+change that input policy.
 
 Desktop descriptor collection is complete. Later S3 capture resolved the
 16-versus-17-byte discrepancy: the physical key packet is 17 bytes, while the
@@ -198,7 +221,8 @@ its backup, upload command and verified image hash are recorded in
 
 - [ ] 10 cold starts, recording electrical/USB behavior.
 - [ ] 10 ESP-only warm restarts with deck continuously powered, including OTA.
-- [ ] At least 20 peripheral unplug/replug cycles, including both image pages.
+- [ ] At least 20 peripheral unplug/replug cycles, including both image pages
+  (one successful idle disconnect/reconnect recorded so far).
 - [ ] 100 deliberate press/release pairs with no missing/duplicate intended actions
   under recorded test conditions; simultaneous holds and rapid clicks while redrawing.
 - [ ] Overnight soak with periodic actual HA state changes.

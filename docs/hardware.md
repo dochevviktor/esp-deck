@@ -3,11 +3,12 @@
 Status: USB flashing, Wi-Fi, encrypted API, 8 MB PSRAM initialization and encrypted
 OTA verified on 2026-10-10. The deck's invalid full-speed packet-size descriptor
 persists after a confirmed 20-second power removal. The S3 claims an experimental
-IN-64 / OUT-512 layout and reports completed writes, but those did not produce
-visible images in the owner's tests. Two-way EP0 replies are verified. After HID
-SET_IDLE startup, 17-byte key reports arrived and exposed a strict-16 decoder
-bug, now corrected. Physical key/action mapping, visual image/brightness output,
-loaded electrical qualification, reconnect recovery and HA tests remain pending.
+IN-64 / OUT-512 layout. After HID SET_IDLE startup and correction of the strict-16
+input decoder, the owner confirms RGB/arrow images, press/release image feedback,
+events for all 15 key indices and one successful peripheral reconnect with a
+full desired-image redraw and resumed input. Two-way EP0 replies are also verified.
+Detailed mapping/visual checks, brightness response, loaded electrical
+qualification, repeated recovery, ESP-only restarts and HA tests remain pending.
 The handover is the hardware source of truth; this is its operational checklist.
 
 ```text
@@ -355,6 +356,70 @@ The post-reboot API confirms that build, successful control probes, the expected
 IN-64 / OUT-512 layout and 32 startup output completions. A new two-click input
 and visual-feedback check has been requested without further unplugging.
 
+## First confirmed images and local key actions, 2026-10-10
+
+The owner confirmed that the RGB/arrow patterns are visible and pressing the
+patterned keys now produces events. Their supplied log from the decoder-corrected
+example 04 shows the same 17-byte ID-1 first-input snapshot and seven complete
+press/release pairs: key 0 three times, key 7 twice, and key 14 twice. All logged
+image completions use generation 1.
+
+Every press and release is followed by `kind=2` then `kind=3`, each 8191 bytes:
+the two pages of the corresponding requested image. This gives 14 decoded edges
+and 28 completed image-page reports in the supplied excerpt. Combined with the
+owner's visual confirmation, this establishes basic rendering of the asymmetric
+fixture and physical-input-to-local-action-to-image-transfer operation on this
+particular deck/board setup. It is stronger evidence than host completions alone.
+The firmware is unchanged from the `21:59:20 +0200` build above; its source is now
+committed as `181c54a`. No new firmware upload was needed for this confirmation.
+
+Limits: the user did not separately confirm the precise ON-while-held/arrow-on-
+release appearance, every colour/orientation detail, all 15 key positions or
+brightness levels. The excerpt does not establish first-click behaviour, absence
+of missing/duplicate events outside the shown pairs, error/heap trends, recovery
+after the detach fix, or cold/warm-start reliability. Electrical and HA gates stay
+open. This is a first functional milestone, not completion of M2 or release
+qualification. The working combination has not isolated whether OUT MPS 512 is
+necessary once HID startup is present; no such A/B result is claimed.
+
+## All keys and one successful peripheral reconnect, 2026-10-10
+
+The owner next reported pressing every key, disconnecting/reconnecting the deck
+and pressing more keys, without a new firmware upload. The supplied log includes
+press/release pairs for every index 0..14 in generation 1. Every logged edge is
+followed by both 8191-byte image-page completions. The owner also visually
+confirmed that initially blank keys show the lightbulb while pressed and an
+image after release.
+
+The reconnect trace shows DEV_GONE handling, a new interface claim with IN MPS 64
+and OUT MPS 512, successful control queries/SET_IDLE, then generation 3 stream
+reset (8191 bytes), brightness (17 bytes), and 15 page-1/page-2 image pairs.
+Further press/release pairs cover keys 1..14 in generation 3. The 1 → 3 jump is
+expected: recovery invalidates generation 1, and a fresh attachment increments
+it again. The owner observed all keys repopulating sequentially. This is one
+successful physical-detach recovery and redraw test after the abort fix; there
+is no abort/reboot in the supplied trace. It is not the 20-cycle qualification.
+
+The image behaviour is intentional in `04_hardware_test.yaml`: only 0/7/14 get
+the pattern on ESP boot; all others default to the blank BMP. Any press requests
+the lightbulb, and any release requests the pattern for that key, not its
+original blank image. These desired-image selections stay in ESP RAM during a
+deck-only disconnect. Reattachment invalidates the applied-image cache and
+serially sends reset, brightness and every desired image. Since all keys were
+tested, every desired image is now the pattern. No periodic refresh is missing;
+unchanged images need no repeated uploads. An ESP reboot would instead recreate
+the three-pattern boot layout, since the desired images are not persisted in NVS.
+
+After reconnect the first captured packet again has key 0 down; no key-0 action
+is logged before key 1. This is consistent with the documented silent initial
+baseline and held-at-attachment release suppression. First-click responsiveness
+remains a limitation to address/qualify separately, not a display refresh issue.
+All-key coverage and one recovery are confirmed, but exact physical position
+mapping, detailed orientation/colour checks, brightness levels, simultaneous
+holds, mid-upload detach, repeated cold/warm starts, soak and electrical/HA
+acceptance remain open. The earlier unsuccessful reconnect trials do not count
+as successful recovery qualification cycles.
+
 ## Supervised loaded qualification
 
 - [ ] Measure total operating/peak/startup current; do not substitute `bMaxPower`.
@@ -383,8 +448,8 @@ this VBUS rail.
 ## Measurements to supply later
 
 Record the unchecked items above. Desktop USB/HID descriptors and deck firmware
-are recorded above; capture actual key input and confirm the descriptors again
-on the S3. `lsusb -v` showed the HID report descriptor as unavailable even though
+and actual S3 descriptors/key input are recorded above; complete the remaining
+physical mapping and recovery checks. `lsusb -v` showed the HID report descriptor as unavailable even though
 it was readable through sysfs, so that output alone was incomplete. Redact serial
 numbers before sharing. Also record the owner's working Python-library revision
 and intended HA entity. A targeted USB capture is optional if input observations

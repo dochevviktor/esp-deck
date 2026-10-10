@@ -29,8 +29,10 @@ generating or checking bytes. No desktop library runs on the ESP.
 The build uses 16 MB flash, DIO flash mode, octal PSRAM at 80 MHz, UART0 logs,
 secondary USB console disabled and (driver examples) USB control data cap 8192
 and periodic-OUT FIFO bias. The current Original descriptor experiment corrects
-only IN to MPS 64 and keeps OUT at its advertised MPS 512; functional validation
-of this nonstandard full-speed layout remains pending.
+only IN to MPS 64 and keeps OUT at its advertised MPS 512. Combined with HID
+startup and the 17-byte decoder, this nonstandard full-speed layout now passes
+the owner's all-key image-feedback smoke test and one peripheral reconnect;
+full qualification remains pending.
 The generated partition table has two 7936 KiB OTA slots. These are compile-time
 settings, not proven OTA behavior. A desktop `esptool 5.3.1 flash-id` query on
 2026-10-10 detected ESP32-S3 revision v0.2 and 16 MB flash and reported embedded

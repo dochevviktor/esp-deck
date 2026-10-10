@@ -1,12 +1,13 @@
 # USB transport decision
 
-Status: implemented, unit-tested, compiled and exercised on the S3, but not
-functionally qualified. A narrowly scoped descriptor correction enabled
-interface claiming and 32 host-reported startup completions, including full
-8191-byte outputs. The IN-64 / OUT-64 attempt still left the logo displayed and
-produced no input after physical presses. An IN-64 / OUT-512 experiment is now
-deployed and also failed the owner's display/input test after reconnects and a
-whole-system power cycle. Functional transport and release qualification remain open.
+Status: implemented, unit-tested, compiled and initially functional on the S3.
+With IN-64 / OUT-512, HID SET_IDLE startup and the captured 17-byte input format,
+the owner confirms visible RGB/arrow images, press/release image feedback, all
+15 key indices and one peripheral reconnect with full redraw and resumed input.
+Each edge completes both 8191-byte image pages. Earlier
+packet-size-only attempts did not work; their host completions were insufficient
+evidence. Detailed mapping/visual checks, brightness, repeated recovery and release
+qualification remain open.
 The handover is preserved at
 `STREAM_DECK_ESPHOME_CODEX_HANDOVER.md`.
 
@@ -55,8 +56,9 @@ configuration. Actual S3 enumeration at full speed returned the **512-byte**
 configuration instead, including after the owner removed deck power for over
 20 seconds. With the current 512-byte OUT endpoint, an 8191-byte report fits in
 one transfer: 15 full packets and a final 511-byte packet, within the 32-packet
-limit. Host completion is observed, but device processing is unverified. See the
-[S3 observations](../hardware.md#network-and-s3-usb-session-2026-10-10).
+limit. Host completion and actual RGB/arrow rendering are now observed with the
+combined startup/decoder changes. See the
+[functional confirmation](../hardware.md#first-confirmed-images-and-local-key-actions-2026-10-10).
 
 ## Original full-speed descriptor compatibility
 
@@ -110,9 +112,12 @@ pins, unpublished-copy placement and refusal to write inside the SDK source tree
 On hardware, example 04 reports interface 0/0, IN `0x81` MPS 64 / OUT `0x02`
 MPS 512, initialization complete and 32 host completions. It requests asymmetric
 RGB/TL/arrow patterns on keys 0, 7 and 14; press/release automations provide local
-visual feedback without HA. The owner confirmed no patterns or key events even
-after reconnects and a whole-system power cycle. Both the single-transfer 512-byte path and the four-batch 64-byte
-path are covered by native tests.
+visual feedback without HA. The packet-size-only build produced no patterns or
+key events even after reconnects and a whole-system power cycle. After the HID
+startup and decoder changes, the owner confirmed visible patterns and supplied
+press/release logs with complete two-page image transfers. Both the single-transfer
+512-byte path and the four-batch 64-byte path are covered by native tests; the
+64-byte path has not been hardware-retested with the new HID initialization.
 
 The optional `usb_diagnostics: true` bench setting makes three read-only EP0
 queries before scheduler initialization: GET_CONFIGURATION, GET_DESCRIPTOR for
@@ -123,7 +128,8 @@ the initialization in
 [Linux usbhid v6.12](https://github.com/torvalds/linux/blob/v6.12/drivers/hid/usbhid/hid-core.c).
 This standard request selects report-on-change behaviour; it is not a device
 reset. Key packets were first captured after this startup change; physical input
-actions and rendering still need confirmation. No serial feature is read. Buffers
+actions and basic rendering were subsequently confirmed after fixing the decoder.
+No serial feature is read. Buffers
 round up IN capacity to EP0 MPS without changing wLength. Replies/status/actual
 lengths are retained for late API configuration dumps and never counted as
 output report completions or decoded as key input. A completed STALL/short reply
@@ -147,6 +153,11 @@ arrives. Scheduling rotates through keys, and brightness can run between images.
 Connection generations and per-job sequence numbers reject obsolete work. On
 reconnect, send the full stream reset, desired brightness, then all desired images.
 This applies equally when the deck stayed powered during an ESP reboot.
+Desired images remain in RAM across a deck-only disconnect; an ESP restart
+recreates the configured boot state instead. Updates are change-driven, with
+full restoration on attachment, not a periodic full-display refresh. One physical
+deck reconnect has now confirmed sequential desired-image restoration and resumed
+key events. ESP-only restart and repeated recovery tests remain open.
 
 ## Deadlines and recovery
 

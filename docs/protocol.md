@@ -99,11 +99,21 @@ entire lifetime. Invalid runtime keys/images return false without queuing work.
 
 Every key defaults to a flash-resident blank BMP. After connection the driver
 requests a redraw of all 15 desired images to clear displays retained from a
-previous run. Physical rendering is still unverified; host completion is not
-display readback.
+previous run. The owner has confirmed image feedback and events across all 15
+key indices, plus sequential restoration after one deck reconnect. Host completion
+is still not display readback; exact mapping/orientation/colours and repeated
+recovery remain separate checks.
 Only changed desired assets are sent during normal operation. No network image
 uploads, fonts, animation engine, pages or device serial storage. Firmware feature
 4 is read only by the optional diagnostic path described above.
+
+Example 04 deliberately gives only keys 0/7/14 a pattern at boot. Its press
+action selects the lightbulb and its release action selects the pattern for
+whichever key was used. A previously blank key therefore keeps a pattern after
+release. These selections survive a peripheral disconnect in ESP RAM and are
+redrawn on reattachment, one complete two-page image at a time. They do not
+survive an ESP restart; the boot configuration runs again. No display polling
+timer is required: image changes and USB attachment trigger the necessary work.
 
 ## Home Assistant example
 
