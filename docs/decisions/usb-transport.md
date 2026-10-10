@@ -43,8 +43,11 @@ the only short packet at the end. At MPS 64 the lengths are 2048, 2048, 2048,
 2047. The application still hands over one complete report. Continuations add
 no report ID, HID header, padding or ZLP and cannot interleave another report.
 The host packetizes each batch. Fake-IDF tests concatenate the submissions and
-compare all 8191 bytes with the upstream fixture. Whether this branch is used on
-the owner's unit is unknown until its descriptors are captured.
+compare all 8191 bytes with the upstream fixture. The owner's desktop capture
+now shows interrupt OUT at both speeds, with MPS 64 in its advertised full-speed
+configuration. This selects the interrupt branch if the S3 enumerates it as
+advertised; physical S3 enumeration and full-report transmission remain pending.
+See [captured descriptors](../hardware.md#desktop-observations-2026-10-10).
 
 ## Tasks, ordering and lifetime
 

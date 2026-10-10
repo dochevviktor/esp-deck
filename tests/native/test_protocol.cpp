@@ -177,7 +177,40 @@ void test_descriptors() {
   assert(!p::find_interface(config.data(), config.size(), descriptor));
 }
 
+std::vector<uint8_t> desktop_descriptor(const std::string &name) {
+  std::ifstream input("tests/fixtures/desktop_0060/" + name + ".hex");
+  assert(input.good());
+  std::vector<uint8_t> bytes;
+  unsigned byte;
+  while (input >> std::hex >> byte) {
+    assert(byte <= 0xff);
+    bytes.push_back(uint8_t(byte));
+  }
+  assert(input.eof());
+  return bytes;
+}
+
+void test_observed_descriptors() {
+  // Desktop capture, 2026-10-10. This is advertised FS behavior, not an S3 capture.
+  const auto high_speed = desktop_descriptor("configuration_high_speed");
+  auto full_speed = desktop_descriptor("other_speed_full_speed");
+  p::Interface descriptor;
+  assert(high_speed.size() == 41 && full_speed.size() == 41);
+  assert(!p::find_interface(high_speed.data(), high_speed.size(), descriptor));
+  assert(full_speed[1] == 7 && full_speed[8] == 50);
+  assert(!p::find_interface(full_speed.data(), full_speed.size(), descriptor));
+  // OTHER_SPEED_CONFIGURATION (7) has the same layout as CONFIGURATION (2).
+  // Normalize only its type for this test; production still requires type 2.
+  full_speed[1] = 2;
+  assert(p::find_interface(full_speed.data(), full_speed.size(), descriptor));
+  assert(descriptor.number == 0 && descriptor.alternate == 0);
+  assert(descriptor.in_endpoint == 0x81 && descriptor.in_packet_size == 64);
+  assert(descriptor.out_endpoint == 0x02 && descriptor.out_packet_size == 64);
+  assert(descriptor.report_descriptor_size == 267);
+  assert(desktop_descriptor("hid_report").size() == descriptor.report_descriptor_size);
+}
+
 int main() {
-  test_protocol(); test_input(); test_scheduler(); test_descriptors();
+  test_protocol(); test_input(); test_scheduler(); test_descriptors(); test_observed_descriptors();
   std::cout << "Protocol fixtures, input, scheduler and descriptor tests passed\n";
 }

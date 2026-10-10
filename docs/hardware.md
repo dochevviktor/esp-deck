@@ -1,7 +1,9 @@
 # Wiring and hardware acceptance
 
-Status: owner's topology documented; exact parts, current-path qualification and
-all physical tests pending. No board was attached during implementation.
+Status: owner's topology documented; desktop descriptors, deck firmware and ESP
+chip/flash identity read on 2026-10-10. Exact parts, current-path qualification
+and all ESP32-to-deck tests remain pending. Both devices were attached separately
+to the PC for this session.
 The handover is the hardware source of truth; this is its operational checklist.
 
 ```text
@@ -50,6 +52,63 @@ battery, powered hub, Y cable or second supply belongs in the initial setup.
 - [ ] Confirm the breakout feed is physically disconnected before PC USB-C flashing.
 - [ ] Confirm UART adapter is 3.3 V logic with its power pin left unconnected.
 
+## Desktop observations, 2026-10-10
+
+Repository baseline: `b17edee`. Linux xHCI enumerated the deck as `0FD9:0060` at
+480 Mbps and the Espressif USB Serial/JTAG device as `303A:1001` at 12 Mbps,
+with `/dev/ttyACM0` available. An `esptool 5.3.1` `flash-id` query then identified
+ESP32-S3 QFN56 revision v0.2, 16 MB flash (manufacturer `0x85`, device `0x2018`),
+quad/3.3 V flash eFuse settings, and embedded 8 MB PSRAM (`AP_3v3`). This matches
+the configured memory capacities; PSRAM boot initialization and a memory test
+remain pending. The query ran a temporary RAM stub and reset the ESP afterward;
+no flash was written and no eFuses were changed. PCB revision and installed
+firmware are still unknown. MAC output was redacted.
+
+Captured bytes and provenance are under `tests/fixtures/desktop_0060/`. Reproduce
+the read-only deck probe with `.venv/bin/python tools/probe_desktop.py`. The tool
+queries neither USB serial strings nor the serial-number feature report. No
+kernel driver detachment, device reset or SET_REPORT is needed for this capture.
+
+| Field | Active desktop configuration | Advertised other-speed configuration |
+| --- | --- | --- |
+| Speed | High speed, observed 480 Mbps | Full speed, not physically exercised |
+| Configuration / HID interface / alternate | 1 / 0 / 0 | 1 / 0 / 0 |
+| Interrupt IN | `0x81`, MPS 512, `bInterval=1` | `0x81`, MPS 64, `bInterval=1` |
+| Interrupt OUT | `0x02`, MPS 512, `bInterval=1` | `0x02`, MPS 64, `bInterval=1` |
+| `bMaxPower` declaration | 400 mA | 100 mA |
+| Attributes | `0xe0`: self powered, remote wakeup | `0xe0`: self powered, remote wakeup |
+| HID descriptor | HID 1.11, report descriptor 267 bytes | Same declaration |
+
+Neither power declaration establishes actual consumption or qualifies the inlet.
+The full-speed descriptor was retrieved with standard GET_DESCRIPTOR type 7
+while the device remained at high speed. The native parser test changes only
+that descriptor type to 2 and verifies the advertised interface/endpoints; it
+also verifies that the high-speed configuration is rejected. This is compatible
+with the chosen S3 transport at the descriptor level, not proof of enumeration
+or complete 8191-byte interrupt output on the S3.
+
+GET_REPORT(Feature 4), 17 bytes, returned firmware `1.0.191203`. The report
+descriptor declares output ID `0x02` with 8190 payload bytes (8191 with ID),
+feature IDs `0x03`, `0x04`, `0x05` and `0x0b` with 16 payload bytes, and input
+IDs `0x01`, `0xa0`, `0xa1` with 16 payload bytes each (17 with ID).
+
+Input length remains unresolved: the pinned Python library requests only 16
+bytes, whereas this HID descriptor declares 17. Our decoder currently requires
+exactly 16; capture a real press/release with a 512-byte hidraw read before
+changing the contract. The descriptor's additional input IDs must not be assumed
+to carry key states. A trial GET_REPORT(Input 1) with a 64-byte buffer returned
+64 zero bytes, without the requested ID; this is not a validated initial-state
+read. An initial 3-second observation and a subsequent 180-second passive capture
+returned no interrupt reports. No physical key press was confirmed during those
+windows; this does not establish behavior on reset or on first key press.
+
+The ESP32 probe flash is pending confirmation of PC-only power. The local
+`examples/secrets.yaml` appeared during this session; probe 01 and HA example 03
+validate with it, without displaying credentials. This does not verify Wi-Fi
+connectivity. Firmware validation builds use synthetic credentials and must not
+be flashed for network testing. Runtime UART0, PSRAM detection and every
+loaded-power gate remain open.
+
 ## Supervised loaded qualification
 
 - [ ] Measure total operating/peak/startup current; do not substitute `bMaxPower`.
@@ -77,13 +136,13 @@ this VBUS rail.
 
 ## Measurements to supply later
 
-Record the unchecked items above, then obtain `lsusb -v -d 0fd9:0060` and `lsusb -t`
-from the working desktop setup, plus the HID report descriptor where possible.
-Missing-permission output may omit descriptors; do not treat it as complete.
-Record interface numbers, endpoint directions/types/MPS, speed and declared power.
-Redact serial numbers before sharing. Also record the working Python-library
-revision, deck firmware and intended HA entity. A targeted USB capture is optional
-if descriptors leave a concrete routing/report uncertainty.
+Record the unchecked items above. Desktop USB/HID descriptors and deck firmware
+are recorded above; capture actual key input and confirm the descriptors again
+on the S3. `lsusb -v` showed the HID report descriptor as unavailable even though
+it was readable through sysfs, so that output alone was incomplete. Redact serial
+numbers before sharing. Also record the owner's working Python-library revision
+and intended HA entity. A targeted USB capture is optional if input observations
+leave a concrete routing/report uncertainty.
 
 References: [Seeed specifications and power guidance](https://wiki.seeedstudio.com/xiao_esp32s3_getting_started/),
 [Plus V1.1 schematic](https://files.seeedstudio.com/wiki/SeeedStudio-XIAO-ESP32S3/res/XIAO_ESP32S3_Plus_V1.1_SCH_260115.pdf),

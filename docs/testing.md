@@ -1,17 +1,19 @@
 # Validation and remaining hardware gates
 
-Initial validation: 2026-10-10. No ESP or Stream Deck was attached to this machine.
-No flash, USB capture, electrical measurement, OTA upload or live HA action was
-performed. The delivered changes are in the working tree; no commit was created.
+Initial software validation: 2026-10-10, without hardware, committed as `b17edee`.
+Later on the same day, both devices were connected separately to the PC. Desktop
+USB/HID descriptors, deck firmware and ESP chip/flash identity were read; no ESP
+flash write, electrical measurement, OTA upload or live HA action was performed.
+This follow-up's changes remain in the working tree.
 
 ## Evidence categories
 
 | Category | Result |
 | --- | --- |
-| Implemented | Codec, scheduler, asynchronous USB host, key/brightness entities, diagnostics, resident images, HA example, recovery |
-| Unit-tested | 16 Python test cases, including native C++ assertion suites and production transport compiled against a fake IDF |
+| Implemented | Codec, scheduler, asynchronous USB host, key/brightness entities, diagnostics, resident images, HA example, recovery; Linux desktop descriptor/input probe |
+| Unit-tested | 16 Python test cases, including native C++ assertion suites, captured-descriptor regression coverage and production transport compiled against a fake IDF |
 | Compiled | All three numbered examples, native ESP-IDF 5.5.5 for ESP32-S3, using temporary synthetic credentials |
-| Hardware-verified | None |
+| Hardware-verified | Desktop USB/HID descriptors, deck firmware, ESP32-S3 identity and 16 MB flash; embedded 8 MB PSRAM reported, boot memory test pending; no S3-to-deck operation verified |
 | Remote CI | Workflow provided; not executed in this session |
 
 Commands actually run:
@@ -71,6 +73,30 @@ establish that this board/device sends the expected reports, that cancellation
 always arrives, or that interrupt batching/EP0 requests work physically.
 
 ## First hardware session
+
+Desktop descriptor collection is complete; results and the 16-versus-17-byte
+input-report question are recorded in [hardware observations](hardware.md#desktop-observations-2026-10-10).
+The full-speed configuration is advertised evidence, not a physical S3 capture.
+Additional commands run for this session:
+
+```sh
+lsusb -v -d 0fd9:0060
+lsusb -t
+.venv/bin/python tools/probe_desktop.py
+.venv/bin/esptool --chip esp32s3 --port /dev/ttyACM0 --baud 115200 flash-id
+.venv/bin/python -m unittest discover -s tests -v
+.venv/bin/python tools/check_firmware.py --compile
+```
+
+Serial strings were redacted from displayed `lsusb` output, and MAC output was
+redacted from `esptool`; the probe does not query device serials. Its optional
+`--seconds 30` capture reads up to 512 bytes per report
+to avoid hiding input length behind the reference library's 16-byte read buffer.
+An additional 180-second passive hidraw capture returned zero reports; no key
+press was confirmed, so input length and physical mapping remain unverified.
+Probe 01 and HA example 03 also passed configuration validation with the local
+secrets file after it appeared. That output was withheld; only synthetic secrets
+were used for firmware compilation, and no firmware was uploaded.
 
 1. Complete the [power/wiring checklist](hardware.md), record parts/revision,
    and collect desktop configuration/HID descriptors. No topology redesign is

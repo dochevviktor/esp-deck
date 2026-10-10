@@ -1,0 +1,20 @@
+{
+  "captured_utc": "2026-10-10T17:20:37.279181+00:00",
+  "repository_commit": "b17edee",
+  "vid_pid": "0fd9:0060",
+  "device_firmware": "1.0.191203",
+  "observed_host": "Linux desktop, xHCI, 480 Mbps",
+  "capture_tool": "tools/probe_desktop.py",
+  "files": {
+    "device.hex": "Device descriptor from Linux sysfs; contains string indices, no serial string",
+    "configuration_high_speed.hex": "Active 480 Mbps configuration from Linux sysfs",
+    "other_speed_full_speed.hex": "Standard GET_DESCRIPTOR(OTHER_SPEED_CONFIGURATION), type 7, captured while at high speed",
+    "hid_report.hex": "267-byte HID report descriptor from the attached device's sysfs hidraw interface"
+  },
+  "limits": [
+    "The full-speed bytes describe advertised behavior; no ESP32-to-deck link was measured",
+    "These physical descriptors are separate from the pinned upstream encoder fixtures",
+    "No image/brightness/output transfers or input key reports are represented by these files",
+    "Descriptor power declarations are not current measurements"
+  ]
+}

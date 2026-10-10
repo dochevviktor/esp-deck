@@ -18,7 +18,8 @@ credentials, C6 pin assignments and device-specific workarounds were not copied.
 | mDNS IDF component | `espressif/mdns` 1.12.0, pinned by ESPHome |
 | Native API/OTA crypto | `esphome/noise-c` 0.1.30, `esphome/libsodium` 1.10021.11, pinned by ESPHome |
 | Home Assistant tested version | None; not connected/tested |
-| Owner's desktop Python revision / deck firmware | Not yet supplied |
+| Owner's working desktop Python revision | Not yet supplied |
+| Deck firmware | `1.0.191203`, read through desktop HID Feature 4 on 2026-10-10 |
 
 `requirements-dev.txt` contains direct pins and the immutable reference Git SHA;
 `requirements-lock.txt` records the entire resolved Python dependency set.
@@ -28,8 +29,10 @@ generating or checking bytes. No desktop library runs on the ESP.
 The build uses 16 MB flash, DIO flash mode, octal PSRAM at 80 MHz, UART0 logs,
 secondary USB console disabled and (driver examples) USB control data cap 8192.
 The generated partition table has two 7936 KiB OTA slots. These are compile-time
-settings, not measured board memory or proven OTA behavior. Boot memory detection
-and board revision still need validation.
+settings, not proven OTA behavior. A desktop `esptool 5.3.1 flash-id` query on
+2026-10-10 detected ESP32-S3 revision v0.2 and 16 MB flash and reported embedded
+8 MB PSRAM. Boot PSRAM initialization/testing and board revision still need
+validation; no firmware was flashed in that session.
 
 Primary pinned sources:
 

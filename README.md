@@ -9,9 +9,11 @@ Implemented: protocol, asynchronous USB transport, reconnect/recovery, all 15 ke
 entities, brightness, diagnostics, images and a state-driven HA lamp example.
 Compiled: all three examples on ESPHome 2026.9.0 / ESP-IDF 5.5.5.
 Unit-tested: upstream byte fixtures, scheduler/input behavior, simulated USB
-transfers and schema validation. **Hardware-verified: none.** The ESP is not
-connected to this machine. Do not infer electrical, display, OTA or HA success
-from these builds. See [validation and remaining gates](docs/testing.md).
+transfers, schema validation and captured desktop descriptors.
+Hardware-verified: desktop USB descriptors, deck firmware and ESP chip/flash
+identification. The ESP and deck are connected separately to the PC; ESP32 host
+operation, electrical, display, OTA and HA acceptance remain pending. See
+[validation and remaining gates](docs/testing.md).
 
 The original [handover](STREAM_DECK_ESPHOME_CODEX_HANDOVER.md) is preserved.
 Start with the [hardware checklist](docs/hardware.md) before connecting anything.
@@ -73,6 +75,20 @@ GPIO19/20 belong to native USB. UART0 is used for runtime logging; PSRAM is set
 to octal 80 MHz and must be confirmed at boot. Flash is 16 MB using DIO mode.
 
 ## Flash, OTA and recovery when hardware is available
+
+With the deck attached to a Linux PC, collect descriptors without changing its
+images or brightness:
+
+```sh
+.venv/bin/python tools/probe_desktop.py
+# Optional: press/release keys while recording complete interrupt reports.
+.venv/bin/python tools/probe_desktop.py --seconds 30
+```
+
+The probe selects exactly one `0FD9:0060`, omits serial numbers, keeps the kernel
+driver attached, and reports permission/query failures explicitly. See the
+[desktop observations](docs/hardware.md#desktop-observations-2026-10-10) for the
+captured full-speed configuration and unresolved input-report length.
 
 First use the probe after the [unpowered wiring checks](docs/hardware.md).
 Before plugging the XIAO USB-C into a computer, **physically disconnect the
