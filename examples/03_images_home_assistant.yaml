@@ -1,0 +1,81 @@
+substitutions:
+  light_entity: light.example_lamp
+
+packages:
+  base: !include packages/base.yaml
+  deck: !include packages/deck.yaml
+
+esphome:
+  on_boot:
+    priority: 600
+    then:
+      - stream_deck.set_image:
+          id: deck
+          key: 0
+          image: lamp_unknown
+
+globals:
+  - id: ha_state_fresh
+    type: bool
+    restore_value: false
+    initial_value: 'false'
+
+api:
+  # Any client disconnect conservatively invalidates feedback. A log client
+  # alone never makes an icon valid; only an actual HA state callback does.
+  on_client_disconnected:
+    - lambda: id(ha_state_fresh) = false;
+    - stream_deck.set_image:
+        id: deck
+        key: 0
+        image: lamp_unknown
+
+stream_deck:
+  images:
+    - id: lamp_on
+      file: ../assets/native/light_on.bmp
+    - id: lamp_off
+      file: ../assets/native/light_off.bmp
+    - id: lamp_unknown
+      file: ../assets/native/unknown.bmp
+  on_key_press:
+    - if:
+        condition:
+          and:
+            - lambda: return key == 0 && id(ha_state_fresh) && (id(lamp_state).state == "on" || id(lamp_state).state == "off");
+            - api.connected:
+                state_subscription_only: true
+        then:
+          - homeassistant.action:
+              action: light.toggle
+              data:
+                entity_id: ${light_entity}
+
+text_sensor:
+  - platform: homeassistant
+    id: lamp_state
+    entity_id: ${light_entity}
+    internal: true
+    # Raw callbacks also run for unchanged state resent after reconnect.
+    on_raw_value:
+      then:
+        - lambda: |-
+            id(ha_state_fresh) = true;
+            if (x == "on") id(deck).set_image(0, id(lamp_on));
+            else if (x == "off") id(deck).set_image(0, id(lamp_off));
+            else id(deck).set_image(0, id(lamp_unknown));
+
+interval:
+  - interval: 1s
+    then:
+      - if:
+          condition:
+            not:
+              api.connected:
+                state_subscription_only: true
+          then:
+            - lambda: id(ha_state_fresh) = false;
+            - stream_deck.set_image:
+                id: deck
+                key: 0
+                image: lamp_unknown

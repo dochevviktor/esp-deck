@@ -1,0 +1,13 @@
+packages:
+  base: !include packages/base.yaml
+  deck: !include packages/deck.yaml
+
+stream_deck:
+  on_key_press:
+    - logger.log:
+        format: "Physical press: key %u"
+        args: [key]
+  on_key_release:
+    - logger.log:
+        format: "Physical release: key %u"
+        args: [key]

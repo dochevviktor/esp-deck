@@ -1,0 +1,18 @@
+{
+  "reference_revision": "43666bb454186d1d7adeba9402f689449705d0b9",
+  "pillow": "12.3.0",
+  "files": {
+    "light_on.bmp": {
+      "size": 15606,
+      "sha256": "dc9ea8f732bdcacf93f11184f6dfc200edbccc85e7cfff6b588cead19ed876e0"
+    },
+    "light_off.bmp": {
+      "size": 15606,
+      "sha256": "d579f48cb9d2bfc22b43dcab210921bdfa9cc2e4b9d1518ad21c5167d530fd96"
+    },
+    "unknown.bmp": {
+      "size": 15606,
+      "sha256": "97de0ca2a929bd7a1e594165480fbc512481bea218d5b007da993fb6bd776bf9"
+    }
+  }
+}

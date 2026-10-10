@@ -1,0 +1,99 @@
+external_components:
+  - source:
+      type: local
+      path: ../components
+    components: [stream_deck]
+
+stream_deck:
+  id: deck
+  initial_brightness: 30
+  connected:
+    name: Stream Deck USB ready
+  errors:
+    name: USB errors
+  input_overflows:
+    name: Input queue overflows
+  input_queue_high_water:
+    name: Input queue high water
+  internal_free_heap:
+    name: Internal free heap
+    unit_of_measurement: B
+  internal_minimum_free_heap:
+    name: Internal minimum free heap
+    unit_of_measurement: B
+
+number:
+  - platform: stream_deck
+    stream_deck_id: deck
+    id: deck_brightness
+    name: Stream Deck brightness
+    mode: slider
+
+binary_sensor:
+  - platform: stream_deck
+    stream_deck_id: deck
+    key: 0
+    name: Key 0
+  - platform: stream_deck
+    stream_deck_id: deck
+    key: 1
+    name: Key 1
+  - platform: stream_deck
+    stream_deck_id: deck
+    key: 2
+    name: Key 2
+  - platform: stream_deck
+    stream_deck_id: deck
+    key: 3
+    name: Key 3
+  - platform: stream_deck
+    stream_deck_id: deck
+    key: 4
+    name: Key 4
+  - platform: stream_deck
+    stream_deck_id: deck
+    key: 5
+    name: Key 5
+  - platform: stream_deck
+    stream_deck_id: deck
+    key: 6
+    name: Key 6
+  - platform: stream_deck
+    stream_deck_id: deck
+    key: 7
+    name: Key 7
+  - platform: stream_deck
+    stream_deck_id: deck
+    key: 8
+    name: Key 8
+  - platform: stream_deck
+    stream_deck_id: deck
+    key: 9
+    name: Key 9
+  - platform: stream_deck
+    stream_deck_id: deck
+    key: 10
+    name: Key 10
+  - platform: stream_deck
+    stream_deck_id: deck
+    key: 11
+    name: Key 11
+  - platform: stream_deck
+    stream_deck_id: deck
+    key: 12
+    name: Key 12
+  - platform: stream_deck
+    stream_deck_id: deck
+    key: 13
+    name: Key 13
+  - platform: stream_deck
+    stream_deck_id: deck
+    key: 14
+    name: Key 14
+
+button:
+  - platform: template
+    name: Redraw keys
+    entity_category: diagnostic
+    on_press:
+      - stream_deck.redraw: deck

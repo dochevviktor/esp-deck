@@ -1,0 +1,131 @@
+# ESP Deck
+
+ESPHome firmware for the **original 15-key Elgato Stream Deck (0FD9:0060)** on a
+**Seeed XIAO ESP32-S3 Plus**. The external component reads keys, controls brightness
+and sends firmware-resident BMP images over native USB. Home Assistant uses the
+encrypted ESPHome API; encrypted OTA is configured.
+
+Implemented: protocol, asynchronous USB transport, reconnect/recovery, all 15 key
+entities, brightness, diagnostics, images and a state-driven HA lamp example.
+Compiled: all three examples on ESPHome 2026.9.0 / ESP-IDF 5.5.5.
+Unit-tested: upstream byte fixtures, scheduler/input behavior, simulated USB
+transfers and schema validation. **Hardware-verified: none.** The ESP is not
+connected to this machine. Do not infer electrical, display, OTA or HA success
+from these builds. See [validation and remaining gates](docs/testing.md).
+
+The original [handover](STREAM_DECK_ESPHOME_CODEX_HANDOVER.md) is preserved.
+Start with the [hardware checklist](docs/hardware.md) before connecting anything.
+
+## Develop and test without a board
+
+From this repository, with Python 3.14, Git and a C++17 compiler:
+
+```sh
+python3 -m venv .venv
+.venv/bin/python -m pip install -r requirements-lock.txt
+.venv/bin/python -m unittest discover -s tests -v
+.venv/bin/python tools/check_firmware.py
+.venv/bin/python tools/check_firmware.py --compile
+```
+
+The checker stages isolated copies with synthetic Wi-Fi/API secrets. It never
+reads the reference project's credentials or modifies a local `secrets.yaml`.
+Builds/logs stay under `.build/firmware/`, ignored by Git. **These synthetic builds
+are for validation; build again with your own secrets before flashing.**
+
+The direct pins are in `requirements-dev.txt`; the resolved Python environment
+is in `requirements-lock.txt`. Toolchain/source details are in
+[versions](docs/versions.md). On systems with the sanitizer runtime installed,
+prefix the test command with `SANITIZE=1` to enable ASan/UBSan. CI does this.
+
+## Configure your device
+
+```sh
+cp -n examples/secrets.example.yaml examples/secrets.yaml
+chmod 600 examples/secrets.yaml
+```
+
+Edit that file with your 2.4 GHz Wi-Fi credentials and a unique base64 32-byte API
+key; the template contains the generation command. The same key protects native
+API and encrypted OTA. No real credentials are committed.
+
+| Example | Purpose |
+| --- | --- |
+| `examples/01_usb_probe.yaml` | Core USB enumeration only; no images or key decoding |
+| `examples/02_keys_brightness.yaml` | All keys, brightness and diagnostics; blanks the displays |
+| `examples/03_images_home_assistant.yaml` | Key 0 toggles `light.example_lamp`; actual HA feedback selects ON/OFF/? |
+
+For the HA example change `light_entity` to your entity. Add the ESPHome integration
+at `streamdeck-original.local`, port 6053, with your API key, and allow the device
+to perform HA actions in the integration options. A logging API client alone
+does not establish valid lamp state. Do not add a second toggle automation on the
+same key. [Protocol and HA behavior](docs/protocol.md) documents synchronization,
+outages, requested brightness and the intentionally conservative freshness policy.
+
+```sh
+.venv/bin/esphome config examples/03_images_home_assistant.yaml
+.venv/bin/esphome compile examples/03_images_home_assistant.yaml
+```
+
+All examples use the same device name and represent alternative firmware. The
+probe's stock `usb_host` claimant must not coexist with the external driver.
+GPIO19/20 belong to native USB. UART0 is used for runtime logging; PSRAM is set
+to octal 80 MHz and must be confirmed at boot. Flash is 16 MB using DIO mode.
+
+## Flash, OTA and recovery when hardware is available
+
+First use the probe after the [unpowered wiring checks](docs/hardware.md).
+Before plugging the XIAO USB-C into a computer, **physically disconnect the
+power-inlet feed and remove the Stream Deck adapter**. The PC must be the only
+power/data source in this flashing configuration.
+
+Replace `/dev/ttyACM0` below with the actual board's serial path (prefer its stable
+`/dev/serial/by-id/` path). These upload commands have not been run on hardware.
+
+```sh
+.venv/bin/esptool --port /dev/ttyACM0 flash-id
+# Optional first-flash backup: use a new filename; firmware contains credentials.
+mkdir -p .build/backups
+.venv/bin/esptool --port /dev/ttyACM0 read-flash 0 ALL .build/backups/original-flash.bin
+.venv/bin/esphome compile examples/01_usb_probe.yaml
+.venv/bin/esphome upload examples/01_usb_probe.yaml --device /dev/ttyACM0
+```
+
+Remove the PC cable before returning to host wiring. Then connect the deck via
+the passive C-male/A-female adapter and power the inlet from the qualified single
+5 V source. Use UART0 through a separate **3.3 V logic** adapter for bench logs:
+adapter RX to XIAO D6/GPIO43/TX and GND to GND; leave its power pin disconnected.
+Optional adapter TX goes to D7/GPIO44/RX. Native USB runtime logging is unavailable
+while that controller is hosting the Stream Deck.
+
+After Wi-Fi works, OTA and logs use the network:
+
+```sh
+.venv/bin/esphome run examples/02_keys_brightness.yaml --device streamdeck-original.local
+.venv/bin/esphome logs examples/02_keys_brightness.yaml --device streamdeck-original.local
+# Move to the HA example after qualifying the full large-report path.
+.venv/bin/esphome run examples/03_images_home_assistant.yaml --device streamdeck-original.local
+```
+
+If native USB recovery is needed, return to the PC-only flashing configuration,
+hold BOOT, press/release RESET, release BOOT, and retry upload. Never burn eFuses
+for a logging conflict. USB/CPU/OTA resets do not remove the deck's external VBUS;
+a persistent fault may require physically unplugging the peripheral. Wi-Fi/API
+absence does not cause periodic reboots, and an absent deck does not block OTA.
+
+## Add artwork
+
+```sh
+.venv/bin/python tools/convert_assets.py my-icon.png assets/native/my-icon.bmp --background '#101820' --fit contain
+.venv/bin/python tools/generate_reference_fixtures.py --check
+```
+
+Conversion flattens alpha onto the explicit background, preserves aspect ratio,
+and centers the result in 72×72 pixels. `contain` letterboxes; `crop` fills and
+crops centrally. The pinned upstream helper applies both flips and BMP encoding.
+Each conversion writes the native BMP plus a SHA-256/length manifest. Declare it
+under the hub's `images` list as in example 03; code generation embeds the bytes
+in flash. Do not use an arbitrary BMP as a native image or flip it again at runtime.
+
+See the [transport decision](docs/decisions/usb-transport.md) for the 8191-byte
+report implementation, internal DMA buffers and cancellation lifetime rules.

@@ -1,0 +1,4 @@
+esphome==2026.9.0
+Pillow==12.3.0
+# Upstream 0.10.0; fixtures invoke its encoder through a recording transport.
+streamdeck @ git+https://github.com/abcminiuser/python-elgato-streamdeck.git@43666bb454186d1d7adeba9402f689449705d0b9

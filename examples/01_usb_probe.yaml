@@ -1,0 +1,12 @@
+# Enumeration only. Do not combine this claimant with the external driver.
+packages:
+  base: !include packages/base.yaml
+
+logger:
+  level: VERBOSE
+
+usb_host:
+  devices:
+    - id: deck_probe
+      vid: 0x0FD9
+      pid: 0x0060

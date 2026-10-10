@@ -1,0 +1,76 @@
+{
+  "reference_repository": "https://github.com/abcminiuser/python-elgato-streamdeck",
+  "reference_revision": "43666bb454186d1d7adeba9402f689449705d0b9",
+  "pillow": "12.3.0",
+  "method": "StreamDeckOriginal + PILHelper, recording transport; no physical USB",
+  "files": {
+    "asymmetric.native.bmp": {
+      "size": 15606,
+      "sha256": "97553f9da8c94f34bb5711f52b6980755265e2705f46ec356f48f9ec6180a343"
+    },
+    "brightness_0.bin": {
+      "size": 17,
+      "sha256": "910f5a710a00c454349f55279ad84464889d40a12d8bdcc0fcd88641d6edd7f3"
+    },
+    "brightness_1.bin": {
+      "size": 17,
+      "sha256": "5faf7c64ee7078692554b406d4f7a86446dd62fcda3e54d74ba96b4c11475ce2"
+    },
+    "brightness_100.bin": {
+      "size": 17,
+      "sha256": "edd2f56fb21a49d58f6a9cdd05fe6da1a12494c8521ead1854a74f0af3228b37"
+    },
+    "brightness_50.bin": {
+      "size": 17,
+      "sha256": "03651f6d479d547849de415f8cef79cfcebd85d487a421857062c939a36e7b2c"
+    },
+    "device_reset.bin": {
+      "size": 17,
+      "sha256": "dfbf660fda192252bd7bcbf0443f434cb6e9d14bc5aa14920ac07fe579b89f7e"
+    },
+    "key_0_page_1.bin": {
+      "size": 8191,
+      "sha256": "cdee00f1e2af8386803efb44a7e67da4961feb5eda9d13d1d331cb8a41ff4025"
+    },
+    "key_0_page_2.bin": {
+      "size": 8191,
+      "sha256": "255d2f20143aa6cbe7c561c8dcf655b43771effcd9f9bc568195106ca1eb18b1"
+    },
+    "key_10_page_1.bin": {
+      "size": 8191,
+      "sha256": "36ace1fa428d8f9246c61bd92b61f75405d8656052c0e0a93a1870de167394cb"
+    },
+    "key_10_page_2.bin": {
+      "size": 8191,
+      "sha256": "7af95ebd589dfff8a74ce1de075c89cf12567734f9b3a0afabd2837544ee6625"
+    },
+    "key_14_page_1.bin": {
+      "size": 8191,
+      "sha256": "eec08755769ca6b004615d8c89e8498b1713481aee06937314bc04619d2e0539"
+    },
+    "key_14_page_2.bin": {
+      "size": 8191,
+      "sha256": "b291d17a87b3abd0ee6e77fa0e37facf25016e3acaa9397ba863cda2c8ca2fc0"
+    },
+    "key_4_page_1.bin": {
+      "size": 8191,
+      "sha256": "4061e5252baef95083c12deb90f096fcd2c4f643b9ccf078c59a8f8ee81d9b1b"
+    },
+    "key_4_page_2.bin": {
+      "size": 8191,
+      "sha256": "d09e842005e5dbc16c7126d9a38a37bd56485d36ada4960a2d53fb0ecdf56a1e"
+    },
+    "key_5_page_1.bin": {
+      "size": 8191,
+      "sha256": "771a0fbf032dd6257bd2cd5e7fb26eb85d85e28aba8c2b19d99609a187c37800"
+    },
+    "key_5_page_2.bin": {
+      "size": 8191,
+      "sha256": "1cbbc5027c9dbea9cf855850f414c8f034564e9070ae9a4845dc0289d78361e4"
+    },
+    "stream_reset.bin": {
+      "size": 8191,
+      "sha256": "1cd45e6da39a40f942808da4dbc7f4b5507dbf3a52e07eaf2bd62efbea47493e"
+    }
+  }
+}
