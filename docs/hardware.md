@@ -1,5 +1,12 @@
 # Wiring and hardware acceptance
 
+Latest recovery, 2026-10-11: the owner confirms working runtime text, brightness,
+light toggling and page shifting before Apply froze the setup. HA device mapping
+and a reproduced firmware Redraw/applied-revision bug are repaired. The new
+23:05:52 runtime build is deployed; real Redraw and editor Apply return all 15
+tiles to USB-applied state with zero reported USB errors. Physical confirmation
+after the correction remains requested. [Current evidence](hardware-lab.md).
+
 Current runtime follow-up, 2026-10-11: example 05 is now deployed via encrypted
 OTA and connected to the isolated hardware HA. Capabilities, 15 USB-applied text/
 page tiles, HA replay after OTA and 12 real light bindings are observed. The first

@@ -1,5 +1,55 @@
 # Validation and remaining hardware gates
 
+## Apply/redraw recovery, 2026-10-11
+
+The owner confirmed that physical key events, brightness response, displayed text,
+the light toggle and page shifting worked on runtime firmware, then reported a
+freeze after Apply and manual ESP/deck restarts/full power cycling. Inspection
+found that HA 18123's ESPHome connection had been replaced with the physical ESP
+while ESP Deck still referenced the removed virtual device (`device_missing`).
+HA 18124 still owned the working text layout and reported `usb_apply_timeout`.
+The outgoing Redraw button had been invoked from 18123. The device still reported
+USB ready, 32 completed reports in generation 3 and zero USB errors; rendered
+revisions were nonzero while applied revisions remained zero.
+
+Implemented: scheduler image identity is now separate from queued USB work
+revisions. Redraw fences input and queues complete fresh reports without making
+the Store's image identity permanently stale. A new native regression reproduced
+the failure before the fix and passes afterward, including redraw during either
+page, detached redraw/reconnect and same-image rebinding. No USB framing/startup,
+DMA buffer, descriptor quirk or power rule changed. The added scheduler array
+costs 120 bytes of static RAM. Lab tools also refuse synthetic tests/rebuilds on
+the retargeted HA and reject starting a second physical controller.
+
+Compiled: all seven synthetic firmware configurations, plus a private example-05
+deployment. The private linker estimates are 115,131 B static RAM and 1,094,051 B
+flash. The 1,094,160-byte OTA image compiled `2026-10-11 23:05:52 +0200` was uploaded
+with encryption, identity/hash checks and the existing connection-local MSS 536
+workaround; no synthetic image was uploaded. [Artifact and backup](hardware-lab.md).
+
+Unit-tested: **72 host cases pass with ASan/UBSan**, including all existing native
+protocol/renderer/transport fixtures, the redraw regression and the new target/
+controller guards. The full real-container regression suite was deliberately
+blocked before any actions because the former synthetic lab now connects to a
+physical ESP. No new synthetic/browser-suite or remote-CI pass is claimed.
+
+Hardware/API/browser-tested: the new firmware reconnects and all 15 text tiles
+reach USB-applied status. Repeating the actual Redraw button and synchronizing
+returned all 15 to ready with no errors in 3.632 seconds including polling.
+A controlled Chromium session on the real 18123 editor changed key 5 to `Apply OK`
+and clicked Apply; the save completed and all 15 tiles again reported applied.
+USB/overflow counters were zero in the capture. Physical visual/key confirmation
+after this correction remains requested; these acknowledgements are not display
+readback.
+
+HA 18123 is now the sole physical controller. Reconfigure repaired its association;
+18124 is stopped with data retained. The original `Main` and `Other` page data,
+artwork and bindings compare equal to the saved pre-repair JSON. Separate Hardware
+pages and overlay were added, with Hardware Main as the temporary default. The
+image pages still need an ESP-reachable HA origin instead of `http://ha:8123`.
+Electrical, first-click, repeated-recovery, artwork/TLS/cache and soak gates remain
+open. Recovery details are in [the physical guide](hardware-lab.md).
+
 ## Physical P9 follow-up, 2026-10-11
 
 Implemented: real repository documentation/issue/maintainer metadata; a separate

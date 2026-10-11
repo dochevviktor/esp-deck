@@ -1,5 +1,12 @@
 # Independent Home Assistant lab
 
+Current exception: the owner retargeted the existing 18123 HA to the physical
+ESP. Its association is repaired and the separate 18124 HA is stopped. Treat the
+current data as physical lab data; [the recovery guide](hardware-lab.md) is the
+source of truth. Synthetic tests/rebuilds now refuse it, including direct pytest
+and `up --fresh`, until a separate isolated virtual environment is used. The
+historical virtual-lab instructions below must not overwrite this saved setup.
+
 The automated lab below remains synthetic and loopback-only. A separate
 [physical hardware instance](hardware-lab.md) now runs on port 18124 with its
 own config/accounts and the real encrypted ESPHome connection. Never substitute

@@ -28,6 +28,7 @@ bool Scheduler::set_image(int key, const ImageRef &image) {
   if (desired_[key] != image) {
     desired_[key] = image;
     revisions_[key]++;
+    image_revisions_[key]++;
   }
   return true;
 }
@@ -39,7 +40,10 @@ bool Scheduler::set_brightness(float percent) {
   brightness_ = uint8_t(std::lround(std::clamp(percent, 0.0f, 100.0f)));
   return true;
 }
-void Scheduler::redraw() { for (auto &revision : revisions_) revision++; }
+void Scheduler::redraw() {
+  input_barrier();
+  for (auto &revision : revisions_) revision++;
+}
 bool Scheduler::next(Job &job) {
   if (!attached_ || busy_) return false;
   if (page2_pending_) {

@@ -90,9 +90,11 @@ def setup():
     print(json.dumps(report, indent=2))
 
 
-def provision():
-    configured = json.loads((lab.LAB / "settings.json").read_text())
-    result = command("artwork_configure", origin=configured["asset_origin"])
+def provision(origin=None):
+    address = origin or command("artwork_list")["origin"]
+    if not address:
+        raise RuntimeError("Select a device-reachable artwork origin first")
+    result = command("artwork_configure", origin=address)
     print(json.dumps({"verified_origin": result["origin"]}))
 
 
@@ -121,13 +123,28 @@ def status():
 
 
 def main():
+    global lab
     os.umask(0o077)
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("command", choices=("setup", "status", "provision", "artwork"))
+    parser.add_argument("--instance", choices=("lab", "bench"), required=True,
+                        help="explicitly select HA 18123 (lab) or HA 18124 (bench)")
+    parser.add_argument("--origin", help="provision only: exact HA address reachable from the ESP")
     args = parser.parse_args()
+    if args.origin and args.command != "provision":
+        parser.error("--origin is only valid with provision")
+    if args.instance == "lab":
+        try:
+            from . import ha_lab as selected
+        except ImportError:
+            import ha_lab as selected
+        lab = selected
     lab.owned_directory()
     lab.refresh_token()
-    globals()[args.command]()
+    if args.command == "provision":
+        provision(args.origin)
+    else:
+        globals()[args.command]()
 
 
 if __name__ == "__main__":

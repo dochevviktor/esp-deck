@@ -32,6 +32,19 @@ def settings():
     return json.loads((lab.LAB / "settings.json").read_text())
 
 
+def ensure_single_controller(device):
+    path = ROOT / ".build/ha-lab/config/.storage/core.config_entries"
+    if not path.exists():
+        return
+    entries = json.loads(path.read_text())["data"]["entries"]
+    if not any(entry.get("domain") == "esphome" and entry.get("disabled_by") is None
+               and entry.get("data", {}).get("host") == device for entry in entries):
+        return
+    original = lab.inspect_owned("container", f"esp-deck-lab-{lab.OWNER}-ha")
+    if original and original["State"]["Running"]:
+        raise RuntimeError("HA on port 18123 already owns this physical ESP; do not start a second controller on 18124")
+
+
 def validate_settings(bind, origin, device):
     for value in (bind, device):
         address = ipaddress.IPv4Address(value)
@@ -74,6 +87,7 @@ def stage(configured):
 
 
 def up(configured):
+    ensure_single_controller(configured["device"])
     item = lab.inspect_owned("container", lab.PREFIX + "-ha")
     if item and item["State"]["Running"]:
         if configured != settings():
@@ -100,6 +114,7 @@ def up(configured):
 def pair():
     lab.owned_directory()
     configured = settings()
+    ensure_single_controller(configured["device"])
     lab.refresh_token()
     entries = lab.request("/api/config/config_entries/entry")
     existing = [entry for entry in entries if entry["domain"] == "esphome"]

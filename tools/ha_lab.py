@@ -104,6 +104,26 @@ def credentials():
     return json.loads((LAB / "credentials.json").read_text())
 
 
+def ensure_virtual_target():
+    """Never run synthetic tests/rebuilds against a user-retargeted physical ESP."""
+    path = LAB / "config/.storage/core.config_entries"
+    if not path.exists():
+        return
+    try:
+        entries = json.loads(path.read_text())["data"]["entries"]
+        if not isinstance(entries, list):
+            raise ValueError
+        unsafe = any(entry.get("domain") == "esphome" and
+                     (entry.get("data", {}).get("host") != "deck" or
+                      entry.get("data", {}).get("port", 6053) != 6053)
+                     for entry in entries)
+    except (OSError, KeyError, TypeError, ValueError):
+        raise RuntimeError("Cannot verify the lab's synthetic ESPHome target") from None
+    if unsafe:
+        raise RuntimeError("This HA lab is paired to a non-virtual ESP. Synthetic tests and rebuilds are disabled; "
+                           "preserve its data and use a separate fresh virtual lab for automation.")
+
+
 def request(path, data=None, *, method=None, auth=True):
     headers = {"Content-Type": "application/json"}
     if auth:
@@ -210,6 +230,7 @@ def ensure_image(key):
 
 
 def build():
+    ensure_virtual_target()
     for suffix in ("ha", "deck"):
         current = inspect_owned("container", PREFIX + "-" + suffix)
         if current:
@@ -313,6 +334,7 @@ def pair():
 
 
 def up():
+    ensure_virtual_target()
     info = json.loads(podman("info", "--format", "json").stdout)
     if not info["host"]["security"]["rootless"]:
         raise RuntimeError("This lab requires rootless Podman")
@@ -419,6 +441,9 @@ def main():
     if args.command == "status":
         status()
         return
+    if args.command in ("up", "build", "test", "test-release"):
+        # Check before --fresh can archive a manually retargeted, active lab.
+        ensure_virtual_target()
     ROOT.joinpath(".build").mkdir(exist_ok=True)
     with (ROOT / ".build/ha-lab.lock").open("w") as lock:
         try:

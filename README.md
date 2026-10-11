@@ -30,10 +30,14 @@ remaining GitHub/HACS and physical gates.
 The real ESP now runs example 05: [the physical lab session](docs/hardware-lab.md)
 verified HA pairing, text/page USB completion and real light-binding actions.
 Artwork fetching still needs a reachable route from the ESP back to the lab VM.
+The active physical HA is now the owner's retargeted **18123** instance. Its
+association was repaired and the Redraw/applied-state bug fixed and deployed;
+the extra 18124 instance is stopped. Saved image pages remain alongside separate
+Hardware test pages. See [current recovery and validation](docs/testing.md).
 Compiled: all seven configurations on ESPHome 2026.9.0 / ESP-IDF 5.5.5, plus the
 test-only ESPHome host executable.
 Unit-tested: upstream byte fixtures, scheduler/input behavior, simulated USB
-transfers, schema validation and captured desktop descriptors; 70 Python cases
+transfers, schema validation and captured desktop descriptors; 72 Python cases
 including nine native executables and HA helper/replay templates, plus five
 frontend tests (including all twenty renderer snapshots).
 HA-tested: 62 real-HA engine tests with mocked native actions and 28 real

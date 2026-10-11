@@ -30,9 +30,10 @@ class Scheduler {
   bool next(Job &job);
   bool complete(const Job &job);
   bool initialized() const { return attached_ && !reset_pending_ && applied_brightness_ >= 0; }
-  uint64_t revision(int key) const { return revisions_[key]; }
-  bool applied(int key, uint64_t revision) const {
-    return attached_ && applied_[key] && applied_revisions_[key] == revision && revisions_[key] == revision;
+  uint64_t image_revision(int key) const { return image_revisions_[key]; }
+  bool applied(int key, uint64_t image_revision) const {
+    return attached_ && applied_[key] && image_revisions_[key] == image_revision &&
+        applied_revisions_[key] == revisions_[key];
   }
   uint32_t generation() const { return attached_ ? generation_ : 0; }
   // Sampled by the USB IN completion callback, before main-loop publication.
@@ -44,6 +45,9 @@ class Scheduler {
   std::array<ImageRef, protocol::KEY_COUNT> desired_{};
   std::array<ImageRef, protocol::KEY_COUNT> applied_{};
   std::array<uint64_t, protocol::KEY_COUNT> revisions_{};
+  // Image identity and queued USB work are different: a forced redraw creates
+  // new work but must not invalidate the Store's rendered image identity.
+  std::array<uint64_t, protocol::KEY_COUNT> image_revisions_{};
   std::array<uint64_t, protocol::KEY_COUNT> applied_revisions_{};
   Job active_{};
   uint32_t generation_{0}, sequence_{0};

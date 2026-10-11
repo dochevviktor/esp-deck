@@ -161,6 +161,13 @@ reports failures/retry. Whole-deck swaps are not atomic.
 
 ## Validation and remaining limits
 
+P9 redraw correction: the scheduler now distinguishes desired-image identity from
+USB work revisions. A manual Redraw queues new work and fences input, but must
+not permanently invalidate the Store's image identity. `applied_revision` returns
+after both newly requested reports complete; an older in-flight completion cannot
+satisfy a newer redraw. Native tests cover redraw during either page, reconnect
+and unchanged-pixel rebinding. The fix is [deployed and exercised](hardware-lab.md).
+
 Portable tests cover two-page fences, same-image rebinding, stale IN epochs and
 output generations, captured releases, failed rendering, overflow, leases/lost
 acks, bounded provisioning/decoder failures and alignment bounds. HA tests cover

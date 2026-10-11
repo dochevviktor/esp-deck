@@ -1,6 +1,76 @@
 # Physical runtime lab (P9)
 
-The owner's real ESP at `192.168.10.238` now runs example 05, compiled
+## Apply/redraw recovery — current setup
+
+The owner confirmed that physical keys, brightness, rendered labels, the light
+toggle and page switching worked before Apply. They had retargeted the original
+HA on **port 18123** from the virtual deck to `192.168.10.238`. That ESPHome
+connection worked, but ESP Deck still referenced the removed virtual device and
+reported `device_missing`. The separate 18124 instance still controlled the real
+deck. It is now stopped, with its private config/artifacts retained. **18123 is
+the sole physical controller**; its ESP Deck association was repaired using the
+supported Reconfigure flow.
+
+A second, reproduced firmware bug was triggered by the outgoing **Redraw keys**
+button (recorded in HA at `2026-10-11T20:46:21Z`). Redraw advanced the scheduler's
+USB work revision but not the Store's recorded image revision. USB reports could
+complete while `applied_revision` stayed zero indefinitely, causing
+`usb_apply_timeout` and intentionally gating v2 key actions. The regression test
+failed before the fix. Desired-image identity and USB-work revisions are now
+separate; redraw still gates input until a fresh complete two-report image, even
+when another redraw arrives during either page. Reconnect and same-pixel rebinding
+are covered too. USB packet sizes, startup and power handling are unchanged.
+
+The corrected private example-05 build is installed:
+
+- Compiled `2026-10-11 23:05:52 +0200`.
+- OTA size **1,094,160 bytes**, SHA-256
+  `4f5ceb4a39b10674b10a2851af0877518cb3a840a13b3031d97ecb034334d8f9`.
+- Encrypted OTA, with connection-local MSS 536, completed in **59.27 seconds**
+  including identity verification. The preceding firmware and both HA instances'
+  registries/layouts/artwork were backed up privately under
+  `.build/backups/apply-recovery-GEsdqMkL/`.
+- After reboot, all 15 tiles reached USB-applied status. Repeating the actual
+  Redraw command on hardware returned all 15 to ready, without errors, in
+  **3.632 seconds** including HA synchronization/polling. USB/overflow counters
+  remained zero in the capture. Chromium then edited key 5 to **Apply OK** and
+  clicked Apply through the real editor; all 15 tiles again reported applied.
+  Physical appearance and renewed key action confirmation are still requested.
+
+[Sanitized recovery record](../tests/fixtures/s3_0060/redraw_recovery_2026-10-11.json).
+
+The user's `Main` and `Other` image pages are unchanged as JSON data, including
+artwork and bindings. `Hardware Main` / `Hardware Second` and a hardware modifier
+overlay were added separately; `Hardware Main` is the temporary default. The
+image pages still depend on an ESP-reachable artwork address. The saved origin
+`http://ha:8123` is a container alias, and 18123 is presently loopback-bound; these
+are not usable physical-ESP asset addresses. The text pages allow operation while
+that network setup remains unfinished.
+
+Use the existing account at **http://127.0.0.1:18123/esp-deck**. Reload the editor
+to see the repaired association and added pages. The fifth key should show the
+browser-applied **Apply OK** label. The original first-click-after-boot limitation
+remains; use two deliberate presses for the initial input check.
+
+```sh
+.venv/bin/python tools/ha_bench_controls.py --instance lab status
+.venv/bin/python tools/device_probe.py --host 192.168.10.238 --seconds 15
+```
+
+The controls tool now requires an explicit `--instance lab` (18123) or `bench`
+(18124). `setup` deliberately replaces a demo layout; status/probe are the
+appropriate read-only commands for the preserved current setup. Synthetic lab
+tests/rebuilds, including direct pytest and `up --fresh`, now refuse this
+retargeted instance. Standalone host and mocked HA engine tests remain safe.
+The 18124 launcher also refuses to create a second controller for the same ESP
+while the original 18123 HA is running with it. This prevents future automated
+tests or parallel lab setup from interfering with the real device.
+
+The sections below record the earlier, separate-18124 session for provenance.
+
+## First runtime deployment (historical)
+
+The owner's real ESP at `192.168.10.238` first ran example 05, compiled
 `2026-10-11 22:23:49 +0200`, with the P9 HTTP probe-buffer fix. Its encrypted OTA
 image is **1,094,096 bytes**, SHA-256
 `ff080cfce4abc4f932d8a127dbb169245c95b9926618108efbc850973cda0d0c`.
@@ -52,8 +122,8 @@ To create/reuse the current hardware instance:
 .venv/bin/python tools/ha_bench.py up --bind 192.168.122.72 \
   --asset-origin http://192.168.122.72:18124 --device 192.168.10.238
 .venv/bin/python tools/ha_bench.py pair
-.venv/bin/python tools/ha_bench_controls.py setup
-.venv/bin/python tools/ha_bench_controls.py status
+.venv/bin/python tools/ha_bench_controls.py --instance bench setup
+.venv/bin/python tools/ha_bench_controls.py --instance bench status
 .venv/bin/python tools/device_probe.py --host 192.168.10.238 --seconds 30
 ```
 
@@ -69,8 +139,8 @@ as `--asset-origin` (and the VM's actual interface as `--bind`). Existing privat
 accounts, pairing, layouts and artwork are retained. Then:
 
 ```sh
-.venv/bin/python tools/ha_bench_controls.py provision
-.venv/bin/python tools/ha_bench_controls.py artwork
+.venv/bin/python tools/ha_bench_controls.py --instance bench provision --origin DEVICE_REACHABLE_HA_ORIGIN
+.venv/bin/python tools/ha_bench_controls.py --instance bench artwork
 ```
 
 Provisioning must report success before the artwork command can be accepted as a
@@ -169,6 +239,6 @@ repeated recovery, electrical measurements and soak remain open in
 Later in the session, additional ESP boot-session changes and a temporary USB
 disconnect were observed without an agent-issued restart or upload. The deck
 subsequently returned to USB/backend ready, with zero USB/overflow counters in
-the new boot and the saved layout restored. The owner has been asked whether
-these were deliberate physical tests. Their cause is **not established**; do not
-count them as qualified warm restarts or claim there were no unexplained resets.
+the new boot and the saved layout restored. The owner subsequently reported
+manual ESP/deck restarts and a full power cycle while trying to recover from
+Apply. These recovery attempts are not qualified warm-restart or power tests.

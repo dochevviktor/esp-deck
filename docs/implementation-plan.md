@@ -1,5 +1,17 @@
 # Home Assistant runtime control implementation plan
 
+Latest recovery, 2026-10-11: the owner moved HA 18123 to the real ESP and confirmed
+working brightness, labels, light control and page shifting before the reported
+freeze. Its stale ESP Deck association is repaired and the extra 18124 HA is
+stopped. A reproduced Redraw bug left applied revisions permanently zero; the
+scheduler now separates image identity from USB work, with regression tests.
+Corrected firmware compiled `23:05:52 +0200` is deployed. All seven synthetic
+configurations compile; 72 host tests pass with sanitizers. Real Redraw and editor
+Apply now return all 15 tiles to USB-applied/ready. Physical confirmation remains
+requested. Original image pages are preserved alongside separate Hardware pages.
+Use [the current physical guide](hardware-lab.md); automated virtual-lab tests now
+refuse the retargeted instance, and artwork networking remains pending.
+
 Physical P9 follow-up, 2026-10-11: the owner supplied the GitHub repository and
 authorized the real-device update. Example 05 with the HTTP probe-buffer fix is
 now deployed and paired to a separate HA 2026.10.1 hardware lab. All 15 text/page

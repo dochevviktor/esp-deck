@@ -34,6 +34,7 @@ def run_engine_tests():
 
 def run_tests(*, release_only=False):
     lab.owned_directory()
+    lab.ensure_virtual_target()
     for suffix in ("ha", "deck"):
         item = lab.inspect_owned("container", lab.PREFIX + "-" + suffix)
         if not item or not item["State"]["Running"]:

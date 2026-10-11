@@ -129,7 +129,7 @@ class Store {
     Status status;
     int32_t fields{0};
     Text<32> context;
-    uint64_t schedule_revision{0};
+    uint64_t image_revision{0};
   };
   bool matches_active_(const RenderJob &job) const;
   std::array<Slot, protocol::KEY_COUNT> slots_{};

@@ -17,6 +17,27 @@ spec.loader.exec_module(fetcher)
 
 
 class LabTests(unittest.TestCase):
+    def test_physical_target_guard_preserves_user_configuration(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = Path(temporary)
+            path = directory / "config/.storage/core.config_entries"
+            path.parent.mkdir(parents=True)
+            with patch.object(ha_lab, "LAB", directory):
+                ha_lab.ensure_virtual_target()  # Fresh, unpaired synthetic lab.
+                for host, port, allowed in (("deck", 6053, True), ("192.168.10.238", 6053, False),
+                                            ("deck", 1234, False)):
+                    content = json.dumps({"data": {"entries": [{"domain": "esphome", "data": {"host": host, "port": port}}]}})
+                    path.write_text(content)
+                    if allowed:
+                        ha_lab.ensure_virtual_target()
+                    else:
+                        with self.assertRaisesRegex(RuntimeError, "non-virtual"):
+                            ha_lab.ensure_virtual_target()
+                    self.assertEqual(path.read_text(), content)
+                path.write_text("{corrupt")
+                with self.assertRaisesRegex(RuntimeError, "Cannot verify"):
+                    ha_lab.ensure_virtual_target()
+
     def test_unowned_containers_and_networks_are_never_removed(self):
         for kind in ("container", "network"):
             item = {"Config": {"Labels": {ha_lab.LABEL: "someone-else"}}, "labels": {ha_lab.LABEL: "someone-else"}}

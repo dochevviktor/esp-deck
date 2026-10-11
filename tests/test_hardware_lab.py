@@ -10,6 +10,20 @@ from tools import ha_bench
 
 
 class HardwareLabTests(unittest.TestCase):
+    def test_second_controller_is_rejected_when_original_lab_was_retargeted(self):
+        with tempfile.TemporaryDirectory() as directory, patch.object(ha_bench, "ROOT", Path(directory)):
+            path = Path(directory) / ".build/ha-lab/config/.storage/core.config_entries"
+            path.parent.mkdir(parents=True)
+            path.write_text(json.dumps({"data": {"entries": [
+                {"domain": "esphome", "disabled_by": None, "data": {"host": "192.168.10.238"}}
+            ]}}))
+            with patch.object(ha_bench.lab, "inspect_owned", return_value={"State": {"Running": True}}):
+                with self.assertRaisesRegex(RuntimeError, "second controller"):
+                    ha_bench.ensure_single_controller("192.168.10.238")
+                ha_bench.ensure_single_controller("192.168.10.239")
+            with patch.object(ha_bench.lab, "inspect_owned", return_value=None):
+                ha_bench.ensure_single_controller("192.168.10.238")
+
     def test_stage_excludes_virtual_deck_and_manual_writers(self):
         with tempfile.TemporaryDirectory() as directory, patch.object(ha_bench.lab, "LAB", Path(directory) / "bench"):
             configured = {"bind": "192.168.122.72", "asset_origin": "http://192.168.10.2:18124",

@@ -1,0 +1,58 @@
+{
+  "date": "2026-10-11",
+  "base_commit": "c99c717",
+  "working_tree_changes": true,
+  "owner_report": "Runtime keys, brightness, labels, light toggle and page shift worked before Apply; manual restarts/full power cycle followed",
+  "initial_ha_state": {
+    "18123": "ESPHome paired to physical ESP, ESP Deck still referenced removed virtual device: device_missing",
+    "18124": "Physical text layout rendered but USB applied revisions timed out"
+  },
+  "redraw_button_timestamp": "2026-10-11T20:46:21Z",
+  "device_before_fix": {
+    "usb_ready": true,
+    "usb_generation": 3,
+    "completed_reports": 32,
+    "usb_errors": 0,
+    "rendered_revisions": "nonzero",
+    "applied_revisions": "zero after forced redraw"
+  },
+  "regression": {
+    "failed_before_fix": "Store applied revision did not return after completed redraw",
+    "fix": "Separate desired-image identity from USB work revisions; keep redraw input fences",
+    "covered": ["both image pages", "repeated redraw", "detach and reconnect", "same-image rebinding"]
+  },
+  "deployment": {
+    "example": "05_home_assistant_runtime",
+    "compilation_time": "2026-10-11 23:05:52 +0200",
+    "ota_bytes": 1094160,
+    "sha256": "4f5ceb4a39b10674b10a2851af0877518cb3a840a13b3031d97ecb034334d8f9",
+    "encrypted": true,
+    "tcp_mss": 536,
+    "upload_with_identity_check_seconds": 59.27,
+    "credentials": "local private deployment build; never synthetic"
+  },
+  "verification": {
+    "host_tests_asan_ubsan": 72,
+    "synthetic_firmware_configurations_compiled": 7,
+    "usb_applied_tiles_after_reboot": 15,
+    "usb_applied_tiles_after_redraw": 15,
+    "redraw_and_ha_sync_seconds": 3.632,
+    "redraw_status": "ready; no tile errors",
+    "real_browser_apply": "Key 5 changed to Apply OK; Apply accepted; 15 tiles ready/applied afterward",
+    "usb_errors_in_capture": 0,
+    "input_overflows_in_capture": 0,
+    "physical_visual_input_confirmation_after_fix": "pending",
+    "display_readback": false
+  },
+  "configuration_recovery": {
+    "sole_physical_ha_port": 18123,
+    "secondary_18124": "stopped; data retained",
+    "device_association": "repaired through HA Reconfigure flow",
+    "original_main_and_other_pages": "preserved and compared equal as JSON data",
+    "added_pages": ["hardware_main", "hardware_second"],
+    "temporary_default": "hardware_main",
+    "backups": "private HA registries/layouts/artwork and pre-fix firmware retained",
+    "synthetic_tests_on_retargeted_lab": "refused before actions; direct pytest guarded too"
+  },
+  "remaining": ["device-reachable artwork URL", "physical confirmation", "first-click qualification", "electrical and soak tests"]
+}

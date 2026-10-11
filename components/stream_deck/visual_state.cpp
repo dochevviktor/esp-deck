@@ -229,7 +229,7 @@ bool Store::finish(const RenderJob &job, const ImageRef &image) {
   auto &slot = slots_[job.key];
   if (slot.status.revision != job.revision) return false;
   if (!scheduler_.set_image(job.key, image)) return false;
-  slot.schedule_revision = scheduler_.revision(job.key);
+  slot.image_revision = scheduler_.image_revision(job.key);
   slot.rendered = slot.desired;
   slot.status.rendered_revision = job.revision;
   slot.status.phase = Phase::RENDERED;
@@ -239,7 +239,7 @@ bool Store::finish(const RenderJob &job, const ImageRef &image) {
 uint32_t Store::applied_revision(int key) const {
   if (protocol::wire_key(key) < 0) return 0;
   const auto &slot = slots_[key];
-  return slot.status.phase == Phase::RENDERED && scheduler_.applied(key, slot.schedule_revision)
+  return slot.status.phase == Phase::RENDERED && scheduler_.applied(key, slot.image_revision)
       ? slot.status.rendered_revision : 0;
 }
 bool Store::fail(const RenderJob &job, Error error) {

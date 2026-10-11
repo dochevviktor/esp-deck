@@ -93,6 +93,53 @@ void input_tests() {
   assert(channel.queued() == 0);
 }
 
+void redraw_tests() {
+  TestImageAllocator memory; Scheduler scheduler;
+  v::Store store(0x1234567890123456, scheduler); v::InputChannel channel(store);
+  scheduler.attach(20); drain(scheduler);
+  assert(store.submit(command(1, OLD)).accepted); render(store, 1, memory); drain(scheduler);
+  assert(store.applied_revision(0) == 1);
+  Json initial; channel.read(READER, 0, 1, initial);
+  scheduler.redraw();
+  assert(store.applied_revision(0) == 0);
+  channel.sample({20, 1, false, scheduler.input_epoch()}, {1, 0, false}, 2);
+  assert(channel.queued() == 0);
+  drain(scheduler);
+  // An identical redraw is new USB work, not a new desired image. The current
+  // rendered request must become applied again when both reports complete.
+  assert(store.applied_revision(0) == 1);
+  channel.sample({20, 1, false, scheduler.input_epoch()}, {1, 0, false}, 3);
+  Json press; channel.read(READER, 0, 4, press);
+  assert(press["count"].number() == 1);
+  // A further redraw during page two cannot be satisfied by the older job.
+  scheduler.redraw();
+  Job job;
+  for (;;) {
+    assert(scheduler.next(job));
+    if (job.kind == JobKind::PAGE1 && job.key == 0) break;
+    assert(scheduler.complete(job));
+  }
+  assert(scheduler.complete(job));
+  assert(scheduler.next(job) && job.kind == JobKind::PAGE2);
+  scheduler.redraw();
+  assert(scheduler.complete(job));
+  assert(store.applied_revision(0) == 0);
+  drain(scheduler); assert(store.applied_revision(0) == 1);
+  // Same-pixel rebinding still advances the request context without new output.
+  assert(store.submit(command(2, NEW)).accepted);
+  assert(store.applied_revision(0) == 2 && !scheduler.next(job));
+  scheduler.detach(); scheduler.redraw(); scheduler.attach(21);
+  assert(store.applied_revision(0) == 0);
+  drain(scheduler); assert(store.applied_revision(0) == 2);
+  assert(store.submit(command(3, OLD, "New image")).accepted); render(store, 2, memory);
+  assert(scheduler.next(job) && job.kind == JobKind::PAGE1);
+  scheduler.redraw();  // Redraw during the first page also needs a fresh pair.
+  assert(scheduler.complete(job));
+  assert(scheduler.next(job) && job.kind == JobKind::PAGE2 && scheduler.complete(job));
+  assert(store.applied_revision(0) == 0);
+  drain(scheduler); assert(store.applied_revision(0) == 3);
+}
+
 struct Fetcher : assets::Fetcher {
   bool running{false}, cancelled{false}; uint8_t *output{}; size_t capacity{}; uint64_t token{};
   v::Error error{v::Error::NONE}; std::vector<uint8_t> bytes;
@@ -154,4 +201,4 @@ void position_tests() {
   cmd.text_width = 49; assert(v::apply_patch(cmd, base, result) == v::Error::INVALID_POSITION);
   cmd.v2 = false; assert(v::apply_patch(cmd, base, result) == v::Error::INVALID_FIELDS);
 }
-int main() { input_tests(); provisioning_tests(); position_tests(); std::cout << "V2 input fences, paired contexts, leases, provisioning and positions passed\n"; }
+int main() { input_tests(); redraw_tests(); provisioning_tests(); position_tests(); std::cout << "V2 input fences, paired contexts, redraws, leases, provisioning and positions passed\n"; }
