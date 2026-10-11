@@ -16,21 +16,26 @@
       entity_id: light.example_lamp
     - trigger: event
       event_type: automation_reloaded
+    # Service registration is not a template dependency. HA has no has_service()
+    # template function; retry explicitly when either required action appears.
+    - trigger: event
+      event_type: service_registered
+      event_data:
+        domain: esphome
+        service: streamdeck_original_get_key_visual_status
+    - trigger: event
+      event_type: service_registered
+      event_data:
+        domain: esphome
+        service: streamdeck_original_set_key_visual
   actions:
-    # Service registration can finish after the session sensor arrives, without
-    # another state event to wake a wait_template. Recheck for at most 60 seconds.
-    - repeat:
-        sequence:
-          - delay: '00:00:01'
-        until: >-
-          {{ (states('sensor.stream_deck_original_visual_session') | regex_match('^[0-9a-fA-F]{16}$')
-              and has_service('esphome', 'streamdeck_original_get_key_visual_status')
-              and has_service('esphome', 'streamdeck_original_set_key_visual')) or repeat.index >= 60 }}
-    - condition: template
-      value_template: >-
-        {{ states('sensor.stream_deck_original_visual_session') | regex_match('^[0-9a-fA-F]{16}$')
-           and has_service('esphome', 'streamdeck_original_get_key_visual_status')
-           and has_service('esphome', 'streamdeck_original_set_key_visual') }}
+    # Let the synchronous ESPHome action-registration batch settle. If it has
+    # not arrived yet, its later service_registered event schedules a new replay.
+    - delay: '00:00:01'
+    - wait_template: >-
+        {{ states('sensor.stream_deck_original_visual_session') | regex_match('^[0-9a-fA-F]{16}$') }}
+      timeout: '00:01:00'
+      continue_on_timeout: false
     - action: script.stream_deck_sync_layout
 
 - id: stream_deck_key_0_press

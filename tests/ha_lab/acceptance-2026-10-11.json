@@ -1,0 +1,56 @@
+{
+  "stage": "P5",
+  "base_commit": "6023726141e041226decff5683c3f0760decb907",
+  "tested_at_utc": "2026-10-11T12:22:21Z",
+  "images": {
+    "home_assistant": {
+      "tag": "2026.10.1",
+      "image": "ghcr.io/home-assistant/home-assistant:2026.10.1@sha256:130241f28d01fa80dfa3b44f7d89781c188d8642ecab9024f079f19f9f82baa0"
+    },
+    "esphome_host": {
+      "tag": "2026.9.0",
+      "image": "ghcr.io/esphome/esphome:2026.9.0@sha256:f6509fcf917a732fd80058567b237d5b9286b9dc6c8dde1b655fbb69ebd600ad"
+    }
+  },
+  "ha_packages": {
+    "python": "3.14.6 (main, Jun 16 2026, 10:51:48) [GCC 15.2.0]",
+    "homeassistant": "2026.10.1",
+    "home-assistant-frontend": "20260930.3",
+    "aioesphomeapi": "46.6.0",
+    "aiohttp": "3.14.4"
+  },
+  "deck_packages": {
+    "python": "3.14.6 (main, Jun 11 2026, 01:06:03) [GCC 14.2.0]",
+    "esphome": "2026.9.0",
+    "aioesphomeapi": "46.3.0",
+    "platformio": "6.1.19"
+  },
+  "deck_compiler": "14.2.0",
+  "virtual_binary_sha256": "f0f3a52b59bbaf170f579e000f7f131f8f6fd9e52a4b82c5881eb30a6536f60e",
+  "host_unittest": {
+    "passed": 54,
+    "native_executables": 7
+  },
+  "firmware": {
+    "synthetic_compilations_passed": 7,
+    "deployments": 0
+  },
+  "ha_engine_mock_native": {
+    "tests": 2,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "real_ha_native_api_browser": {
+    "tests": 9,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "clean_initialization": "passed",
+  "retained_lab_rerun": "passed",
+  "scoped_down_and_up": "passed; unrelated containers retained",
+  "hardware_verified": false,
+  "hacs_installed": false,
+  "notes": "Software-only acceptance. Synthetic keys, tokens, raw logs, screenshots and executables are excluded."
+}

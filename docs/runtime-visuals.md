@@ -262,5 +262,6 @@ Sources for the adapter shape: the locally installed pinned
 `api/__init__.py` validates names/types; the regression test uses those files.
 The public [ESPHome action documentation](https://esphome.io/components/api/#user-defined-actions)
 and [HA script syntax](https://www.home-assistant.io/docs/scripts/) describe the
-integration points. HA helper tests execute the templates locally; they
-are not a Home Assistant server integration test.
+integration points. The original HA helper unit tests execute templates locally;
+P5 additionally runs the [real HA engine and encrypted virtual-deck sessions](ha-lab.md).
+Neither establishes physical ESP/deck acceptance.

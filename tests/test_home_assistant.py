@@ -174,16 +174,15 @@ class HomeAssistantTests(unittest.TestCase):
         self.assertIn({"trigger": "state", "entity_id": SESSION_ENTITY}, triggers)
         self.assertIn({"trigger": "state", "entity_id": "light.example_lamp"}, triggers)
         ha = Harness()
-        services_ready = False
-        ha.environment.globals["has_service"] = lambda domain, name: services_ready
-        polling = automation["actions"][0]["repeat"]
-        self.assertFalse(ha.render(polling["until"], {"repeat": {"index": 1}}))
-        self.assertTrue(ha.render(polling["until"], {"repeat": {"index": 60}}))
-        ready = automation["actions"][1]["value_template"]
-        self.assertFalse(ha.render(ready, {}))  # Timeout cannot run a partial layout.
-        services_ready = True  # Service registry changes without a sensor update.
-        self.assertTrue(ha.render(polling["until"], {"repeat": {"index": 2}}))
-        self.assertTrue(ha.render(ready, {}))
+        for suffix in ("get_key_visual_status", "set_key_visual"):
+            self.assertIn({"trigger": "event", "event_type": "service_registered", "event_data": {
+                "domain": "esphome", "service": "streamdeck_original_" + suffix}}, triggers)
+        waiting = automation["actions"][1]
+        self.assertEqual(waiting["timeout"], "00:01:00")
+        self.assertFalse(waiting["continue_on_timeout"])
+        self.assertTrue(ha.render(waiting["wait_template"], {}))
+        ha.states[SESSION_ENTITY] = "unavailable"
+        self.assertFalse(ha.render(waiting["wait_template"], {}))
         # Real pinned ESPHome does not send stored events in subscription snapshots.
         import esphome
         source = Path(esphome.__file__).parent / "components/api/subscribe_state.cpp"

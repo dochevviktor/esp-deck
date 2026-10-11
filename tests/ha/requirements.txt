@@ -1,0 +1,5 @@
+# The pinned HA image supplies all other dependencies.
+pytest==8.4.2
+pytest-asyncio==1.2.0
+iniconfig==2.3.1
+pluggy==1.6.0

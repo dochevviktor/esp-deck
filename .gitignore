@@ -4,6 +4,7 @@
 **/secrets.yaml
 .build/
 __pycache__/
+.pytest_cache/
 *.py[cod]
 *.bin
 !tests/fixtures/*.bin

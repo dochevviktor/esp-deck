@@ -1,0 +1,21 @@
+{
+  "home_assistant": {
+    "tag": "2026.10.1",
+    "image": "ghcr.io/home-assistant/home-assistant:2026.10.1@sha256:130241f28d01fa80dfa3b44f7d89781c188d8642ecab9024f079f19f9f82baa0"
+  },
+  "esphome_host": {
+    "tag": "2026.9.0",
+    "image": "ghcr.io/esphome/esphome:2026.9.0@sha256:f6509fcf917a732fd80058567b237d5b9286b9dc6c8dde1b655fbb69ebd600ad"
+  },
+  "platform": "linux/amd64",
+  "ha_python": "3.14.6",
+  "esphome_host_python": "3.14.6",
+  "runner_python": "3.14.7",
+  "home_assistant_frontend": "20260930.3",
+  "ha_aioesphomeapi": "46.6.0",
+  "host_native_platform": "1.2.1",
+  "hacs": null,
+  "pytest": "8.4.2",
+  "pytest_asyncio": "1.2.0",
+  "playwright": "1.56.0"
+}

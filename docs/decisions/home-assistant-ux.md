@@ -4,6 +4,11 @@ Research and recommended design, 2026-10-11. This extends the owner's requested
 direction after P4; it is not an implemented integration or a container test result.
 Implementation stages and acceptance gates are in [the plan](../implementation-plan.md).
 
+P5 follow-up, 2026-10-11: the [isolated lab](../ha-lab.md) is now implemented,
+compiled and tested against HA 2026.10.1, including real encrypted native-API
+sessions and a browser smoke test. This records the decision's execution;
+the integration/editor/upload/pages design below remains P6–P9 work.
+
 ## Decision: one integration with a bundled editor
 
 Build `custom_components/esp_deck/` as a HACS-distributed custom integration with

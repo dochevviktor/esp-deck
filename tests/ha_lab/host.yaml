@@ -1,0 +1,73 @@
+# Test-only ESPHome host target. tools/ha_lab.py stages the production portable
+# sources and the unchanged P4 API actions next to this file before compiling.
+esphome:
+  name: streamdeck-original
+  friendly_name: Stream Deck Original
+  build_path: build
+  platformio_options:
+    platform: platformio/native@1.2.1
+host:
+  mac_address: "02:00:00:DE:CC:01"
+logger:
+  level: INFO
+api:
+  encryption:
+    key: !secret api_encryption_key
+  batch_delay: 0ms
+  reboot_timeout: 0s
+packages:
+  runtime_api: !include runtime_api.yaml
+external_components:
+  - source:
+      type: local
+      path: components
+virtual_deck:
+  id: deck
+  session:
+    name: Visual session
+  keys:
+    - key: 0
+      state: {name: Key 0}
+      edge: {name: Key 0 edge}
+    - key: 1
+      state: {name: Key 1}
+      edge: {name: Key 1 edge}
+    - key: 2
+      state: {name: Key 2}
+      edge: {name: Key 2 edge}
+    - key: 3
+      state: {name: Key 3}
+      edge: {name: Key 3 edge}
+    - key: 4
+      state: {name: Key 4}
+      edge: {name: Key 4 edge}
+    - key: 5
+      state: {name: Key 5}
+      edge: {name: Key 5 edge}
+    - key: 6
+      state: {name: Key 6}
+      edge: {name: Key 6 edge}
+    - key: 7
+      state: {name: Key 7}
+      edge: {name: Key 7 edge}
+    - key: 8
+      state: {name: Key 8}
+      edge: {name: Key 8 edge}
+    - key: 9
+      state: {name: Key 9}
+      edge: {name: Key 9 edge}
+    - key: 10
+      state: {name: Key 10}
+      edge: {name: Key 10 edge}
+    - key: 11
+      state: {name: Key 11}
+      edge: {name: Key 11 edge}
+    - key: 12
+      state: {name: Key 12}
+      edge: {name: Key 12 edge}
+    - key: 13
+      state: {name: Key 13}
+      edge: {name: Key 13 edge}
+    - key: 14
+      state: {name: Key 14}
+      edge: {name: Key 14 edge}

@@ -6,13 +6,17 @@ the ESP32 composes images and text locally and handles USB. Once this capability
 is installed, changing a binding, image or supported text/style must not require
 another firmware build or upload.
 
-Status, 2026-10-11: P0–P4 software implemented and unit-tested (48 Python cases,
-including seven native C++ executables). All seven configurations compile with
+Status, 2026-10-11: P0–P5 software implemented and tested (54 Python unittest cases,
+including seven native C++ executables; two real-HA engine tests with mocked
+native actions; nine real-container/native-API/browser scenarios).
+All seven firmware configurations compile with
 synthetic secrets. The [asset loader](asset-loading.md) adds bounded asynchronous
 HTTP(S), strict PNG decoding and retained background caching to the
 [runtime contract](runtime-visuals.md) and [renderer](rendering.md).
 P4 adds [native API controls, key events and HA layout replay](home-assistant.md).
-P3's live asset-reachability check and HA/device acceptance remain pending.
+P5 adds the [isolated HA lab](ha-lab.md), an encrypted ESPHome host virtual deck,
+and a replay fix found by real HA testing. P3's live ESP asset-reachability check
+and physical HA/device acceptance remain pending.
 No firmware was deployed or newly hardware-verified; example 04 remains the
 installed bench baseline.
 
@@ -20,8 +24,9 @@ Planning update, 2026-10-11: develop a HACS-distributed HA integration with a
 bundled visual editor, image uploads and later pages/layers. P5 now establishes
 an independent Podman HA lab; P6–P8 deliver the product experience; P9 retains
 the real-device and release gates from the original P5. The owner's production
-HA is not a prerequisite for software development/testing. This update is
-research/documentation only: no HA container or HACS code has been installed.
+HA is not a prerequisite for software development/testing. This planning update
+was research/documentation at the time. P5 has since implemented and exercised
+the HA lab; HACS/integration/editor code remains P6–P9 work.
 Read [the research and architecture decision](decisions/home-assistant-ux.md).
 
 ## Resume in a fresh chat
@@ -31,11 +36,12 @@ Read [the research and architecture decision](decisions/home-assistant-ux.md).
    [USB decision](decisions/usb-transport.md), and current
    [hardware evidence](hardware.md) and [test status](testing.md).
 2. Inspect the worktree and current sources; preserve local edits and secrets.
-3. Continue with P5's isolated HA lab and test-only virtual deck, using
+3. Continue with P6 against P5's isolated HA lab and test-only virtual deck, using
    [the architecture decision](decisions/home-assistant-ux.md),
    [the runtime contract](runtime-visuals.md), [P3's loader](asset-loading.md)
    and [P4's HA guide](home-assistant.md). Podman 5.8.4/rootless is available on
-   this Fedora 44 host; actual container startup remains to be tested. Use fresh
+   this Fedora 44 host; HA 2026.10.1 and the encrypted virtual deck now pass the
+   [lab scenarios](ha-lab.md). Use fresh
    lab configuration and synthetic devices, not the owner's HA data or credentials.
 4. Keep example 04 as the known-working bench configuration. Runtime actions
    require example 05; they are not on the installed device yet. Do not hardcode
@@ -332,7 +338,7 @@ physical runtime/rendering/reconnection acceptance.
 
 ### P5 Establish an independent HA integration lab
 
-Planned files: `tools/ha_lab.py`, `tests/ha/`, `tests/ha_lab/`, a test-only ESPHome
+Implemented files: `tools/ha_lab.py`, `tests/ha/`, `tests/ha_lab/`, a test-only ESPHome
 host adapter/configuration, and version/image locks separate from firmware pins.
 
 - [x] Record the P4 baseline: 48 Python cases, seven native executables, all
@@ -340,28 +346,28 @@ host adapter/configuration, and version/image locks separate from firmware pins.
 - [x] Check local prerequisites without mutation: Fedora 44, Podman 5.8.4,
   rootless/Netavark, SELinux enforcing; no HA image/container or 8123/18123 listener
   at research time. This is not a container startup test.
-- [ ] Add repeatable lab up/status/test/down commands. Pin a released HA image
+- [x] Add repeatable lab up/status/test/down commands. Pin a released HA image
   by tag and digest; start by evaluating source-reviewed HA 2026.10.1. Record
   Python/test-tool versions and later HACS/frontend versions. Keep these locks
   separate from the ESPHome/IDF/Pillow fixture pins.
-- [ ] Create fresh private `.build/ha-lab/` config/data with synthetic accounts,
+- [x] Create fresh private `.build/ha-lab/` config/data with synthetic accounts,
   keys, a demo light, scenes and test scripts. Use a named rootless network and
   `127.0.0.1:18123` for the UI. Handle SELinux on lab-owned mounts; no privileged
   mode, USB passthrough or production HA config is needed. Scope teardown to
   lab resources and preserve unrelated containers.
-- [ ] Prove pinned ESPHome `host` + encrypted native API in a small spike, then
+- [x] Prove pinned ESPHome `host` + encrypted native API in a small spike, then
   add a test-only adapter for the portable Store/renderer/scheduler. Reuse the
   P4 action signature and event behavior; simulate USB completions and physical
   inputs. Add host HTTP fetching for asset-route tests without claiming coverage
   of the IDF worker. Do not reimplement the encrypted wire protocol by hand.
-- [ ] Pair the virtual deck with HA's real ESPHome integration by explicit host/
+- [x] Pair the virtual deck with HA's real ESPHome integration by explicit host/
   port. Verify action-response support, entity/action discovery and registry
   rename behavior before choosing the minimum supported HA version.
-- [ ] Execute the actual P4 helper scripts in HA, covering all 15 keys, numeric
+- [x] Execute the actual P4 helper scripts in HA, covering all 15 keys, numeric
   labels/sessions, revision conflicts, unchanged replay, state feedback, outages,
   HA restart, virtual ESP reboot and logger connections. Keep the existing
   native tests as the independent renderer/USB oracle.
-- [ ] Add HA pytest tests and browser/API smoke tests with a clear distinction
+- [x] Add HA pytest tests and browser/API smoke tests with a clear distinction
   between mocked clients, real container/native-API sessions and hardware. Inject
   presses only through the virtual deck; avoid a production debug action.
 
@@ -369,6 +375,16 @@ Acceptance: a repeatable command starts a clean HA lab, connects the virtual dec
 and runs the P4 integration scenarios without the owner's HA, ESP or GitHub
 account. Store sanitized logs/results and image/version identities. No electrical,
 USB, physical-display or actual ESP HTTP/OTA claim comes from this gate.
+
+Software acceptance passed on 2026-10-11 using `up --fresh` followed by `test`:
+two HA-engine tests and nine real HA/native-API/browser scenarios. Both images
+are pinned by tag/digest independently of firmware dependencies. Initial minimum
+HA baseline: 2026.10.1; earlier versions are untested. The real server exposed
+the invalid P4 `has_service()` template; replay now listens for native action
+registration events. Registry IDs survive renames, while manual helper entity
+references need updating. `down` preserves private data and unrelated containers;
+`--fresh` archives the previous lab. See [the lab guide](ha-lab.md) and
+[test evidence](testing.md). No physical firmware was deployed.
 
 ### P6 Build the HACS integration backend and guided setup
 
@@ -583,8 +599,9 @@ dependency pins, flash partitions or the physical power arrangement implicitly.
 
 - [HA/HACS research and architecture decision](decisions/home-assistant-ux.md):
   primary sources, rootless lab findings, backend/editor split, upload/access
-  design and the limits of software simulation. Future lab/integration/browser
-  commands are deliverables of P5–P7; they do not exist yet.
+  design and the limits of software simulation.
+  P5 lab commands are in [the lab guide](ha-lab.md); integration/editor commands
+  remain P6–P7 deliverables.
 
 - [Python basic example](https://python-elgato-streamdeck.readthedocs.io/en/stable/examples/basic.html):
   scale an icon, draw a label, convert to native format. Black outlining is a new

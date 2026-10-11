@@ -21,7 +21,7 @@ credentials, C6 pin assignments and device-specific workarounds were not copied.
 | HIDAPI source audit only | 0.15.0, commit `d6b2a974608dec3b76fb1e36c189f22b9cf3650c` |
 | mDNS IDF component | `espressif/mdns` 1.12.0, pinned by ESPHome |
 | Native API/OTA crypto | `esphome/noise-c` 0.1.30, `esphome/libsodium` 1.10021.11, pinned by ESPHome |
-| Home Assistant tested version | None; not connected/tested |
+| Home Assistant tested version | 2026.10.1 in the isolated P5 lab, frontend 20260930.3; production HA/device runtime acceptance pending |
 | Owner's working desktop Python revision | Not yet supplied |
 | Deck firmware | `1.0.191203`, read through desktop HID Feature 4 on 2026-10-10 |
 
@@ -29,6 +29,12 @@ credentials, C6 pin assignments and device-specific workarounds were not copied.
 `requirements-lock.txt` records the entire resolved Python dependency set.
 The fixture tool checks the installed upstream commit and Pillow version before
 generating or checking bytes. No desktop library runs on the ESP.
+
+P5's image digests, ESPHome host compiler, HA/test/browser versions and separate
+Python locks are in [the lab guide](ha-lab.md) and
+[`tests/ha_lab/versions.json`](../tests/ha_lab/versions.json). They do not change
+the firmware/fixture pins above. HACS remains uninstalled. HA 2026.10.1 is the
+initial supported/tested baseline; no earlier-version compatibility is claimed.
 
 The build uses 16 MB flash, DIO flash mode, octal PSRAM at 80 MHz, UART0 logs,
 secondary USB console disabled and (driver examples) USB control data cap 8192

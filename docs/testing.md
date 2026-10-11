@@ -1,5 +1,76 @@
 # Validation and remaining hardware gates
 
+## Independent HA lab, 2026-10-11 (P5)
+
+Implemented: reproducible `up/status/test/down` tooling, private synthetic HA
+configuration/accounts/artwork, ownership-scoped rootless resources, separate
+image/test locks, encrypted ESPHome host virtual deck, bounded host fetching,
+simulated input/output/recovery, HA engine tests and a browser smoke test.
+`up --fresh` archives the previous lab and initializes fresh accounts/storage.
+No owner's HA data, device secrets, hardware or GitHub account is required.
+See [the lab guide](ha-lab.md).
+
+Compiled: the ESPHome 2026.9.0 host executable inside its pinned image, and all
+seven ESP32 firmware configurations with temporary synthetic secrets using
+`tools/check_firmware.py --compile`. Firmware estimates remain those below;
+no firmware code, USB transport/scheduling or dependency pin changed in P5.
+
+Unit-tested: **54 Python unittest cases**, including the same **seven native C++
+executables**. Six new cases cover resource ownership/inspection failures,
+private staging with byte-identical production sources/API definitions, scoped
+teardown, and host HTTP byte/type/redirect limits. Upstream protocol, font,
+rendering and PNG fixture checks run in this suite and pass. No new sanitizer
+or remote CI result is claimed.
+
+HA-engine-tested: **two pytest cases** run inside the pinned HA image with real
+script/template/automation engines and mocked native actions. They verify full
+layout replay, revision queries, numeric text/session preservation, actual state
+feedback, and late service registration with no subsequent sensor change.
+
+HA-container/browser-tested: **nine scenarios**, all passing after a clean
+`up --fresh`, against **HA 2026.10.1 / frontend 20260930.3** and the compiled
+encrypted virtual deck. They verify real ESPHome config-flow pairing, required
+action responses, rejection of unencrypted/wrong-key clients, 31 entities/four
+actions, all 15 key pairs, state-driven on/off/unavailable feedback, duplicate/
+conflicting/stale revisions, unchanged replay with no fetch/output, relabel cache
+reuse, deliberate refresh, 404/bad PNG/origin failures, registry renames, API
+logger clients, simulated output failure/delay/reconnect, HA outage/restart with
+no press replay, and a virtual reboot with a digit-only session. Chromium logs
+into HA and opens the virtual device UI; bindings work after the browser closes.
+The initial minimum supported/tested HA baseline is 2026.10.1, not a claim that
+earlier releases are incompatible. HACS/custom editor tests remain future work.
+
+Live testing found P4's unsupported `has_service()` HA template. Its replay now
+listens to `service_registered` events and waits for a valid visual session.
+Entity registry IDs survive renames; the manual helper's entity-name reference
+needs updating after a rename. A script error can return HTTP 200 with an empty
+response, so clients must check explicit acceptance. These behaviors are tested
+and guide P6's registry adapter and synchronization controller.
+
+Sanitized locks and [acceptance metadata](../tests/ha_lab/acceptance-2026-10-11.json)
+are under `tests/ha_lab/`. Raw build/HA/
+deck logs, JUnit reports, browser screenshot and per-run versions/results remain
+private in ignored `.build/ha-lab/`. Scoped teardown and restart were exercised;
+unrelated existing containers were preserved. SELinux stayed enforcing.
+
+Hardware-verified: **none for P5**. No physical flash, OTA, USB transaction or ESP
+asset fetch occurred. Example 04 remains installed. Host malloc/HTTP/process
+timing and simulated output cannot qualify PSRAM, IDF networking/DMA, panel pixels,
+electrical power, first-click behavior, repeated recovery or physical P9 gates.
+
+Commands run:
+
+```sh
+.venv/bin/python tools/ha_lab.py up --fresh
+.venv/bin/python tools/ha_lab.py test
+.venv/bin/python tools/ha_lab.py status
+.venv/bin/python tools/ha_lab.py down
+.venv/bin/python tools/ha_lab.py up
+.venv/bin/python -m unittest discover -s tests -v
+.venv/bin/python tools/check_firmware.py --compile
+git diff --check
+```
+
 ## Home Assistant runtime controls, 2026-10-11 (P4)
 
 Implemented: generic native set/clear/refresh/status actions with descriptions
@@ -230,8 +301,9 @@ confirmed. Firmware remained unchanged.
 | Category | Result |
 | --- | --- |
 | Implemented | Codec, scheduler, USB transport/entities/images/recovery, diagnostics, desktop probe, private builds, source-pinned IDF descriptor hook, P0/P1 visual contract/owned images, P2 renderer/fonts/PSRAM, P3 HTTP(S)/PNG/cache, P4 native API responses/key events/HA replay |
-| Unit-tested | 48 Python cases including seven native C++ suites, PNG/pipeline/HTTP guards, renderer/font fixtures, runtime ownership/visual API, production key publication, HA helper/replay templates, captured descriptors, production USB simulations, build-hook guards and private staging |
-| Compiled | Examples 01–05 plus renderer_probe and asset_loader_probe with synthetic credentials. Earlier private deployments used examples 01, 02 and 04; ESP-IDF 5.5.5 / ESPHome 2026.9.0 |
+| Unit-tested | 54 Python cases including seven native C++ suites, PNG/pipeline/HTTP guards, renderer/font fixtures, runtime ownership/visual API, production key publication, HA helper/replay templates, captured descriptors, production USB simulations, build/lab ownership guards and private staging |
+| HA engine / real sessions | Two HA engine cases with mocked native actions; nine real HA 2026.10.1/native-API/browser scenarios against the test-only virtual deck |
+| Compiled | Examples 01–05 plus renderer_probe and asset_loader_probe with synthetic credentials, plus P5's ESPHome host virtual deck. Earlier private deployments used examples 01, 02 and 04; ESP-IDF 5.5.5 / ESPHome 2026.9.0 |
 | Hardware-verified | Identity/flash, Wi-Fi, encrypted API/OTA, 8 MB PSRAM initialization, EP0 replies, 17-byte input, visible image feedback, press/release coverage for all 15 key indices, and one deck reconnect with full desired-image redraw and resumed input. Detailed mapping/visual/brightness checks, repeated recovery, ESP-only restarts, electrical and HA qualification remain pending |
 | Remote CI | Workflow provided; not executed in this session |
 
