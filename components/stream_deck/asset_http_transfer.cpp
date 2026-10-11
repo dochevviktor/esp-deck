@@ -87,7 +87,7 @@ FetchResult fetch_http(const char *url, uint8_t *output, size_t capacity, uint64
                        const std::atomic<bool> &cancelled, const char *ca_certificate) {
   FetchResult result{token, visual::Error::FETCH_FAILED};
   Origin origin;
-  if (!url || !output || capacity != visual::MAX_ENCODED_BYTES || !url_origin(url, origin)) return result;
+  if (!url || !output || !valid_fetch_capacity(capacity) || !url_origin(url, origin)) return result;
   // A boot-default epoch cannot meaningfully validate certificate dates. The
   // normal probe waits for HA time; typed callers receive an explicit failure.
   if (origin.tls && std::time(nullptr) < 1609459200) {

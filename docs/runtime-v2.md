@@ -1,10 +1,11 @@
 # Runtime v2: capabilities, origins and safe pages
 
 P8 extends example 05 with four new encrypted native actions. The four v1
-signatures, manual helper scripts and edge entities remain compatible. The
-installed example 04 bench firmware has neither runtime version; a requested
-firmware update is still required before using these features on the physical
-deck. Software tests do not qualify actual USB timing or the power path.
+signatures, manual helper scripts and edge entities remain compatible. Example
+04 has neither runtime version. The owner's requested example-05 update is now
+deployed; [the first physical session](hardware-lab.md) records text/page/input
+evidence and the remaining artwork/network gate. Software tests do not qualify
+actual USB timing or the power path.
 
 ## Capability discovery and positioning
 

@@ -25,7 +25,8 @@ def build_http():
     sanitize = ["-fsanitize=address,undefined", "-fno-omit-frame-pointer"] if os.getenv("SANITIZE") == "1" else []
     subprocess.run(["g++", "-std=c++17", "-Wall", "-Wextra", "-Werror", "-g", *sanitize,
                     "-DUSE_STREAM_DECK_ASSETS", "-Itests/native/http_fakes", "-Itests/native/fakes", "-Icomponents/stream_deck",
-                    "tests/native/test_asset_http.cpp", "components/stream_deck/asset_http_transfer.cpp",
+                    "tests/native/test_asset_http.cpp", "components/stream_deck/asset_http.cpp",
+                    "components/stream_deck/asset_http_transfer.cpp",
                     "components/stream_deck/asset_policy.cpp", "components/stream_deck/visual_state.cpp",
                     "components/stream_deck/runtime_image.cpp", "components/stream_deck/protocol.cpp",
                     "components/stream_deck/scheduler.cpp", "-o", str(binary)], cwd=ROOT, check=True)

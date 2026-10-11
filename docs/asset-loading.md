@@ -5,6 +5,13 @@ over the encrypted API. A valid persisted v2 origin record replaces compiled
 defaults at boot. The decoder, fetch/TLS limits, retained caches and v1 compiled
 origin configuration described below remain in effect.
 
+P9's first physical session found that production HTTP admission incorrectly
+required the full 128 KiB artwork buffer even for the 32 KiB origin probe. Both
+admission paths now accept a nonzero caller capacity up to the existing ceiling;
+declared and streamed bodies are bounded by that actual capacity. The native HTTP
+test now runs the real worker as well as the transfer implementation. The fix is
+deployed; [live artwork/network acceptance](hardware-lab.md) is still pending.
+
 P3 connects validated visual requests to HTTP(S), a bounded PNG decoder, the P2
 renderer, and the immutable-image scheduler. It is opt-in with `asset_loading`.
 The four numbered examples and `renderer_probe` retain their existing behavior.

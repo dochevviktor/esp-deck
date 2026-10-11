@@ -1,5 +1,14 @@
 # Wiring and hardware acceptance
 
+Current runtime follow-up, 2026-10-11: example 05 is now deployed via encrypted
+OTA and connected to the isolated hardware HA. Capabilities, 15 USB-applied text/
+page tiles, HA replay after OTA and 12 real light bindings are observed. The first
+live test found a 32/128 KiB HTTP probe-buffer mismatch, fixed and redeployed.
+[Artifact, backup, measurements and network limits](hardware-lab.md). Artwork
+fetching to the VM remains blocked; owner visual confirmation, detailed all-key/
+modifier tests, repeated recovery, soak and electrical qualification remain open.
+The earlier sessions below retain their historical status.
+
 Status: USB flashing, Wi-Fi, encrypted API, 8 MB PSRAM initialization and encrypted
 OTA verified on 2026-10-10. The deck's invalid full-speed packet-size descriptor
 persists after a confirmed 20-second power removal. The S3 claims an experimental
@@ -11,9 +20,9 @@ Detailed mapping/visual checks, brightness response, loaded electrical
 qualification, repeated recovery, ESP-only restarts and HA tests remain pending.
 The handover is the hardware source of truth; this is its operational checklist.
 
-P9 packaging/lifecycle testing, 2026-10-11, ran only in the isolated HA/virtual-deck
-lab. No physical ESP was contacted, deployed or newly verified. Example 04 remains
-installed; all runtime and electrical measurements below remain pending.
+The earlier P9 packaging/lifecycle checkpoint on 2026-10-11 ran only in the
+HA/virtual-deck lab and left example 04 installed. The subsequent owner-authorized
+physical session above supersedes that deployment status, not the electrical gates.
 
 P8 software adds [capabilities, positioning, origin provisioning and safe pages](runtime-v2.md).
 No P8 device deployment or new hardware verification occurred. Add these to P9:

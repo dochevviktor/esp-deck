@@ -2,6 +2,9 @@
 #include "visual_state.h"
 
 namespace esphome::stream_deck::assets {
+// Both ordinary artwork and the smaller origin probe use this fetch contract.
+// The caller's actual capacity is the limit, bounded above by the global cap.
+inline bool valid_fetch_capacity(size_t capacity) { return capacity > 0 && capacity <= visual::MAX_ENCODED_BYTES; }
 struct FetchResult {
   uint64_t token{0};
   visual::Error error{visual::Error::NONE};

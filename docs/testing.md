@@ -1,5 +1,65 @@
 # Validation and remaining hardware gates
 
+## Physical P9 follow-up, 2026-10-11
+
+Implemented: real repository documentation/issue/maintainer metadata; a separate
+owned hardware HA instance, read-only encrypted device capture and hash/identity-
+checked private application OTA tooling; and a production HTTP fix accepting the
+32 KiB provisioning buffer within the unchanged 128 KiB ceiling. The native HTTP
+test now compiles `asset_http.cpp` and executes its worker with a deterministic
+FreeRTOS double, testing allocation failure/reuse, busy ownership, cancellation,
+exact-capacity bodies, declared/streamed overflow and guard bytes. No protocol,
+USB scheduling, firmware binding, TLS verification or VBUS rule changed.
+
+Compiled: all seven configurations again with synthetic secrets, plus example
+05 privately for the explicitly requested deployment. The corrected private image
+reports 115,011 B static RAM and 1,093,975 B flash; its OTA image is 1,094,096 B.
+The public synthetic example-05 estimate differs slightly (1,093,991 B flash).
+Only the local-secret image was uploaded. [Artifact hashes and commands](hardware-lab.md).
+
+Unit-tested: **70 host cases passed with ASan/UBSan**, including the expanded
+production HTTP worker/transfer test and five hardware-lab/uploader isolation
+guards. **62 HA engine tests** also passed with the container running as the
+staged files' owner. The existing 65-case source snapshot passed in a clean Git
+archive; its eight native cases also passed under Ubuntu 24.04/GCC 13. No new
+28-scenario synthetic/browser run is claimed for this follow-up; its earlier
+acceptance remains separately recorded below.
+
+Distribution-tested: pinned **Hassfest and upstream HACS local schemas pass** with
+the owner's repository metadata. The public CI run for `ff3b85b` failed host,
+HA-engine and distribution jobs; editor passed and firmware was skipped after
+host failure. The HA job used root inside a capability-stripped Docker container
+against a runner-owned 0700 extracted package. Reading such a package as a
+different user was reproduced as `PermissionError`; CI now uses the runner's UID/
+GID, and that configuration passes locally. This is a confirmed permissions fix,
+not a claim to have inspected the remote failure trace. GitHub requires login for
+those job logs; the remaining host-job failure is unresolved despite the clean
+local and Ubuntu-native passes. No changes were pushed and no successful remote
+rerun or full online HACS/install/update check is claimed.
+
+Hardware-verified: encrypted API identity, two successful private example-05 OTA
+updates, actual HA pairing (40 entities/eight native actions), v2 capability
+negotiation, all 15 text/page tiles at the USB-applied boundary, replay after the
+second OTA reboot, two HA-driven page transitions and initially **12 accepted
+physical light-binding actions**, later 21. A subsequent capture includes two
+physical press/release pairs for the page key. USB errors/overflows remained zero in the samples.
+The first two ordinary OTA attempts timed out with bulk TCP retransmissions;
+connection-local MSS 536 then succeeded with encryption retained. The precise
+network cause is not isolated. Sampled heap/graphics data and measured API-status
+durations are in [the physical lab guide](hardware-lab.md); they are not display
+readback, contact latency or a soak result.
+
+Open: the ESP cannot yet fetch the VM artwork endpoint. The corrected probe now
+starts and reports a fetch failure while preserving the old allowlist; it no
+longer fails its buffer admission. The VM's return route needs bridging/routing
+or a LAN host port forward before PNG/cache/persistent-origin acceptance can
+complete. Owner visual confirmation, detailed all-key/modifier behavior, HTTPS,
+electrical, first-click, repeated recovery and soak gates remain pending.
+The hardware and synthetic HA instances remain separate and running.
+Additional boot-session changes and a USB disconnect/recovery were later observed;
+the owner has been asked whether these were deliberate. Their cause remains open,
+so they are not counted as successful release-qualification restart cycles.
+
 ## P9 local installation and lifecycle qualification, 2026-10-11
 
 Implemented: version 0.9.0's deterministic allowlisted HA ZIP, `hacs.json`, bundled

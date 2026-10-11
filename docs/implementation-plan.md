@@ -1,6 +1,17 @@
 # Home Assistant runtime control implementation plan
 
-P9 progress, 2026-10-11: local version 0.9.0 packaging, archive installation and
+Physical P9 follow-up, 2026-10-11: the owner supplied the GitHub repository and
+authorized the real-device update. Example 05 with the HTTP probe-buffer fix is
+now deployed and paired to a separate HA 2026.10.1 hardware lab. All 15 text/page
+tiles reach USB-applied status and 12 real light-binding actions were observed.
+See [the physical lab evidence](hardware-lab.md). The 32 KiB origin probe exposed
+and fixed a production-fetcher 128 KiB-only assumption; 70 host tests pass with
+sanitizers and all seven synthetic firmware configurations compile. Local HACS
+schemas/Hassfest now pass with real repository metadata. A reachable ESP-to-HA
+artwork route, visual confirmation, fuller physical acceptance and online HACS
+validation remain pending. Example 04 is retained as a private rollback artifact.
+
+Earlier P9 packaging checkpoint, 2026-10-11: local version 0.9.0 packaging, archive installation and
 lifecycle qualification are implemented. All seven synthetic firmware builds,
 65 host tests (ASan/UBSan), five frontend tests, 62 HA-engine cases and the
 28-scenario real HA/native-API/browser run pass. The four P9 lifecycle cases also
@@ -71,8 +82,9 @@ Read [the research and architecture decision](decisions/home-assistant-ux.md).
    this Fedora 44 host; HA 2026.10.1 and the encrypted virtual deck now pass the
    [lab scenarios](ha-lab.md). Use fresh
    lab configuration and synthetic devices, not the owner's HA data or credentials.
-4. Keep example 04 as the known-working bench configuration. Runtime actions
-   require example 05; they are not on the installed device yet. Do not hardcode
+4. Example 05 is now installed on the real ESP; example 04's private images/ELF
+   remain the known-working rollback artifacts. Continue from [the hardware lab](hardware-lab.md).
+   Resolve its ESP-to-HA asset route and finish the supervised tests. Do not hardcode
    HA entities into firmware, reset visual state on API logger connections, or
    repeat USB packet-size experiments for this stage.
 5. Preserve v1 compatibility, hash-only saved artwork references and
@@ -102,11 +114,12 @@ The repository baseline when this plan was written is `866bff7`; P4 is now in
 | Unit-tested | 23 Python cases, including native C++ protocol/scheduler and production-transport simulations |
 | Hardware-verified | Image feedback, press/release coverage for all 15 key indices, one peripheral reconnect with full redraw and resumed input, Wi-Fi/API/OTA and 8 MB PSRAM initialization |
 
-The installed firmware is `04_hardware_test`, compiled
+The preserved pre-runtime baseline is `04_hardware_test`, compiled
 `2026-10-10 21:59:20 +0200`. Its OTA image is 846,240 bytes with SHA-256
 `69854221b91d08647a7f64e0fb6d35535896a085dfdf0aa763ca9c286e88ad12`.
 The owner reconfirmed `192.168.10.238` on 2026-10-11 and two ICMP probes succeeded;
-confirm API identity again before a later deployment. The ESP and deck use the
+the current installed image and identity checks are in [the physical lab guide](hardware-lab.md).
+Verify identity before another upload. The ESP and deck use the
 externally powered host topology, not PC USB flashing wiring.
 
 Preserve these established transport details:
@@ -582,10 +595,10 @@ Software installation tests can proceed before any device deployment.
 - [x] Build local installation packaging with `hacs.json`, translations,
   brand/licence assets and the bundled frontend. Verify direct installation from
   the artifact and actual P8-to-P9 code upgrade, preserving saved data.
-- [ ] Complete the manifest's real repository/maintainer metadata and pass HACS
-  validation and Hassfest. Both were run locally: the repaired translations and
-  component schema pass; missing documentation/issue URLs remain a blocker.
-  Separately smoke-test HACS custom-repository install/update when the repository
+- [x] Complete the manifest's real repository/maintainer metadata and pass the
+  upstream HACS local schemas and Hassfest. Both now pass locally.
+- [ ] Run full online HACS repository validation and separately smoke-test
+  HACS custom-repository install/update when the repository
   is published and GitHub device authorization is available.
   Public release/default-store submission is a later publishing step, not a
   prerequisite for local tests or custom-repository support.
@@ -596,6 +609,9 @@ Software installation tests can proceed before any device deployment.
   instance/version, reachable asset address/access and readiness to replace the
   bench firmware. Back up private working artifacts; use local-secret deployment
   builds only. The isolated lab HA may be used; production HA remains optional.
+  Identity, private backups/builds, actual encrypted OTA and physical HA pairing
+  are now recorded. The owner-authorized text/input session proceeded while the
+  independent asset return route remains pending, so this combined gate stays open.
 - [ ] For device tests expose only the needed lab HA address/port on the LAN;
   distinguish it from loopback/container names and match the configured origin.
   Verify a real ESP fetch including clock/certificate behavior where applicable.

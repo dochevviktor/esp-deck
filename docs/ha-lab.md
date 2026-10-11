@@ -1,5 +1,10 @@
 # Independent Home Assistant lab
 
+The automated lab below remains synthetic and loopback-only. A separate
+[physical hardware instance](hardware-lab.md) now runs on port 18124 with its
+own config/accounts and the real encrypted ESPHome connection. Never substitute
+the real ESP into the virtual lab's automatic input/restart scenarios.
+
 P9 can install a release ZIP with `up --fresh --artifact PATH` and upgrade a
 running lab with `tools/ha_release.py PATH`. Archive installs also run the four
 installation/upgrade/backup/removal/migration scenarios; source-tree installs

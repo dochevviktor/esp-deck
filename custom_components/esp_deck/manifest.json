@@ -1,11 +1,13 @@
 {
   "domain": "esp_deck",
   "name": "ESP Deck",
-  "codeowners": [],
+  "codeowners": ["@dochevviktor"],
   "config_flow": true,
   "dependencies": ["esphome", "frontend", "http", "panel_custom", "websocket_api"],
+  "documentation": "https://github.com/dochevviktor/esp-deck/blob/master/docs/release.md",
   "integration_type": "helper",
   "iot_class": "local_polling",
+  "issue_tracker": "https://github.com/dochevviktor/esp-deck/issues",
   "requirements": [],
   "version": "0.9.0"
 }

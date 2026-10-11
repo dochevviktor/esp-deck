@@ -4,9 +4,10 @@
 is the generic firmware configuration. HA owns bindings and the authoritative
 layout; the ESP fetches allowed PNGs, renders labels and sends native images.
 Changes within the supported styles and configured asset origins need no build
-or OTA. Example 04 remains the installed bench baseline: P4 has been compiled and
-host-tested, and P5 tests its helpers against real HA with a virtual deck.
-Runtime firmware has not been deployed to the physical device.
+or OTA. Example 05 is now installed on the owner's ESP; the
+[physical P9 session](hardware-lab.md) records real text/page/input checks and the
+pending artwork route. The manual v1 setup below retains its compiled-origin
+assumption; v2 can verify/provision a new origin through the managed editor.
 
 This is the existing P4 manual setup guide. The [extended plan](implementation-plan.md)
 adds a HACS integration/editor that will replace routine YAML setup. P5's

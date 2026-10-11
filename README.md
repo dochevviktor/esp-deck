@@ -27,10 +27,13 @@ P9 adds a deterministic integration ZIP, local brand/licence assets, distributio
 validators and archive installation/upgrade/backup/removal tests. See
 [installation and release qualification](docs/release.md) for commands and the
 remaining GitHub/HACS and physical gates.
+The real ESP now runs example 05: [the physical lab session](docs/hardware-lab.md)
+verified HA pairing, text/page USB completion and real light-binding actions.
+Artwork fetching still needs a reachable route from the ESP back to the lab VM.
 Compiled: all seven configurations on ESPHome 2026.9.0 / ESP-IDF 5.5.5, plus the
 test-only ESPHome host executable.
 Unit-tested: upstream byte fixtures, scheduler/input behavior, simulated USB
-transfers, schema validation and captured desktop descriptors; 65 Python cases
+transfers, schema validation and captured desktop descriptors; 70 Python cases
 including nine native executables and HA helper/replay templates, plus five
 frontend tests (including all twenty renderer snapshots).
 HA-tested: 62 real-HA engine tests with mocked native actions and 28 real
@@ -44,7 +47,7 @@ cover every key 0..14 and one successful peripheral reconnect: the saved desired
 images redraw across all 15 keys and key events resume in generation 3. Each
 edge completes both 8191-byte image pages. Detailed mapping/visual checks,
 brightness response, repeated reconnects, ESP-only restarts, electrical
-qualification and HA acceptance remain pending. See
+qualification and full HA acceptance remain pending. See
 [validation and remaining gates](docs/testing.md).
 
 The original [handover](STREAM_DECK_ESPHOME_CODEX_HANDOVER.md) is preserved.
@@ -54,13 +57,13 @@ The [Home Assistant runtime control plan](docs/implementation-plan.md) has P0–
 software implemented and tested: [the contract](docs/runtime-visuals.md), owned
 images, [rendering](docs/rendering.md), and [URL loading/cache](docs/asset-loading.md).
 Example 05 adds [HA runtime controls and layout replay](docs/home-assistant.md).
-Example 03 remains a fixed-entity demo; example 04 is the installed bench baseline.
+Example 03 remains a fixed-entity demo; example 04 is preserved for private rollback.
 P5's [isolated Podman HA lab](docs/ha-lab.md), P6's
 [integration backend](docs/ha-integration.md) and P7's
 [editor and 72×72 artwork pipeline](docs/visual-editor.md) run independently of
 physical hardware. P8's [capabilities, provisioning and bounded pages/layers](docs/runtime-v2.md)
 are also software-tested. P9's [release packaging and lifecycle checks](docs/release.md)
-pass locally; repository metadata, physical qualification and online HACS distribution remain
+and local distribution metadata checks pass; physical qualification and online HACS distribution remain
 open, and P3's
 actual ESP asset-reachability check is still pending. See the
 [HA/HACS architecture decision](docs/decisions/home-assistant-ux.md).
@@ -142,7 +145,7 @@ API and encrypted OTA. No real credentials are committed.
 | `examples/02_keys_brightness.yaml` | All keys, brightness and diagnostics; blanks the displays |
 | `examples/03_images_home_assistant.yaml` | Key 0 toggles `light.example_lamp`; actual HA feedback selects ON/OFF/? |
 | `examples/04_hardware_test.yaml` | Standalone RGB/arrow patterns on keys 0/7/14; received presses show ON, releases restore the pattern; no HA actions |
-| `examples/05_home_assistant_runtime.yaml` | Generic HA-controlled images/text/styles, visual session/status, 15 key event entities and HA layout replay; not deployed/hardware-tested |
+| `examples/05_home_assistant_runtime.yaml` | Installed runtime: HA-controlled images/text/styles, v2 pages/input, status and replay; initial real text/input checks passed, artwork route pending |
 | `examples/renderer_probe.yaml` | P2 local renderer: three font sizes, outlined text/artwork and truncation on keys 0/1/2/7/14; no runtime API or downloads; not hardware-tested |
 | `examples/asset_loader_probe.yaml` | P3 PNG URL + label on key 0, then a label-only cache update; configure a real allowed origin/URL; HTTPS waits for HA time; not deployed/hardware-tested |
 

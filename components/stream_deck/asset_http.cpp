@@ -6,7 +6,7 @@
 
 namespace esphome::stream_deck::assets {
 bool HttpFetcher::start(std::string_view url, uint8_t *output, size_t capacity, uint64_t token) {
-  if (state_.load(std::memory_order_acquire) != IDLE || !output || capacity != visual::MAX_ENCODED_BYTES ||
+  if (state_.load(std::memory_order_acquire) != IDLE || !output || !valid_fetch_capacity(capacity) ||
       !visual::valid_url(url)) return false;
   if (!task_handle_) {
     TaskHandle_t handle = nullptr;

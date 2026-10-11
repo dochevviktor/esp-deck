@@ -48,7 +48,10 @@ jobs:
           cp -R examples/home_assistant .build/ha-engine/examples
       - name: Test backend in pinned HA 2026.10.1
         run: |
+          # Match the owner of the private (0700) extracted integration directory.
           docker run --rm --cap-drop=all --security-opt=no-new-privileges \
+            --user "$(id -u):$(id -g)" \
+            -e PIP_NO_CACHE_DIR=1 \
             -v "$PWD/.build/ha-engine:/tests" --entrypoint sh \
             ghcr.io/home-assistant/home-assistant:2026.10.1@sha256:130241f28d01fa80dfa3b44f7d89781c188d8642ecab9024f079f19f9f82baa0 \
             -c 'python -m venv --system-site-packages /tests/venv && /tests/venv/bin/pip install --no-deps -r /tests/tests/requirements.txt && cd /tests && /tests/venv/bin/python -m pytest -q /tests/tests'

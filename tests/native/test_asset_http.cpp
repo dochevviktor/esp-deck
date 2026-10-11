@@ -1,5 +1,6 @@
 #include "asset_http.h"
 #include "http_test_api.h"
+#include "freertos/task.h"
 #include <algorithm>
 #include <cassert>
 #include <cstring>
@@ -29,6 +30,16 @@ std::vector<uint8_t> body;
 std::atomic<bool> *cancel = nullptr;
 std::map<std::string, std::string> request_headers;
 bool used_bundle = false, used_custom_ca = false;
+struct WorkerBlocked {};
+struct Task { void (*function)(void *){nullptr}; void *argument{nullptr}; unsigned notifications{0}; } task;
+bool fail_task = false;
+unsigned task_creations = 0;
+void drain_worker() {
+  // Run the real worker until its next blocking wait. No host thread, race or
+  // hardware timing is inferred from this deterministic FreeRTOS test double.
+  try { task.function(task.argument); } catch (const WorkerBlocked &) { return; }
+  assert(false);
+}
 void reset(size_t bytes = 4) {
   assert(transports == 0 && clients == 0);
   now = delay = connects = 0; cursor = 0; cancel_after = SIZE_MAX;
@@ -37,6 +48,19 @@ void reset(size_t bytes = 4) {
   headers = "Content-Type: image/png\r\n"; body.assign(bytes, 0x5a); cancel = nullptr;
   used_bundle = used_custom_ca = false; request_headers.clear();
 }
+}
+BaseType_t xTaskCreate(void (*function)(void *), const char *name, uint32_t stack,
+                      void *argument, UBaseType_t priority, TaskHandle_t *handle) {
+  assert(std::string(name) == "deck_assets" && stack == 8192 && priority == 1);
+  if (fake::fail_task) return 0;
+  fake::task = {function, argument, 0}; *handle = &fake::task; fake::task_creations++;
+  return pdPASS;
+}
+void xTaskNotifyGive(TaskHandle_t handle) { assert(handle == &fake::task); fake::task.notifications++; }
+uint32_t ulTaskNotifyTake(BaseType_t clear, TickType_t wait) {
+  assert(clear == pdTRUE && wait == portMAX_DELAY);
+  if (!fake::task.notifications) throw fake::WorkerBlocked{};
+  const auto count = fake::task.notifications; fake::task.notifications = 0; return count;
 }
 extern "C" time_t time(time_t *result) noexcept {
   if (result) *result = fake::wall_time;
@@ -139,6 +163,46 @@ int main() {
     return result;
   };
   fake::reset(); assert(run().error == v::Error::NONE);
+  // P8 provisioning supplies 32 KiB, not the ordinary 128 KiB artwork buffer.
+  // Exercise both production admission and the real worker/HTTP path together.
+  {
+    std::vector<uint8_t> probe(32768 + 2, 0xa5);
+    a::HttpFetcher fetcher;
+    assert(!fetcher.start("http://ha.local:8123/probe", probe.data() + 1, 0, 1));
+    assert(!fetcher.start("http://ha.local:8123/probe", probe.data() + 1, v::MAX_ENCODED_BYTES + 1, 1));
+    assert(!fetcher.start("http://ha.local:8123/probe", nullptr, 32768, 1));
+    assert(fake::task_creations == 0);
+    fake::fail_task = true;
+    assert(!fetcher.start("http://ha.local:8123/probe", probe.data() + 1, 32768, 1));
+    fake::fail_task = false;
+    for (const auto bytes : {size_t(4), size_t(32768), size_t(32769)}) {
+      for (const bool declared : {true, false}) {
+        fake::reset(bytes);
+        if (!declared) fake::length = 0;
+        assert(fetcher.start("http://ha.local:8123/probe", probe.data() + 1, 32768, bytes));
+        assert(!fetcher.start("http://ha.local:8123/probe", probe.data() + 1, 32768, 999));
+        a::FetchResult result;
+        assert(!fetcher.poll(result));
+        fake::drain_worker();
+        assert(fetcher.poll(result) && result.token == bytes);
+        assert(result.error == (bytes <= 32768 ? v::Error::NONE : v::Error::LIMIT_EXCEEDED));
+        assert(result.bytes <= 32768 && probe.front() == 0xa5 && probe.back() == 0xa5);
+        assert(!fetcher.poll(result));
+      }
+    }
+    fake::reset();
+    assert(fetcher.start("http://ha.local:8123/probe", probe.data() + 1, 32768, 100));
+    fetcher.cancel(); fake::drain_worker();
+    a::FetchResult result;
+    assert(fetcher.poll(result) && result.error == v::Error::FETCH_FAILED && result.token == 100);
+    assert(fake::connects == 0 && fake::task_creations == 1);
+    fake::reset();
+    assert(fetcher.start("http://ha.local:8123/icon.png", output.data(), output.size(), 101));
+    fake::drain_worker();
+    assert(fetcher.poll(result) && result.error == v::Error::NONE && result.bytes == 4);
+    assert(a::fetch_http("http://ha.local:8123/icon.png", output.data(), 0, 1, cancelled).error == v::Error::FETCH_FAILED);
+    assert(a::fetch_http("http://ha.local:8123/icon.png", output.data(), v::MAX_ENCODED_BYTES + 1, 1, cancelled).error == v::Error::FETCH_FAILED);
+  }
   assert(fake::request_headers.at("Cache-Control") == "no-cache" && fake::request_headers.at("Accept-Encoding") == "identity");
   fake::reset(); assert(run("https://ha.local/icon.png").error == v::Error::NONE && fake::used_bundle);
   fake::reset(); fake::wall_time = 0;

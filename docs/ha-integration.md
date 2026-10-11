@@ -21,9 +21,9 @@ without YAML or revision/URL plumbing. P8 supplies pages/layers. HACS online
 repository/install/update validation remains a separate P9 gate; a GitHub account
 is not needed for artifact installation or local tests.
 
-The real device needs example 05's existing v1 runtime API. The installed
-example 04 bench firmware is incompatible. P6 does not upload firmware, change
-USB/power behavior, provision origins or claim physical display verification.
+The device needs example 05's v1 or v2 runtime API; example 04 is incompatible.
+The owner's real device now runs v2, with [initial physical evidence](hardware-lab.md).
+Installing this HA integration does not upload firmware or change USB/power behavior.
 
 ## Installation and guided setup
 

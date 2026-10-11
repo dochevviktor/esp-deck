@@ -7,8 +7,9 @@ on 2026-10-11. One version therefore covers both minimum and current in this run
 earlier HA releases are rejected before registering the integration.
 [HA release record](https://github.com/home-assistant/core/releases/tag/2026.10.1).
 
-Physical runtime acceptance remains separate. Example 04 is still the installed
-bench firmware. The integration explains that it needs
+Physical runtime acceptance remains separate. The owner has now authorized and
+received example 05; [the first physical session](hardware-lab.md) records real
+HA text/page/input evidence and the still-blocked artwork route. The integration explains that it needs
 `examples/05_home_assistant_runtime.yaml` and points to private-build/encrypted-OTA
 instructions when an incompatible device is selected. Installing the HA ZIP does
 not upload firmware. The [hardware](hardware.md) and [testing](testing.md) gates
@@ -60,10 +61,11 @@ All integration files, including `brand/icon.png`, live under
 installation. This follows [HACS integration requirements](https://www.hacs.xyz/docs/publish/integration/)
 and [ZIP/minimum-version settings](https://www.hacs.xyz/docs/publish/start/).
 
-Repository identity is not configured in this checkout yet. The manifest still
-needs the actual documentation/issue URLs and maintainer identity before its
-distribution checks can pass. Do not substitute fabricated project URLs or
-interpret the local archive's existence as HACS readiness.
+The owner published [dochevviktor/esp-deck](https://github.com/dochevviktor/esp-deck).
+Its documentation/issue URLs and `@dochevviktor` maintainer are now in the local
+manifest. Pinned Hassfest and the actual upstream HACS local schemas pass.
+Full online HACS validation/install/update and a published release are separate
+gates; local validation does not claim that the amended worktree is pushed.
 
 `check_distribution.py` runs the actual upstream Hassfest image and imports the
 actual HACS manifest schemas from its action image. Both images are pinned by
@@ -72,8 +74,8 @@ logs/results under `.build/distribution/`. This checks local code/metadata witho
 an account. The full HACS action reads a published GitHub repository instead:
 
 ```sh
-# After publishing the repository, with an existing token supplied privately:
-.venv/bin/python tools/check_distribution.py --online OWNER/REPOSITORY
+# With an existing token supplied privately, after pushing the intended revision:
+.venv/bin/python tools/check_distribution.py --online dochevviktor/esp-deck
 ```
 
 That optional command requires `GITHUB_TOKEN`, passes it through the container
@@ -134,6 +136,11 @@ Source-tree lab installs retain their original regression command; archive-only
 scenarios run only with a recorded artifact installation and are reported separately.
 
 ## Physical continuation
+
+The current [physical lab guide](hardware-lab.md) contains the deployed artifact,
+private backup, encrypted uploader, network boundary and practical test layout.
+Text/input testing now runs on real hardware. The ESP-to-VM asset route still
+needs a reachable LAN address; no successful real artwork fetch is claimed.
 
 Before an explicitly requested example-05 upload: verify the encrypted API
 identity, retain the working example-04 artifacts, choose the HA instance and
