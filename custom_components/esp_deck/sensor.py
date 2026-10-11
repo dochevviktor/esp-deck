@@ -31,4 +31,4 @@ class DeckStatus(SensorEntity):
 
     @property
     def extra_state_attributes(self):
-        return {key: value for key, value in self.controller.status().items() if key not in ("state", "tiles")}
+        return {key: value for key, value in self.controller.status().items() if key not in ("state", "tiles", "capabilities")}

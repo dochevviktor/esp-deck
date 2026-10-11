@@ -57,7 +57,8 @@ class LabTests(unittest.TestCase):
                         self.assertEqual((directory / "deck/components/virtual_deck" / name).read_bytes(),
                                          (source / name).read_bytes())
                 original = (ha_lab.ROOT / "examples/packages/runtime_api.yaml").read_text().split("\napi:\n")[1]
-                self.assertEqual((directory / "deck/runtime_api.yaml").read_text(), "api:\n" + original)
+                v2 = (ha_lab.ROOT / "examples/packages/runtime_api_v2.yaml").read_text().split("  actions:\n", 1)[1]
+                self.assertEqual((directory / "deck/runtime_api.yaml").read_text(), "api:\n" + original + v2)
                 self.assertFalse((directory / "deck/components/virtual_deck/usb_transport.cpp").exists())
                 self.assertFalse((directory / "deck/components/virtual_deck/asset_http.cpp").exists())
 

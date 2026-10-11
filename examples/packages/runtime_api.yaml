@@ -1,5 +1,8 @@
 # Reusable native API surface. Include with base.yaml + deck.yaml and configure
 # asset_loading. All responses use the bounded record in docs/runtime-visuals.md.
+packages:
+  runtime_v2: !include runtime_api_v2.yaml
+
 stream_deck:
   runtime_visuals:
     session:

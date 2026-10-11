@@ -1,5 +1,11 @@
 # Bounded local renderer (P2)
 
+P8 adds a bounded text box and horizontal/vertical alignment through the
+separate [v2 visual action](runtime-v2.md#capability-discovery-and-positioning).
+All original default pixels remain unchanged; nine additional alignment/clipping
+fixtures also match the browser preview. Image orientation and cache identities
+are unchanged, so positioned labels reuse their existing backgrounds.
+
 `components/stream_deck/renderer.*` composes one 72×72 tile from decoded pixels
 and the visual contract's style/text. It produces an immutable `ImageRef` for
 the existing two-page scheduler. P3's [asset pipeline](asset-loading.md) now

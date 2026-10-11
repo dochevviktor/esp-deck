@@ -15,17 +15,19 @@ from homeassistant.helpers.event import async_call_later, async_track_time_inter
 from homeassistant.util.dt import utcnow
 
 from .adapter import Adapter, AdapterError, resolve_reference
-from .const import DOMAIN, EVENT_KEY, KEY_COUNT, MAX_REVISION, SIGNAL_STATUS
+from .const import DOMAIN, EVENT_KEY, KEY_COUNT, MAX_REVISION, SIGNAL_STATUS, POSITION_DEFAULTS
 from .artwork import DATA_KEY
-from .model import LayoutError
+from .model import LayoutError, require_capabilities
+from .advanced import AdvancedController
 
 
-class DeckController:
+class DeckController(AdvancedController):
     def __init__(self, hass, entry, repository):
         self.hass, self.entry, self.repository = hass, entry, repository
         self.adapter = Adapter(hass, entry.data)
         self.active = False
         self.epoch = 0
+        self.binding_epoch = 0
         self.connected = False
         self.error = None
         self.binding_error = None
@@ -48,6 +50,7 @@ class DeckController:
         self.input_after = utcnow()
         self.input_blocked = False
         self.configuration_lock = asyncio.Lock()
+        self.init_advanced()
 
     async def start(self):
         self.active = True
@@ -57,6 +60,7 @@ class DeckController:
         for event in ("entity_registry_updated", "device_registry_updated", "service_registered", "service_removed"):
             self.unsubs.append(self.hass.bus.async_listen(event, self._registry_changed))
         self.request_sync()
+        self.input_worker = self.hass.async_create_background_task(self._inputs(), "ESP Deck correlated inputs")
 
     async def stop(self):
         self.active = False
@@ -67,7 +71,7 @@ class DeckController:
         if self.poll_cancel:
             self.poll_cancel()
             self.poll_cancel = None
-        tasks = [task for task in (self.worker, self.binding_worker) if task and not task.done()]
+        tasks = [task for task in (self.worker, self.binding_worker, self.input_worker) if task and not task.done()]
         for task in tasks:
             task.cancel()
         if tasks:
@@ -81,7 +85,9 @@ class DeckController:
 
     @callback
     def _invalidate_input(self):
+        self.reset_reader()
         self.epoch += 1
+        self.binding_epoch += 1
         self.input_after = utcnow()
         if self.inflight_key is not None:
             # A previous request may still reach the ESP. Re-query its revision
@@ -96,6 +102,8 @@ class DeckController:
     @callback
     def layout_changed(self):
         self._invalidate_input()
+        self.contexts.clear()
+        self.prepare_contexts()
         self.binding_error = None
         self.input_blocked = False
         self.request_sync()
@@ -138,7 +146,9 @@ class DeckController:
             state = "offline" if self.error in (None, "offline", "actions_unavailable", "native_action_failed") else "repair_required"
         elif self.error or self.binding_error or "failed" in phases:
             state = "failed"
-        elif self.pending or "queued" in phases or "rendering" in phases or None in phases:
+        elif self.pending or "queued" in phases or "rendering" in phases or None in phases or (
+                self.capabilities.get("protocol_version") == 2 and any(
+                    tile.get("applied_revision", 0) != tile.get("revision", -1) for tile in self.tiles)):
             state = "syncing"
         else:
             state = "ready"
@@ -146,7 +156,8 @@ class DeckController:
                 "binding_error": self.binding_error, "binding_count": self.binding_count,
                 "draft_revision": self.repository.data["draft_revision"],
                 "applied_revision": self.repository.data["applied_revision"],
-                "tiles": deepcopy(self.tiles), "rendered_is_display_readback": False}
+                "tiles": deepcopy(self.tiles), "rendered_is_display_readback": False,
+                "capabilities": self.capabilities, "active_page": self.page, "active_overlay": self.overlay}
 
     def _issue(self, error=None):
         issue_id = f"{self.entry.entry_id}_connection"
@@ -201,6 +212,8 @@ class DeckController:
         if not self.connected or self.session != deck.session:
             self._invalidate_input()
             self.sent.clear()
+            self.contexts.clear()
+            self.capabilities = await self.adapter.capabilities(deck)
             self.input_blocked = False
             if self.binding_error == "binding_queue_overflow":
                 self.binding_error = None
@@ -210,6 +223,10 @@ class DeckController:
         self.events = {entity: key for key, entity in enumerate(deck.events)}
         self.session_entity = deck.session_entity
         self.watched = set()
+        require_capabilities(self.repository.data["applied"], self.capabilities)
+        self.prepare_contexts()
+        configs = self.active_keys()
+        v2 = self.capabilities.get("protocol_version") == 2
         epoch = self.epoch
         pending_render = False
         for key in range(KEY_COUNT):
@@ -220,9 +237,15 @@ class DeckController:
                 return
             if not status["accepted"]:
                 raise AdapterError(status["error"])
-            desired = self._visual(self.repository.data["applied"]["keys"][key])
+            desired = self._visual(configs[key])
+            if v2:
+                desired = {**POSITION_DEFAULTS, **desired}
+            else:
+                desired = {k: v for k, v in desired.items() if k not in POSITION_DEFAULTS}
             previous = self.sent.get(key)
             unchanged = previous and previous["visual"] == desired and previous["revision"] == status["revision"]
+            if v2:
+                unchanged = unchanged and status.get("context") == self.contexts[key]["token"]
             if previous and previous["revision"] != status["revision"] and not force:
                 self.tiles[key] = {**status, "phase": "failed", "error": "competing_writer"}
                 continue
@@ -233,9 +256,11 @@ class DeckController:
                     continue
                 values = {**desired, "label_text": desired["text"], "fields": 127, "revision": status["revision"] + 1}
                 del values["text"]
+                if v2:
+                    values.update(fields=255, binding_context=self.contexts[key]["token"])
                 self.inflight_key = key
                 try:
-                    status = await self.adapter.call(deck, "set_key_visual", key, **values)
+                    status = await self.adapter.call(deck, "set_key_visual_v2" if v2 else "set_key_visual", key, **values)
                 finally:
                     self.inflight_key = None
                 if epoch != self.epoch or not self.active:
@@ -257,6 +282,11 @@ class DeckController:
                 else:
                     status = {**status, "phase": "failed", "error": "render_timeout"}
             self.tiles[key] = status
+            if v2 and status["phase"] == "rendered" and status.get("applied_revision") != status["revision"]:
+                if time.monotonic() - self.sent.get(key, {}).get("since", time.monotonic()) < 30:
+                    pending_render = True
+                else:
+                    self.tiles[key] = {**status, "phase": "failed", "error": "usb_apply_timeout"}
         if pending_render and self.poll_cancel is None and self.active:
             self.poll_cancel = async_call_later(self.hass, 0.5, self._poll)
 
@@ -271,6 +301,8 @@ class DeckController:
             return
         if entity in self.watched:
             self.request_sync()
+        if self.capabilities.get("input_correlation") == "pull_context_v2":
+            return
         if entity not in self.events:
             return
         if new is None or new.state == "unavailable":
@@ -310,7 +342,7 @@ class DeckController:
             self.binding_error = "binding_queue_overflow"
             self._publish()
             return
-        self.queue.append((self.epoch, deepcopy(binding), context))
+        self.queue.append((self.binding_epoch, deepcopy(binding), context))
         if self.binding_worker is None or self.binding_worker.done():
             self.binding_worker = self.hass.async_create_background_task(self._bindings(), "ESP Deck bindings")
 
@@ -318,7 +350,7 @@ class DeckController:
         try:
             while self.active and self.queue:
                 epoch, binding, context = self.queue.popleft()
-                if epoch != self.epoch:
+                if epoch != self.binding_epoch:
                     continue
                 try:
                     if self.adapter.resolve().session != self.session:
@@ -331,7 +363,7 @@ class DeckController:
                         data["entity_id"] = targets
                     async with asyncio.timeout(10):
                         await self.hass.services.async_call(domain, service, data, blocking=True, context=context)
-                    if epoch == self.epoch:
+                    if epoch == self.binding_epoch:
                         self.binding_count += 1
                         self.binding_error = None
                 except (HomeAssistantError, TimeoutError):

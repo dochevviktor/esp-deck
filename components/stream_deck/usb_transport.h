@@ -15,6 +15,7 @@ class USBTransport {
   void dump_status() const;
   bool attached() const { return device_ != nullptr && claimed_ && !closing_ && probe_index_ == PROBE_COUNT; }
   uint32_t generation() const { return generation_; }
+  void set_input_epoch(const uint32_t *epoch) { input_epoch_ = epoch; }
   void set_input_report_id(int id) { input_report_id_ = id; }
   void set_usb_diagnostics(bool enabled) { usb_diagnostics_ = enabled; }
   bool send(const Job &job, uint32_t now);
@@ -47,6 +48,8 @@ class USBTransport {
   usb_transfer_t *input_{nullptr}, *output_{nullptr};
   protocol::Interface interface_{};
   InputQueue input_queue_{};
+  const uint32_t *input_epoch_{nullptr};
+  uint32_t captured_epoch_{0};
   Job job_{};
   uint32_t generation_{0}, input_generation_{0}, output_generation_{0};
   uint32_t errors_{0}, malformed_inputs_{0};

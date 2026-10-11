@@ -11,6 +11,27 @@ Detailed mapping/visual checks, brightness response, loaded electrical
 qualification, repeated recovery, ESP-only restarts and HA tests remain pending.
 The handover is the hardware source of truth; this is its operational checklist.
 
+P8 software adds [capabilities, positioning, origin provisioning and safe pages](runtime-v2.md).
+No P8 device deployment or new hardware verification occurred. Add these to P9:
+
+- [ ] After an explicitly requested private deployment, verify capabilities and
+  an ESP-originated HA probe fetch, including persisted origins after ESP reboot
+  and certificate/clock failure behavior with the chosen HTTPS address.
+- [ ] Check positioned labels, all alignments, wrapping, clipping, outlines and
+  combined artwork on the actual display; confirm label/position cache reuse.
+- [ ] Measure the approximately 100 ms input-poll path under Wi-Fi, rendering,
+  API logger and OTA load. Record drops/resets/lease expiry and resource trends;
+  do not infer lossless input or contact-to-display timing from the simulator.
+- [ ] Exercise same-image/different-binding keys, rapid page changes, incomplete
+  or failed tiles, concurrent presses, accepted releases after a page change,
+  held modifiers, overflow, and disconnect/reconnect during either USB page.
+- [ ] Verify stale input/output generations cannot invoke the new binding and
+  that transient overlays/holds clear on outage/restart. Retain the existing
+  first-input baseline/first-click limitation until separately qualified.
+
+The existing electrical, repeated-recovery, cold/warm-start and soak gates below
+remain pending; software controller resets do not remove the external VBUS rail.
+
 ```text
 ONE regulated 5 V source
     |

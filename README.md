@@ -20,13 +20,16 @@ P6 adds a locally installable [HA backend](docs/ha-integration.md) with guided
 setup/presets, saved layouts, bindings, synchronization, admin APIs and repair.
 P7 adds the bundled [5×3 visual editor and artwork library](docs/visual-editor.md):
 PNG/JPEG upload/crop, pixel-tested previews, state rules and revocable asset delivery.
+P8 adds [runtime v2](docs/runtime-v2.md): capability-aware positioning, verified
+origin provisioning, eight pages/four sparse overlays and input correlated with
+USB-applied tiles. v1 actions remain supported.
 Compiled: all seven configurations on ESPHome 2026.9.0 / ESP-IDF 5.5.5, plus the
 test-only ESPHome host executable.
 Unit-tested: upstream byte fixtures, scheduler/input behavior, simulated USB
-transfers, schema validation and captured desktop descriptors; 59 Python cases
-including eight native executables and HA helper/replay templates, plus four
-frontend tests (including all eleven renderer snapshots).
-HA-tested: 50 real-HA engine tests with mocked native actions and 19 real
+transfers, schema validation and captured desktop descriptors; 60 Python cases
+including nine native executables and HA helper/replay templates, plus five
+frontend tests (including all twenty renderer snapshots).
+HA-tested: 58 real-HA engine tests with mocked native actions and 24 real
 HA 2026.10.1/native-API/browser scenarios, including a clean lab startup.
 Hardware-verified: desktop descriptors, ESP chip/flash identity, 8 MB PSRAM
 initialization, Wi-Fi, encrypted API and encrypted OTA. The S3 enumerates the
@@ -43,7 +46,7 @@ qualification and HA acceptance remain pending. See
 The original [handover](STREAM_DECK_ESPHOME_CODEX_HANDOVER.md) is preserved.
 Start with the [hardware checklist](docs/hardware.md) before connecting anything.
 
-The [Home Assistant runtime control plan](docs/implementation-plan.md) has P0–P7
+The [Home Assistant runtime control plan](docs/implementation-plan.md) has P0–P8
 software implemented and tested: [the contract](docs/runtime-visuals.md), owned
 images, [rendering](docs/rendering.md), and [URL loading/cache](docs/asset-loading.md).
 Example 05 adds [HA runtime controls and layout replay](docs/home-assistant.md).
@@ -51,12 +54,13 @@ Example 03 remains a fixed-entity demo; example 04 is the installed bench baseli
 P5's [isolated Podman HA lab](docs/ha-lab.md), P6's
 [integration backend](docs/ha-integration.md) and P7's
 [editor and 72×72 artwork pipeline](docs/visual-editor.md) run independently of
-physical hardware. Capability/origin provisioning and bounded pages/layers follow
-in P8. Physical qualification
+physical hardware. P8's [capabilities, provisioning and bounded pages/layers](docs/runtime-v2.md)
+are also software-tested. Physical qualification
 and HACS distribution validation remain P9, and P3's
 actual ESP asset-reachability check is still pending. See the
 [HA/HACS architecture decision](docs/decisions/home-assistant-ux.md).
-No firmware was uploaded for P0–P7.
+No firmware was uploaded for P0–P8. The optional local sanitizer run is blocked
+by a missing host `libasan.so.8.0.0`; ordinary unit tests and builds pass.
 
 ## Develop and test without a board
 

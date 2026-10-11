@@ -70,7 +70,12 @@ bool Renderer::begin(const visual::State &state, PixelView source) {
     if ((src >= ws && src - ws < sizeof(Workspace)) || (src < ws && ws - src < source.bytes))
       return reject_(visual::Error::DECODE_FAILED);
   }
-  if (!layout_(state.text.view())) return false;
+  if (state.text_width < 24 || state.text_height < 1 || state.text_x + state.text_width > WIDTH ||
+      state.text_y + state.text_height > HEIGHT || state.text_align > 2 || state.text_valign > 2)
+    return reject_(visual::Error::INVALID_POSITION);
+  clip_x_ = state.text_x; clip_y_ = state.text_y;
+  clip_width_ = state.text_width; clip_height_ = state.text_height;
+  if (!layout_(state)) return false;
   source_ = source;
   background_color_ = state.background_color;
   text_color_ = state.text_color;
@@ -89,7 +94,8 @@ bool Renderer::begin(const visual::State &state, PixelView source) {
   return true;
 }
 
-bool Renderer::layout_(std::string_view text) {
+bool Renderer::layout_(const visual::State &state) {
+  const auto text = state.text.view();
   std::array<uint32_t, visual::MAX_LABEL_CODEPOINTS> points;
   size_t count;
   const auto error = visual::decode_label(text, points, count);
@@ -110,7 +116,7 @@ bool Renderer::layout_(std::string_view text) {
     }
     return std::max(maximum, pen) - minimum;
   };
-  constexpr int INNER_WIDTH = WIDTH - 6;  // Two-pixel inset plus the one-pixel outline.
+  const int INNER_WIDTH = state.text_width;
   size_t position = 0, line_count = 0;
   while (position < count && line_count < lines.size()) {
     auto &line = lines[line_count++];
@@ -146,11 +152,13 @@ bool Renderer::layout_(std::string_view text) {
       last.count--;
     }
   }
-  const int top = int(HEIGHT) - 3 - int(line_count) * font_->line_height;
+  const int spare = int(state.text_height) - int(line_count) * font_->line_height;
+  const int top = state.text_y + (state.text_valign == 0 ? 0 : state.text_valign == 1 ? spare / 2 : spare);
   for (size_t line = 0; line < line_count; line++) {
     int minimum;
     const auto width = bounds(lines[line], minimum);
-    int x = (int(WIDTH) - width) / 2 - minimum;
+    int x = state.text_x - minimum + (state.text_align == 0 ? 0 :
+        state.text_align == 1 ? (int(state.text_width) - width) / 2 : int(state.text_width) - width);
     const int y = top + int(line) * font_->line_height;
     for (size_t n = 0; n < lines[line].count; n++) {
       const auto *glyph = font_->find(lines[line].points[n]);
@@ -196,11 +204,12 @@ void Renderer::background_row_() {
 void Renderer::mask_row_() {
   auto *row = workspace_.ink.data() + row_ * WIDTH;
   std::memset(row, 0, WIDTH);
+  if (row_ < clip_y_ || row_ >= clip_y_ + clip_height_) return;
   for (size_t n = 0; n < placement_count_; n++) {
     const auto &p = placements_[n];
     const int y = int(row_) - p.y;
     if (y < 0 || y >= p.glyph->height) continue;
-    for (int x = std::max(0, p.x); x < std::min(int(WIDTH), p.x + p.glyph->width); x++)
+    for (int x = std::max(int(clip_x_), p.x); x < std::min(int(clip_x_ + clip_width_), p.x + p.glyph->width); x++)
       row[x] = std::max(row[x], font_->coverage(*p.glyph, unsigned(x - p.x), unsigned(y)));
   }
 }

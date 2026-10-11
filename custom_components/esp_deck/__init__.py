@@ -38,7 +38,7 @@ async def async_setup_entry(hass, entry):
     entry.runtime_data = controller = DeckController(hass, entry, repository)
     await controller.start()
     try:
-        await hass.config_entries.async_forward_entry_setups(entry, [Platform.SENSOR])
+        await hass.config_entries.async_forward_entry_setups(entry, [Platform.SENSOR, Platform.SELECT])
     except Exception:
         await controller.stop()
         raise
@@ -46,7 +46,7 @@ async def async_setup_entry(hass, entry):
 
 
 async def async_unload_entry(hass, entry):
-    if not await hass.config_entries.async_unload_platforms(entry, [Platform.SENSOR]):
+    if not await hass.config_entries.async_unload_platforms(entry, [Platform.SENSOR, Platform.SELECT]):
         return False
     await entry.runtime_data.stop()
     return True

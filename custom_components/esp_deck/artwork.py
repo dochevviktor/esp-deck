@@ -43,12 +43,12 @@ def identifier(value):
     return value
 
 
-def origin(value):
+def origin(value, *, max_bytes=180):
     if not isinstance(value, str):
         raise LayoutError("invalid_artwork_origin")
     try:
         parsed = urlsplit(value)
-        if (len(value) > 180 or not value.isascii() or any(ord(c) <= 32 or ord(c) == 127 for c in value)
+        if (len(value) > max_bytes or not value.isascii() or any(ord(c) <= 32 or ord(c) == 127 for c in value)
                 or parsed.scheme not in ("http", "https") or not parsed.hostname
                 or not re.fullmatch(r"[A-Za-z0-9.-]+", parsed.hostname)
                 or parsed.username or parsed.password or parsed.query or parsed.fragment
@@ -158,7 +158,8 @@ def asset_references(layout):
     if not layout:
         return set()
     result = set()
-    for key in layout["keys"]:
+    from .model import all_keys
+    for key in all_keys(layout):
         visuals = [key["visual"]]
         if key["state"]:
             visuals += [key["state"][state] for state in ("on", "off", "unavailable")]

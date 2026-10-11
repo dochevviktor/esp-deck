@@ -4,14 +4,14 @@
     "step": {
       "user": {
         "title": "Select your ESPHome deck",
-        "description": "Select the already paired ESPHome device. Setup verifies the runtime v1 action signatures and all 15 key events. Compatible firmware is required; this integration uses HA's existing connection.",
+        "description": "Select the already paired ESPHome device. Setup verifies runtime signatures and capabilities through HA's existing connection. v1 supports basic tiles; v2 adds positioning, verified address setup and safe pages.",
         "data": {
           "device_id": "ESPHome device"
         }
       },
       "handoff": {
         "title": "Hand over layout and bindings",
-        "description": "ESP Deck will own all 15 visuals. Confirm that you have stopped other visual writers and duplicate key automations. The selected automations will be turned off (including running actions); the three shipped P4 helper scripts will be stopped. Their YAML is preserved. Optional: bind key 0 to an entity. Open ESP Deck in the sidebar to edit keys and upload artwork. The HA artwork address must already match the firmware's allowed origin; device origin provisioning comes later.",
+        "description": "ESP Deck will own all 15 visuals. Stop other visual writers and duplicate key automations. Selected automations will be turned off (including running actions); the three shipped P4 helper scripts will be stopped. Their YAML is preserved. Optionally bind key 0 to an entity. Open ESP Deck in the sidebar to edit keys and artwork. For v2, verify the reachable HA artwork address in Configure → Artwork address or the editor's Library settings. v1 requires its compiled origin.",
         "data": {
           "exclusive_control": "I have stopped competing visual writers and duplicate bindings",
           "disable_automations": "Manual automations to turn off",
@@ -45,7 +45,9 @@
       "session_changed": "The device restarted during setup. Retry.",
       "confirm_handoff": "Confirm that competing manual writers and duplicate bindings have been stopped.",
       "handoff_failed": "Could not stop the selected manual paths or validate the preset entity.",
-      "binding_failed": "Could not save/apply this preset. Check the entity and integration status."
+      "binding_failed": "Could not save/apply this preset. Check the entity and integration status.",
+      "artwork_failed": "The device could not verify or save this address. Check routing, scheme/port and the device clock/certificate for HTTPS.",
+      "incompatible_capabilities": "Firmware capabilities are incompatible. Install the current example 05 runtime firmware."
     },
     "abort": {
       "no_devices": "Add the ESPHome device in Home Assistant first.",
@@ -60,14 +62,21 @@
         "description": "[Open the visual editor](/esp-deck) to edit keys, bindings and artwork. Advanced preset and entity-mapping tools remain below.",
         "menu_options": {
           "binding": "Set an entity preset",
+          "artwork": "Artwork address",
           "repair": "Repair entity mapping"
         }
+      },
+      "artwork": {
+        "title": "Verify the artwork address",
+        "description": "Enter the HA address reachable from the ESP, including scheme and port. v2 tests a PNG fetch on the device before saving its exact allowlist. HTTPS keeps certificate, hostname and clock checks. v1 firmware must already allow the address. A browser address or localhost may be unreachable from the deck.",
+        "data": {"origin": "Home Assistant address"}
       },
       "binding": {
         "title": "Set an entity preset",
         "description": "Replace one key in the draft with a light/switch toggle or script/scene action. On/off/unavailable feedback follows actual HA state. Applying activates the whole saved draft. Use the ESP Deck sidebar for the visual editor.",
         "data": {
           "key": "Key (0–14, front view, left to right)",
+          "page": "Page",
           "entity_id": "Entity",
           "label": "Label",
           "apply": "Apply the draft"
@@ -114,7 +123,9 @@
       "session_changed": "The device restarted during setup. Retry.",
       "confirm_handoff": "Confirm that competing manual writers and duplicate bindings have been stopped.",
       "handoff_failed": "Could not stop the selected manual paths or validate the preset entity.",
-      "binding_failed": "Could not save/apply this preset. Check the entity and integration status."
+      "binding_failed": "Could not save/apply this preset. Check the entity and integration status.",
+      "artwork_failed": "The device could not verify or save this address. Check routing, scheme/port and the device clock/certificate for HTTPS.",
+      "incompatible_capabilities": "Firmware capabilities are incompatible. Install the current example 05 runtime firmware."
     }
   },
   "issues": {

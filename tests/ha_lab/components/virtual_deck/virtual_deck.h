@@ -4,6 +4,9 @@
 #endif
 
 #include "visual_api.h"
+#include "runtime_v2.h"
+#include "origin_provisioning.h"
+#include "esphome/core/hal.h"
 #include "esphome/core/component.h"
 #include "esphome/components/binary_sensor/binary_sensor.h"
 #include "esphome/components/event/event.h"
@@ -50,8 +53,23 @@ class VirtualDeck final : public Component {
   void loop() override;
   void on_shutdown() override { fetcher_.cancel(); }
   visual::Api visual_api() { return {session_, &store_, &pipeline_}; }
+  template<typename Object> void capabilities(Object root) {
+    visual::capabilities(root, policy_); root["session"] = session_;
+    root["origin_probe"] = provisioning_.status();
+  }
+  template<typename Object> void read_inputs(std::string_view session, std::string_view reader, int32_t ack, Object root) {
+    root["session"] = session_; root["accepted"] = false;
+    if (!store_.matches_session(session)) { root["error"] = "wrong_session"; return; }
+    inputs_.read(reader, ack, millis(), root);
+  }
+  template<typename Object> void provision_origins(std::string_view session, std::string_view origins,
+                                                  std::string_view url, Object root) {
+    root["session"] = session_;
+    const auto *error = !store_.matches_session(session) ? "wrong_session" : provisioning_.begin(origins, url, millis());
+    root["accepted"] = std::string_view(error) == "none"; root["error"] = error;
+  }
  private:
-  void input_(uint16_t mask, bool resync = false);
+  void input_(uint16_t mask, bool resync = false, uint32_t epoch = 0);
   void control_();
   void snapshot_();
   HostMemory memory_;
@@ -62,6 +80,8 @@ class VirtualDeck final : public Component {
   HostFetcher fetcher_;
   assets::OriginPolicy policy_;
   assets::Pipeline pipeline_{store_, fetcher_, memory_, native_, policy_};
+  visual::InputChannel inputs_{store_};
+  assets::OriginProvisioner provisioning_{policy_, pipeline_, fetcher_, memory_};
   KeyTracker tracker_;
   InputQueue input_queue_;
   std::array<binary_sensor::BinarySensor *, protocol::KEY_COUNT> keys_{};

@@ -9,6 +9,11 @@ Response Api::snapshot_(int32_t key, int32_t revision) const {
   if (store_) {
     const auto *status = store_->status(key);
     if (status) result.status = *status;
+    if (status) {
+      result.applied_revision = store_->applied_revision(key);
+      result.usb_generation = store_->generation();
+      result.context.assign(store_->context(key));
+    }
   }
   return result;
 }

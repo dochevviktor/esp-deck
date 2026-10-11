@@ -1,4 +1,13 @@
-# Independent Home Assistant lab (P5–P7)
+# Independent Home Assistant lab (P5–P8)
+
+P8 adds capability/provisioning/positioning/page acceptance through the same
+encrypted host executable. The complete run has 58 HA-engine and 24 live
+native-API/browser tests. Both the v1 and v2 action packages are copied from
+production; `runtime_v2.h` and the origin provisioner also run unchanged.
+See [the v2 contract and source audit](runtime-v2.md). The virtual origin record
+is private lab data; restart tests verify it persists, without claiming ESP NVS
+or IDF HTTP/TLS coverage. The normal HA page select and editor work with the
+browser closed. P8 screenshots/results remain private under `.build/ha-lab/`.
 
 The lab runs real HA and a test-only ESPHome `host` deck in rootless Podman.
 It uses fresh synthetic credentials and does not need the owner's HA, ESP,

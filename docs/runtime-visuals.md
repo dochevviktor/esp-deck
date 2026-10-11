@@ -1,5 +1,10 @@
 # Runtime visual contract v1
 
+P8 retains these fixed action signatures and adds the separately versioned
+[v2 contract](runtime-v2.md). New status fields distinguish USB-applied revisions
+from rendered ones; capability-aware HA uses a correlated input channel for
+pages/overlays. The v1 helper payload and presence bits below are unchanged.
+
 P0 defines and host-tests this contract; P1 implements owned native images and
 the scheduler boundary. P2 adds the [bounded local renderer](rendering.md),
 bundled fonts and PSRAM adapters, exercised by `renderer_probe`. P3 connects

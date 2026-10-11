@@ -25,6 +25,9 @@ class NativeTests(unittest.TestCase):
     def test_assets(self):
         subprocess.run([str(build_assets())], cwd=ROOT, check=True)
 
+    def test_v2(self):
+        subprocess.run([str(build_assets("test_v2"))], cwd=ROOT, check=True)
+
     def test_asset_http(self):
         subprocess.run([str(build_http())], cwd=ROOT, check=True)
 

@@ -1,6 +1,8 @@
 #pragma once
 #include "asset_pipeline.h"
 #include "asset_http.h"
+#include "runtime_v2.h"
+#include "origin_provisioning.h"
 #include "esphome/core/defines.h"
 
 #ifdef USE_STREAM_DECK_ASSETS
@@ -15,15 +17,18 @@ class PsramMemory final : public ImageAllocator {
 // Boot-lifetime service, like the USB host. Shutdown cancels and retains live
 // workers/buffers until retirement or MCU reboot; never delete a running task.
 struct Runtime {
-  Runtime(uint64_t session, Scheduler &scheduler, ImageAllocator &memory, const OriginPolicy &policy)
-      : images(memory, visual::MAX_NATIVE_BYTES), store(session, scheduler), pipeline(store, fetcher, memory, images, policy) {
+  Runtime(uint64_t session, Scheduler &scheduler, ImageAllocator &memory, OriginPolicy &policy)
+      : images(memory, visual::MAX_NATIVE_BYTES), store(session, scheduler), pipeline(store, fetcher, memory, images, policy),
+        provisioning(policy, pipeline, fetcher, memory) {
     static const char hex[] = "0123456789abcdef";
     for (int n = 15; n >= 0; n--) { session_text[n] = hex[session & 15]; session >>= 4; }
   }
   Pool images;
   visual::Store store;
+  visual::InputChannel inputs{store};
   HttpFetcher fetcher;
   Pipeline pipeline;
+  OriginProvisioner provisioning;
   char session_text[17]{};
 };
 }  // namespace esphome::stream_deck::assets

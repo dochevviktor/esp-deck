@@ -1,0 +1,70 @@
+# Protocol v2 adds new actions; v1's fixed signatures remain unchanged.
+api:
+  actions:
+    - action: get_deck_capabilities
+      supports_response: only
+      then:
+        - api.respond:
+            data: !lambda |-
+              id(deck).capabilities(root);
+
+    - action: set_key_visual_v2
+      supports_response: only
+      variables:
+        session: string
+        key: int
+        revision: int
+        fields: int
+        image_url: string
+        image_revision: string
+        label_text: string
+        font: int
+        text_color: string
+        outline_color: string
+        background_color: string
+        fit: string
+        binding_context: string
+        text_x: int
+        text_y: int
+        text_width: int
+        text_height: int
+        text_align: int
+        text_valign: int
+      then:
+        - api.respond:
+            data: !lambda |-
+              esphome::stream_deck::visual::Command command;
+              auto view = [](const auto &value) { return std::string_view(value.c_str(), value.size()); };
+              command.session = view(session);
+              command.key = key; command.revision = revision; command.fields = fields;
+              command.image_url = view(image_url); command.image_revision = view(image_revision);
+              command.text = view(label_text); command.font = font;
+              command.text_color = view(text_color); command.outline_color = view(outline_color);
+              command.background_color = view(background_color); command.fit = view(fit);
+              command.v2 = true; command.context = view(binding_context);
+              command.text_x = text_x; command.text_y = text_y;
+              command.text_width = text_width; command.text_height = text_height;
+              command.text_align = text_align; command.text_valign = text_valign;
+              id(deck).visual_api().set(command).write(root);
+
+    - action: read_deck_inputs
+      supports_response: only
+      variables:
+        session: string
+        reader: string
+        ack: int
+      then:
+        - api.respond:
+            data: !lambda |-
+              id(deck).read_inputs({session.c_str(), session.size()}, {reader.c_str(), reader.size()}, ack, root);
+
+    - action: provision_asset_origins
+      supports_response: only
+      variables:
+        session: string
+        origins: string
+        test_url: string
+      then:
+        - api.respond:
+            data: !lambda |-
+              id(deck).provision_origins({session.c_str(), session.size()}, {origins.c_str(), origins.size()}, {test_url.c_str(), test_url.size()}, root);

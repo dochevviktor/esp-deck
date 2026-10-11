@@ -11,7 +11,8 @@ from homeassistant.helpers import entity_registry as er, selector
 from .adapter import Adapter, AdapterError, candidates, discover, pin_references
 from .api import execute
 from .const import DOMAIN, KEY_COUNT, P4_AUTOMATION_IDS, P4_SCRIPTS
-from .model import LayoutError, empty_layout, entity_preset
+from .model import LayoutError, empty_layout, entity_preset, resolve_keys
+from .artwork import DATA_KEY
 
 
 def known_manual_automations(hass):
@@ -110,7 +111,21 @@ class ESPDeckConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
 class ESPDeckOptionsFlow(config_entries.OptionsFlow):
     async def async_step_init(self, user_input=None):
-        return self.async_show_menu(step_id="init", menu_options=["binding", "repair"])
+        return self.async_show_menu(step_id="init", menu_options=["binding", "artwork", "repair"])
+
+    async def async_step_artwork(self, user_input=None):
+        errors = {}
+        if user_input:
+            try:
+                await execute(self.hass, "artwork_configure", {"entry_id": self.config_entry.entry_id, **user_input})
+            except (LayoutError, HomeAssistantError, TimeoutError):
+                errors["base"] = "artwork_failed"
+            else:
+                return self.async_create_entry(data=dict(self.config_entry.options))
+        origin = self.hass.data[DATA_KEY].data["decks"][self.config_entry.entry_id]["origin"]
+        return self.async_show_form(step_id="artwork", errors=errors, data_schema=vol.Schema({
+            vol.Required("origin", default=origin): selector.TextSelector(),
+        }))
 
     async def async_step_binding(self, user_input=None):
         errors = {}
@@ -121,7 +136,7 @@ class ESPDeckOptionsFlow(config_entries.OptionsFlow):
                 revision = controller.repository.data["draft_revision"]
                 layout = deepcopy(controller.repository.data["draft"])
                 key = int(user_input["key"])
-                layout["keys"][key] = entity_preset(user_input["entity_id"], user_input["label"])
+                resolve_keys(layout, user_input.get("page"))[key] = entity_preset(user_input["entity_id"], user_input["label"])
                 await execute(self.hass, "save_layout", {"entry_id": entry.entry_id, "layout": layout,
                                                        "expected_revision": revision})
                 if user_input.get("apply"):
@@ -130,12 +145,16 @@ class ESPDeckOptionsFlow(config_entries.OptionsFlow):
                 errors["base"] = "binding_failed"
             else:
                 return self.async_create_entry(data=dict(self.config_entry.options))
-        return self.async_show_form(step_id="binding", errors=errors, data_schema=vol.Schema({
+        fields = {
             vol.Required("key", default="0"): selector.SelectSelector({"options": [str(i) for i in range(KEY_COUNT)]}),
             vol.Required("entity_id"): selector.EntitySelector({"domain": ["light", "switch", "input_boolean", "script", "scene"]}),
             vol.Required("label", default="Deck"): selector.TextSelector(),
             vol.Required("apply", default=True): selector.BooleanSelector(),
-        }))
+        }
+        if pages := self.config_entry.runtime_data.repository.data["draft"].get("pages"):
+            fields[vol.Required("page", default=pages[0]["id"])] = selector.SelectSelector({
+                "options": [{"value": page["id"], "label": page["name"]} for page in pages]})
+        return self.async_show_form(step_id="binding", errors=errors, data_schema=vol.Schema(fields))
 
     async def async_step_repair(self, user_input=None):
         entry = self.config_entry

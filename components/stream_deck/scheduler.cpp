@@ -6,6 +6,7 @@
 namespace esphome::stream_deck {
 Scheduler::Scheduler() { desired_.fill(ImageRef::from_static(&protocol::blank_image())); }
 void Scheduler::attach(uint32_t generation) {
+  input_barrier();
   generation_ = generation;
   attached_ = reset_pending_ = true;
   busy_ = page2_pending_ = false;
@@ -15,6 +16,7 @@ void Scheduler::attach(uint32_t generation) {
   cursor_ = 0;
 }
 void Scheduler::detach() {
+  input_barrier();
   attached_ = busy_ = page2_pending_ = false;
   // The transport's independent Job retains any image awaiting cancellation.
   active_ = {};
@@ -79,6 +81,7 @@ bool Scheduler::complete(const Job &job) {
     case JobKind::BRIGHTNESS: applied_brightness_ = active_.brightness; break;
     case JobKind::PAGE1: page2_pending_ = true; break;
     case JobKind::PAGE2:
+      input_barrier();
       page2_pending_ = false;
       applied_[active_.key] = active_.image;
       applied_revisions_[active_.key] = active_.revision;
@@ -89,14 +92,14 @@ bool Scheduler::complete(const Job &job) {
   return true;
 }
 
-void InputQueue::push(uint32_t generation, uint16_t mask) {
+void InputQueue::push(uint32_t generation, uint16_t mask, uint32_t epoch) {
   bool resync = false;
   if (count_ == CAPACITY) {
     clear();
     overflows_++;
     resync = true;
   }
-  reports_[(head_ + count_) % CAPACITY] = {generation, mask, resync};
+  reports_[(head_ + count_) % CAPACITY] = {generation, mask, resync, epoch};
   count_++;
   high_water_ = std::max(high_water_, count_);
 }

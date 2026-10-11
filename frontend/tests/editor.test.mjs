@@ -4,7 +4,7 @@ import {readFileSync} from "node:fs";
 import {deflateSync} from "node:zlib";
 import {renderPreview} from "../src/preview.js";
 import {decodeArtwork} from "../src/png.js";
-import {defaults, rearrange, previewVisual, blankKey} from "../src/layout.js";
+import {defaults, rearrange, previewVisual, blankKey, pageKeys, allKeys} from "../src/layout.js";
 
 const source = readFileSync(new URL("../../components/stream_deck/render_font_data.cpp", import.meta.url), "utf8");
 const fonts = {};
@@ -14,7 +14,7 @@ for (const size of [12, 16, 20]) fonts[size] = {
   height: Number(source.match(new RegExp(`const Font FONT_${size}[^\\n]+, ${size}, (\\d+)\\}`))[1]),
 };
 const fixture = name => readFileSync(new URL(`../../tests/fixtures/rendering/${name}`, import.meta.url));
-test("preview matches all eleven production renderer BMP fixtures pixel for pixel", () => {
+test("preview matches production renderer BMP fixtures including all v2 alignments pixel for pixel", () => {
   const rgb = fixture("asymmetric.rgb"), rgba = new Uint8Array(72 * 72 * 4);
   for (let n = 0; n < 72 * 72; n++) {rgba.set(rgb.slice(n * 3, n * 3 + 3), n * 4); rgba[n * 4 + 3] = 255;}
   const asymmetric = {data: rgba, width: 72, height: 72};
@@ -25,6 +25,9 @@ test("preview matches all eleven production renderer BMP fixtures pixel for pixe
     ...[12, 16, 20].map(font => [`font_${font}`, {text: "Café", font}, null]),
     ["two_lines", {text: "Desk\nReady"}, null], ["truncated", {text: "Supercalifragilistic desk controller display"}, null],
     ["unsupported", {text: "Lamp 💡"}, null], ["combined", {text: "Desk", text_color: "#FFDC40"}, asymmetric],
+    ...[0, 1, 2].flatMap(text_align => [0, 1, 2].map(text_valign => [
+      `position_${text_align}_${text_valign}`, {text: "Positioned label wraps", text_x: 24, text_y: 12,
+        text_width: 48, text_height: 36, text_align, text_valign}, null])),
   ];
   for (const [name, patch, image] of cases) {
     const pixels = renderPreview({...defaults, background_color: "#102030", ...patch}, image, fonts), expected = fixture(`${name}.native.bmp`);
@@ -32,6 +35,14 @@ test("preview matches all eleven production renderer BMP fixtures pixel for pixe
       assert.equal(pixels[(y * 72 + x) * 4 + c], expected[54 + (y * 72 + 71 - x) * 3 + 2 - c], `${name} at ${x},${y},${c}`);
     }
   }
+});
+test("page views resolve overlay inherit, explicit clear and replacement without mutating saved pages", () => {
+  const keys = Array.from({length: 15}, (_, i) => ({...blankKey(), visual: {...defaults, text: String(i)}}));
+  const layout = {version: 2, pages: [{id: "main", keys}], overlays: [{id: "shift", keys: {"0": null, "1": {...blankKey(), visual: {...defaults, text: "Override"}}}}]};
+  const resolved = pageKeys(layout, "main", "shift");
+  assert.equal(resolved[0].visual.text, ""); assert.equal(resolved[1].visual.text, "Override");
+  assert.equal(resolved[2].visual.text, "2"); resolved[2].visual.text = "edit";
+  assert.equal(keys[2].visual.text, "2"); assert.equal(allKeys(layout).length, 16);
 });
 test("move inserts, swap exchanges, copy owns its configuration and no operation calls a binding", () => {
   const layout = {version: 1, keys: Array.from({length: 15}, (_, i) => ({...blankKey(), visual: {...defaults, text: String(i)}, press: {action: "light.toggle"}}))};

@@ -110,6 +110,16 @@ import_layout:
       required: true
       selector:
         object:
+select_page:
+  name: Select page
+  description: Select a saved page on compatible v2 firmware. Transient overlays are cleared; transitioning keys are gated.
+  fields:
+    entry_id: *entry
+    page:
+      name: Page ID
+      required: true
+      selector:
+        text:
 preset:
   name: Build entity preset
   description: Return one key configuration for a light, switch, input boolean, script or scene. Does not save or execute it.

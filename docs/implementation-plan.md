@@ -6,10 +6,10 @@ the ESP32 composes images and text locally and handles USB. Once this capability
 is installed, changing a binding, image or supported text/style must not require
 another firmware build or upload.
 
-Status, 2026-10-11: P0–P7 software implemented and tested (59 Python unittest cases,
-including eight native C++ executables; four frontend tests including eleven
-pixel-exact rendering fixtures; 50 real-HA engine tests with mocked native
-actions; 19 real-container/native-API/browser scenarios).
+Status, 2026-10-11: P0–P8 software implemented and tested (60 Python unittest cases,
+including nine native C++ executables; five frontend tests including twenty
+pixel-exact rendering fixtures; 58 real-HA engine tests with mocked native
+actions; 24 real-container/native-API/browser scenarios).
 All seven firmware configurations compile with
 synthetic secrets. The [asset loader](asset-loading.md) adds bounded asynchronous
 HTTP(S), strict PNG decoding and retained background caching to the
@@ -23,6 +23,10 @@ atomic draft/applied layouts, bindings, admin APIs, repair and synchronization.
 P7 adds the bundled [visual editor and artwork library](visual-editor.md):
 5×3 editing, bounded PNG/JPEG crop/normalization, hash references, restricted
 revocable device reads and firmware-matched previews.
+P8 adds [runtime v2](runtime-v2.md): explicit capabilities, verified persistent
+origins, positioned labels, bounded HA pages/overlays and input correlated with
+USB-applied revisions. The optional local sanitizer run could not link because
+the host lacks `libasan.so.8.0.0`; no sanitizer pass is claimed.
 No firmware was deployed or newly hardware-verified; example 04 remains the
 installed bench baseline.
 
@@ -33,7 +37,8 @@ the real-device and release gates from the original P5. The owner's production
 HA is not a prerequisite for software development/testing. This planning update
 was research/documentation at the time. P5 has since implemented and exercised
 the HA lab; P6's integration backend and P7's editor/uploads are locally
-installed/tested. Advanced firmware and HACS distribution gates remain P8–P9 work.
+installed/tested. P8's advanced firmware/backend/editor is now software-tested;
+HACS distribution and physical qualification remain P9 work.
 Read [the research and architecture decision](decisions/home-assistant-ux.md).
 
 ## Resume in a fresh chat
@@ -43,7 +48,7 @@ Read [the research and architecture decision](decisions/home-assistant-ux.md).
    [USB decision](decisions/usb-transport.md), and current
    [hardware evidence](hardware.md) and [test status](testing.md).
 2. Inspect the worktree and current sources; preserve local edits and secrets.
-3. Continue with P8 against the [integration backend](ha-integration.md),
+3. Continue with P9 against [runtime v2](runtime-v2.md), the [integration backend](ha-integration.md),
    [P7 editor/artwork pipeline](visual-editor.md), isolated HA lab and test-only
    virtual deck, using
    [the architecture decision](decisions/home-assistant-ux.md),
@@ -56,9 +61,9 @@ Read [the research and architecture decision](decisions/home-assistant-ux.md).
    require example 05; they are not on the installed device yet. Do not hardcode
    HA entities into firmware, reset visual state on API logger connections, or
    repeat USB packet-size experiments for this stage.
-5. Preserve P7's v1 compatibility, hash-only saved artwork references and
-   zero-download label updates. P8 adds capabilities, label positioning, origin
-   provisioning and safe page/layer switching. Before a
+5. Preserve v1 compatibility, hash-only saved artwork references and
+   zero-download label/position updates. P8's capabilities, provisioning and
+   safe page/layer switching are implemented; retain their input fences. Before a
    requested real-device upload in P9, verify device identity, preserve the bench
    artifacts and establish the chosen HA asset address and deployment readiness.
 
@@ -500,36 +505,37 @@ provisioning/capabilities/positioning/pages, and P9 owns distribution/hardware g
 
 ### P8 Add capabilities, positioning and safe pages/layers
 
-Planned files: a versioned runtime contract/API, bounded renderer/configuration
-extensions, HA page/layer resolver, simulator updates and ordering tests.
+Implemented files: `runtime_v2.h`, `origin_provisioning.h`, the separate v2 action
+package, renderer/Store/scheduler extensions, HA `advanced.py` and page select,
+editor controls, simulator and ordering tests. See [the v2 guide](runtime-v2.md).
 
-- [ ] Add explicit capability reporting: protocol version, 15-key/72×72 model,
+- [x] Add explicit capability reporting: protocol version, 15-key/72×72 model,
   supported visual fields/fonts/limits, configured origins and status semantics.
   Keep v1 working; hide advanced controls when a device lacks their capability.
-- [ ] Add a bounded encrypted-API origin-provisioning operation so setup can
+- [x] Add a bounded encrypted-API origin-provisioning operation so setup can
   select the HA address reachable from the ESP without rebuilding for each move.
   Persist only explicit provisioning changes. Keep exact allowlists, verified
   TLS and finite origins; validate a test fetch from the device. Private-CA
   provisioning stays advanced. The current compiled origin is a documented v1 limit.
-- [ ] Version the visual action to support bounded text position/alignment within
+- [x] Version the visual action to support bounded text position/alignment within
   72×72, with defined wrapping/clipping/outline behavior. Keep the current defaults
   and label-cache reuse. Image transforms can stay in HA's normalized raster.
   Do not silently add arguments to v1's fixed signature or rasterize every text
   update into a network image as a shortcut.
-- [ ] Store named 15-key pages and sparse logical overlays in HA, initially
+- [x] Store named 15-key pages and sparse logical overlays in HA, initially
   capped at 8 pages/4 overlays with one active overlay. Define inherit/clear and
   precedence; expose page selection as a normal HA control. Resolve only the
   active tiles to the ESP, not an unbounded page framebuffer/cache.
-- [ ] Specify and implement a tested input/display correlation mechanism before
+- [x] Specify and implement a tested input/display correlation mechanism before
   enabling page/layer bindings. P4's `rendered` precedes two-page USB completion.
   Track applied revisions and USB generation, gate transitioning keys, and reject
   delayed edges from a previous binding context. Audit the actual native API
   ordering/channel rather than relying on a fixed delay or a HA-side flag alone.
-- [ ] Capture binding context for an accepted press/release pair. Define navigation
+- [x] Capture binding context for an accepted press/release pair. Define navigation
   keys and momentary modifiers, reset transient layers/holds on disconnect/restart/
   overflow, and never replay input after an outage. Retain a safe unavailable/
   retry state if a page cannot finish; do not promise an atomic whole-deck swap.
-- [ ] Exercise rapid page changes, failed tiles, concurrent presses, old callbacks,
+- [x] Exercise rapid page changes, failed tiles, concurrent presses, old callbacks,
   held modifiers, same-image/different-binding keys and reconnect during output
   in portable/simulator tests; add these cases to physical P9 acceptance.
 
@@ -538,6 +544,17 @@ bounds; page/layer resolution is deterministic and stale/transition inputs canno
 execute the wrong binding. Software tests pass without new hardware. This stage
 does require a compatible firmware update before those new features work on a
 real deck; later per-key/page edits do not require further builds.
+
+Software acceptance: all seven synthetic firmware configurations compile. The
+60 host, five frontend, 58 HA-engine and 24 real HA/native-API/browser scenarios
+pass. Twenty renderer fixtures match the browser exactly. The lab verifies
+origin fetch/failure/persistence across virtual reboot, same-image rebinding,
+captured release pairs, concurrent navigation, failed/transitioning tiles,
+rapid pages, held modifiers/overflow/reconnect and the page editor. The source
+audit uses connection-scoped native action responses with a bounded input
+reader/ack protocol; it does not assume ordering between legacy event entities
+and rendered status. Full [evidence and remaining gates](testing.md) are separate
+from hardware: no deployment or new physical verification occurred.
 
 ### P9 Qualify installation, physical behavior and distribution
 
@@ -601,8 +618,9 @@ P0 settled glyph coverage/size choices, byte/dimension limits and native API
 presence semantics in [the contract](runtime-visuals.md). P2 bundles DejaVu Sans
 2.37 with its license and deterministic glyph assets. P5 establishes the local HA
 test baseline independently of the owner. P7 adds JPEG import on HA while the ESP
-continues to receive PNG. P8 must resolve its input/display ordering and origin-
-provisioning design before advertising advanced features. Additional ESP codecs,
+continues to receive PNG. P8 resolves input/display ordering and origin
+provisioning in [the v2 contract](runtime-v2.md); physical timing/fetch validation
+remains pending. Additional ESP codecs,
 arbitrary fonts, direct/chunked ESP uploads and unlimited graphical composition
 remain follow-on work. Physical tests need a reachable chosen HA endpoint, not
 necessarily the owner's production system.

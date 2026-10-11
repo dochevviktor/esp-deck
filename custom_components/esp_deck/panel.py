@@ -4,6 +4,9 @@ import asyncio
 import logging
 from pathlib import Path
 import re
+import hmac
+import struct
+import zlib
 
 from aiohttp import web
 from homeassistant.components.http import HomeAssistantView, StaticPathConfig
@@ -18,7 +21,7 @@ from .model import LayoutError
 class CapabilityFilter(logging.Filter):
     def filter(self, record):
         text = record.getMessage()
-        redacted = re.sub(r"(/api/esp_deck/artwork/)[^/\s\"']+", r"\1[redacted]", text)
+        redacted = re.sub(r"(/api/esp_deck/(?:artwork|probe)/)[^/\s\"']+", r"\1[redacted]", text)
         if redacted != text:
             record.msg, record.args = redacted, ()
         return True
@@ -112,6 +115,25 @@ class DeviceArtworkView(HomeAssistantView):
             "Cache-Control": "no-store", "Referrer-Policy": "no-referrer", "X-Content-Type-Options": "nosniff"})
 
 
+class OriginProbeView(HomeAssistantView):
+    url = "/api/esp_deck/probe/{token}"
+    name = "api:esp_deck:probe"
+    requires_auth = False
+
+    def __init__(self, hass):
+        self.hass = hass
+        def chunk(kind, data):
+            return struct.pack(">I", len(data)) + kind + data + struct.pack(">I", zlib.crc32(kind + data))
+        self.png = (b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", 72, 72, 8, 6, 0, 0, 0))
+                    + chunk(b"IDAT", zlib.compress(bytes(72 * (1 + 72 * 4)))) + chunk(b"IEND", b""))
+
+    async def get(self, request, token):
+        if request.query_string or not re.fullmatch(r"[a-f0-9]{64}", token) or not any(
+                hmac.compare_digest(token, item["token"]) for item in self.hass.data[DATA_KEY].data["decks"].values()):
+            raise web.HTTPNotFound()
+        return web.Response(body=self.png, content_type="image/png", headers={"Cache-Control": "no-store"})
+
+
 async def setup_panel(hass):
     library = hass.data[DATA_KEY] = ArtworkLibrary(hass)
     await library.load()
@@ -120,12 +142,12 @@ async def setup_panel(hass):
         handler.addFilter(redactor)
     for name in ("aiohttp.access", "aiohttp.server", "homeassistant.components.http.ban"):
         logging.getLogger(name).addFilter(redactor)
-    for view in (UploadView, PreviewView, DeviceArtworkView):
+    for view in (UploadView, PreviewView, DeviceArtworkView, OriginProbeView):
         hass.http.register_view(view(hass))
     await hass.http.async_register_static_paths([StaticPathConfig("/esp_deck_static",
         str(Path(__file__).parent / "frontend"), cache_headers=False)])
     await async_register_panel(hass, frontend_url_path="esp-deck", webcomponent_name="esp-deck-panel",
-        sidebar_title="ESP Deck", sidebar_icon="mdi:dialpad", module_url="/esp_deck_static/esp-deck.js?v=0.7.0",
+        sidebar_title="ESP Deck", sidebar_icon="mdi:dialpad", module_url="/esp_deck_static/esp-deck.js?v=0.8.0",
         require_admin=True)
     # config_panel_domain replaces HA's options/repair control with a panel link.
     # Keep that control; the options menu links back to this editor instead.

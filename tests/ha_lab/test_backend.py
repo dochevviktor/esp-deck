@@ -77,7 +77,9 @@ def test_real_guided_setup_reuses_esphome_and_closed_browser_binding(backend):
     source_id = next(entry["entry_id"] for entry in entries if entry["domain"] == "esphome")
     assert len([device for device in devices if device["config_entry_id"] == source_id]) == 1
     assert not any(device["config_entry_id"] == backend for device in devices)
-    layout = command(backend, "get_layout")["applied"]
+    # This basic-flow scenario must also be repeatable after the P8 editor has
+    # left a multi-page layout in the private lab.
+    layout = {"version": 1, "keys": [{} for _ in range(15)]}
     layout["keys"][0] = command(backend, "preset", entity_id="light.example_lamp", label="Lab lamp")["key"]
     apply_layout(backend, layout)
     call("light.turn_off", {"entity_id": "light.example_lamp"})

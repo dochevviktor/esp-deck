@@ -102,14 +102,23 @@ void VirtualDeck::setup() {
   snprintf(text, sizeof(text), "%016llx", static_cast<unsigned long long>(boot_));
   session_ = text;
   policy_.add("http://ha:8123");
+  assets::OriginRecord saved;
+  std::ifstream settings("/lab/origins.bin", std::ios::binary);
+  if (settings.read(reinterpret_cast<char *>(&saved), sizeof(saved))) saved.policy(policy_);
+  provisioning_.set_save([](void *, const assets::OriginRecord &record) {
+    std::ofstream file("/lab/origins.tmp", std::ios::binary);
+    file.write(reinterpret_cast<const char *>(&record), sizeof(record)); file.close();
+    return bool(file) && std::rename("/lab/origins.tmp", "/lab/origins.bin") == 0;
+  }, nullptr);
   scheduler_.attach(generation_);
   session_sensor_->publish_state(session_);
   // Explicit simulated all-up report, not an assumption added to the driver.
   input_(0);
   snapshot_();
 }
-void VirtualDeck::input_(uint16_t mask, bool resync) {
+void VirtualDeck::input_(uint16_t mask, bool resync, uint32_t epoch) {
   const auto edges = tracker_.update(mask, resync);
+  inputs_.sample({generation_, mask, resync, epoch}, edges, millis());
   for (size_t key = 0; key < protocol::KEY_COUNT; key++) {
     const auto bit = uint16_t(1U << key);
     const bool pressed = mask & bit;
@@ -144,7 +153,7 @@ void VirtualDeck::control_() {
   if (attached_) {
     for (auto value : doc["masks"].as<JsonArray>()) {
       if (value.is<uint16_t>() && value.as<uint16_t>() < 32768)
-        input_queue_.push(generation_, value.as<uint16_t>());
+        input_queue_.push(generation_, value.as<uint16_t>(), scheduler_.input_epoch());
     }
   }
   std::remove("/lab/control.json");
@@ -185,11 +194,12 @@ void VirtualDeck::loop() {
   control_();
   InputReport input;
   while (input_queue_.pop(input)) {
-    if (input.generation == generation_) input_(input.mask, input.resync);
+    if (input.generation == generation_) input_(input.mask, input.resync, input.epoch);
   }
   // Reuse the bounded production pipeline; only networking and USB are adapted.
   for (int step = 0; step < 32; step++) {
-    pipeline_.loop(millis());
+    if (provisioning_.busy()) provisioning_.loop(millis());
+    else pipeline_.loop(millis());
     if (!pipeline_.needs_cpu()) break;
   }
   if (attached_) {

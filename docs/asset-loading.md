@@ -1,5 +1,10 @@
 # Bounded URL loading and caching (P3)
 
+P8 adds [explicit, verified origin provisioning](runtime-v2.md#explicit-origin-provisioning)
+over the encrypted API. A valid persisted v2 origin record replaces compiled
+defaults at boot. The decoder, fetch/TLS limits, retained caches and v1 compiled
+origin configuration described below remain in effect.
+
 P3 connects validated visual requests to HTTP(S), a bounded PNG decoder, the P2
 renderer, and the immutable-image scheduler. It is opt-in with `asset_loading`.
 The four numbered examples and `renderer_probe` retain their existing behavior.

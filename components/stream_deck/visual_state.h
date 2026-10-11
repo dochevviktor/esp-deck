@@ -20,6 +20,7 @@ constexpr unsigned MAX_REDIRECTS = 0, MAX_RETRIES = 0;
 enum Field : int32_t {
   IMAGE = 1, TEXT = 2, FONT = 4, TEXT_COLOR = 8, OUTLINE_COLOR = 16, BACKGROUND_COLOR = 32, FIT = 64,
   ALL_FIELDS = 127,
+  POSITION = 128, V2_FIELDS = 255,
 };
 enum class Fit : uint8_t { CONTAIN, CROP };
 enum class Phase : uint8_t { IDLE, QUEUED, RENDERING, RENDERED, FAILED };
@@ -29,6 +30,7 @@ enum class Error : uint8_t {
   INVALID_FONT, INVALID_COLOR, INVALID_FIT, FETCH_FAILED, DECODE_FAILED, RENDER_FAILED, OUT_OF_MEMORY,
   ORIGIN_NOT_ALLOWED, FETCH_TIMEOUT, HTTP_STATUS, UNSUPPORTED_ENCODING, UNSUPPORTED_PNG,
   CLOCK_NOT_READY,
+  INVALID_POSITION, INVALID_CONTEXT,
 };
 const char *error_name(Error error);
 const char *phase_name(Phase phase);
@@ -61,6 +63,8 @@ struct State {
   uint32_t text_color{0xffffff}, outline_color{0}, background_color{0};
   uint8_t font{16};
   Fit fit{Fit::CONTAIN};
+  uint8_t text_x{3}, text_y{3}, text_width{66}, text_height{66};
+  uint8_t text_align{1}, text_valign{2};  // left/center/right; top/middle/bottom
   bool operator==(const State &other) const;
 };
 
@@ -72,6 +76,9 @@ struct Command {
   std::string_view image_url, image_revision, text;
   int32_t font{16};
   std::string_view text_color, outline_color, background_color, fit;
+  bool v2{false};
+  std::string_view context;
+  int32_t text_x{3}, text_y{3}, text_width{66}, text_height{66}, text_align{1}, text_valign{2};
 };
 
 // Transactional, including if base and result alias. Never partially changes
@@ -111,12 +118,18 @@ class Store {
   bool next(RenderJob &job);
   bool finish(const RenderJob &job, const ImageRef &image);
   bool fail(const RenderJob &job, Error error);
+  uint32_t applied_revision(int key) const;
+  std::string_view context(int key) const { return slots_[key].context.view(); }
+  uint32_t generation() const { return scheduler_.generation(); }
+  uint32_t input_epoch() const { return scheduler_.input_epoch(); }
 
  private:
   struct Slot {
     State desired, rendered;
     Status status;
     int32_t fields{0};
+    Text<32> context;
+    uint64_t schedule_revision{0};
   };
   bool matches_active_(const RenderJob &job) const;
   std::array<Slot, protocol::KEY_COUNT> slots_{};

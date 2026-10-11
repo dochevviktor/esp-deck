@@ -113,7 +113,8 @@ def test_encrypted_pairing_discovery_and_action_response():
     probe = json.loads(result.stdout.strip().splitlines()[-1])
     assert probe["version"] == "2026.9.0"
     assert probe["entities"] == 31
-    assert probe["actions"] == ["clear_key_visual", "get_key_visual_status", "refresh_key_image", "set_key_visual"]
+    assert probe["actions"] == ["clear_key_visual", "get_deck_capabilities", "get_key_visual_status",
+                                "provision_asset_origins", "read_deck_inputs", "refresh_key_image", "set_key_visual", "set_key_visual_v2"]
     entities = ws({"type": "config/entity_registry/list"})
     deck_entities = [entry for entry in entities if entry["platform"] == "esphome"]
     assert len([entry for entry in deck_entities if entry["entity_id"].startswith("event.")]) == 15

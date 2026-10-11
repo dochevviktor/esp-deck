@@ -1,5 +1,12 @@
 # Visual editor and artwork library (P7)
 
+P8 update: compatible v2 firmware enables bounded label positioning, named
+pages, sparse overlays and navigation/modifier bindings. Library settings now
+offer Verify & provision address, also available under Configure → Artwork
+address. Existing v1 devices retain basic editing with compiled origins.
+See [the v2 guide](runtime-v2.md) for limits, inheritance/clear behavior, input
+gating and the normal HA page select entity. The P7 baseline below is retained.
+
 ESP Deck 0.7 bundles an administrator-only **ESP Deck** sidebar panel and links it
 from integration settings. Install the integration directory, including its
 `frontend/` subdirectory; no dashboard resource or frontend CDN is needed.

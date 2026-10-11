@@ -2,6 +2,9 @@
 
 from copy import deepcopy
 from contextlib import nullcontext
+import asyncio
+import time
+from urllib.parse import urlsplit
 
 import probatio as vol
 
@@ -13,7 +16,7 @@ from homeassistant.helpers.service import async_register_admin_service
 from .adapter import pin_references, resolve_reference
 from .const import DOMAIN
 from .artwork import DATA_KEY
-from .model import LayoutError, bounded_json, entity_preset, mapping, references, validate_layout
+from .model import LayoutError, bounded_json, entity_preset, mapping, references, validate_layout, require_capabilities
 
 OPERATIONS = {
     "get_layout": {}, "status": {}, "sync": {},
@@ -28,6 +31,7 @@ OPERATIONS = {
     "artwork_revoke": {},
     "artwork_collect": {},
     "artwork_delete": {vol.Required("asset_id"): str},
+    "select_page": {vol.Required("page"): str},
 }
 
 
@@ -64,10 +68,40 @@ async def _execute_locked(hass, deck, operation, data):
             return await library.variant(entry_id, data["source_id"], data["transform"])
         if operation in ("artwork_delete", "artwork_collect"):
             return await library.collect(entry_id, repo, asset_id=data.get("asset_id"))
+        if operation == "artwork_configure" and deck.capabilities.get("origin_provisioning"):
+            from .artwork import origin
+            address = origin(data["origin"])
+            parsed = urlsplit(address)
+            expected_origin = f"{parsed.scheme}://{parsed.hostname}:{parsed.port or (443 if parsed.scheme == 'https' else 80)}"
+            resolved = deck.adapter.resolve()
+            token = library.data["decks"][entry_id]["token"]
+            # The complete allowlist is replaced explicitly after a successful
+            # device fetch. Prior origins are not silently accumulated forever.
+            started = time.monotonic()
+            while True:
+                result = await deck.adapter.raw_call(resolved, "provision_asset_origins", session=resolved.session,
+                    origins=address, test_url=f"{address}/api/esp_deck/probe/{token}")
+                if result.get("accepted") is True:
+                    break
+                if result.get("error") != "busy" or time.monotonic() - started > 20:
+                    raise LayoutError("origin_provision_failed")
+                await asyncio.sleep(0.1)
+            async with asyncio.timeout(20):
+                while True:
+                    capabilities = await deck.adapter.capabilities(resolved)
+                    if capabilities.get("origin_probe") != "testing":
+                        if capabilities.get("origin_probe") != "verified" or capabilities.get("origins") != [expected_origin]:
+                            raise LayoutError("origin_probe_failed")
+                        deck.capabilities = capabilities
+                        break
+                    await asyncio.sleep(0.1)
         await library.configure(entry_id, data.get("origin"), revoke=operation == "artwork_revoke")
         deck.request_sync(retry=True)
         return library.listing(entry_id, repo)
     if operation == "status":
+        return deck.status()
+    if operation == "select_page":
+        deck.select_page(data["page"])
         return deck.status()
     if operation == "get_layout":
         result = deepcopy(repo.data)
@@ -95,6 +129,7 @@ async def _execute_locked(hass, deck, operation, data):
         return document
     if operation == "save_layout":
         layout = pin_references(hass, validate_layout(data["layout"]))
+        require_capabilities(layout, deck.capabilities)
         if library:
             library.validate(entry_id, layout)
             library.retain(entry_id, repo)
@@ -105,11 +140,13 @@ async def _execute_locked(hass, deck, operation, data):
         # Validate the export envelope before consuming nested data.
         mapping(document, ("format", "version", "layout"), ("format", "version", "layout"))
         document["layout"] = pin_references(hass, validate_layout(document["layout"]))
+        require_capabilities(document["layout"], deck.capabilities)
         if library:
             library.validate(entry_id, document["layout"])
             library.retain(entry_id, repo)
         await repo.import_layout(document, data["expected_revision"])
     elif operation == "apply_layout":
+        require_capabilities(repo.data["draft"], deck.capabilities)
         # Fail before activation if a saved entity has since been removed/disabled.
         pin_references(hass, deepcopy(repo.data["draft"]))
         if library:

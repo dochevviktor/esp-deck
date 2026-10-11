@@ -24,6 +24,11 @@ pages/layers and distribution remain P8/P9 work.
 
 ## Decision: one integration with a bundled editor
 
+P8 follow-up: [runtime v2](../runtime-v2.md) now implements capability negotiation,
+verified persistent origins, positioned labels and HA pages/overlays. It records
+the native-channel audit and per-key USB/input fences that resolve the ordering
+question below. v1 compatibility is retained; physical qualification remains P9.
+
 Build `custom_components/esp_deck/` as a HACS-distributed custom integration with
 a bundled sidebar editor. Keep an optional dashboard card as a thin view/control
 of that same backend. Layout storage, entity subscriptions, bindings, revisions

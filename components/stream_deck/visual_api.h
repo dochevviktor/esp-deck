@@ -12,6 +12,8 @@ struct Response {
   bool accepted{false};
   Status status;
   Error error{Error::OUT_OF_MEMORY};
+  uint32_t applied_revision{0}, usb_generation{0};
+  Text<32> context;
 
   // ArduinoJson is deliberately confined to the caller. Native tests can
   // exercise the exact response mapping without ESPHome/JSON/USB dependencies.
@@ -24,6 +26,9 @@ struct Response {
     root["rendered_revision"] = status.rendered_revision;
     root["phase"] = phase_name(status.phase);
     root["error"] = error_name(error);
+    root["applied_revision"] = applied_revision;
+    root["usb_generation"] = usb_generation;
+    root["context"] = std::string(context.view());
   }
 };
 

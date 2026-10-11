@@ -39,6 +39,42 @@
       "bytes": 15606,
       "sha256": "8f0f1953458dfdc59e270733aca3de5589408111f757c3579ad67c7819f852f4"
     },
+    "position_0_0.native.bmp": {
+      "bytes": 15606,
+      "sha256": "06194c73a92176f8d8ab272cc621366512600a6eecaaca2618c9e0c618d947f9"
+    },
+    "position_0_1.native.bmp": {
+      "bytes": 15606,
+      "sha256": "d49a0f922285b4b413b05911f3de04c90b580f958ce135e605e0776cd01bd194"
+    },
+    "position_0_2.native.bmp": {
+      "bytes": 15606,
+      "sha256": "a86a6a13c11f211fff15d6fe521aa8d40010d77cbc67c4b2a67c7a8a4bd435d5"
+    },
+    "position_1_0.native.bmp": {
+      "bytes": 15606,
+      "sha256": "6b9e6bd189387c9b405d75a2f0a57bbd22d852adf762885255da6302aedc70a6"
+    },
+    "position_1_1.native.bmp": {
+      "bytes": 15606,
+      "sha256": "7e2825388d1c31e11c33f1cc21137f017bf6710539181077ebbde7f2828ca62c"
+    },
+    "position_1_2.native.bmp": {
+      "bytes": 15606,
+      "sha256": "fe8340fbb0940d91b9aa8ab03abe066bb8b1d658b0a402874a738f7450869b71"
+    },
+    "position_2_0.native.bmp": {
+      "bytes": 15606,
+      "sha256": "e45821ec8c6dc7a77a2f8aeb3651d4ff69b3c3f6284b8d8600f49cfc156a601b"
+    },
+    "position_2_1.native.bmp": {
+      "bytes": 15606,
+      "sha256": "05447ccce72c348805017643292620245425d90c0d43e1c549ec5a00a83b8618"
+    },
+    "position_2_2.native.bmp": {
+      "bytes": 15606,
+      "sha256": "76cac260b7f6779dfa5d79cb76135dfabc4b394346d40fb22dae2b5773b1084e"
+    },
     "truncated.native.bmp": {
       "bytes": 15606,
       "sha256": "79448c8692baedae503e85fe753924f149f497f07f40293e60db10213a3580c7"

@@ -13,6 +13,7 @@ namespace esphome::stream_deck {
 static const char *const TAG = "stream_deck";
 
 void StreamDeck::setup() {
+  transport_.set_input_epoch(scheduler_.input_epoch_address());
   if (connected_sensor_) connected_sensor_->publish_state(false);
   if (!transport_.setup()) {
     status_set_error(LOG_STR("USB host installation failed; check memory and ownership"));
@@ -29,6 +30,20 @@ void StreamDeck::setup() {
   } else ESP_LOGE(TAG, "Asset service PSRAM allocation failed; USB/API remain independent");
 #endif
 #ifdef USE_STREAM_DECK_RUNTIME_API
+  origin_preferences_ = global_preferences->make_preference<assets::OriginRecord>(0x45534432);
+  assets::OriginRecord saved;
+  if (origin_preferences_.load(&saved)) saved.policy(asset_policy_);
+  if (assets_) assets_->provisioning.set_save([](void *context, const assets::OriginRecord &record) {
+    auto *self = static_cast<StreamDeck *>(context);
+    if (!self->origin_preferences_.save(&record)) return false;
+    // The pinned ESP32 sync drains all pending records, including failures.
+    // Verify our own NVS record: an unrelated preference can make sync return
+    // false even though this explicit provisioning transaction was persisted.
+    global_preferences->sync();
+    assets::OriginRecord saved;
+    return self->origin_preferences_.load(&saved) && saved.version == record.version &&
+        saved.count == record.count && saved.origins == record.origins;
+  }, this);
   if (session_sensor_ && assets_) session_sensor_->publish_state(visual_session());
 #endif
 }
@@ -36,6 +51,7 @@ void StreamDeck::setup() {
 void StreamDeck::on_shutdown() {
 #ifdef USE_STREAM_DECK_ASSETS
   if (assets_) assets_->pipeline.stop();
+  if (assets_ && assets_->provisioning.busy()) assets_->fetcher.cancel();
   asset_loop_.stop();
 #endif
   transport_.shutdown();
@@ -67,6 +83,9 @@ void StreamDeck::disconnect_() {
 void StreamDeck::publish_input_(const InputReport &report) {
   if (report.generation != generation_) return;
   const auto edges = tracker_.update(report.mask, report.resync);
+#ifdef USE_STREAM_DECK_RUNTIME_API
+  if (assets_) assets_->inputs.sample(report, edges, millis());
+#endif
   for (uint8_t key = 0; key < protocol::KEY_COUNT; key++) {
     const uint16_t bit = uint16_t(1U << key);
     const bool pressed = (report.mask & bit) != 0;
@@ -132,11 +151,11 @@ void StreamDeck::loop() {
     attached_ = true;
   }
   if (attached_) {
-    Job completed;
-    if (transport_.take_completion(completed)) scheduler_.complete(completed);
     InputReport input;
     // Drain in order: never collapse a short press/release to the latest state.
     while (transport_.pop_input(input)) publish_input_(input);
+    Job completed;
+    if (transport_.take_completion(completed)) scheduler_.complete(completed);
     Job job;
     if (scheduler_.next(job) && !transport_.send(job, now)) disconnect_();
     if (attached_ && !ready_ && scheduler_.initialized()) {
@@ -151,7 +170,8 @@ void StreamDeck::loop() {
   }
 #ifdef USE_STREAM_DECK_ASSETS
   if (assets_) {
-    assets_->pipeline.loop(now);
+    if (assets_->provisioning.busy()) assets_->provisioning.loop(now);
+    else assets_->pipeline.loop(now);
     if (assets_->pipeline.needs_cpu()) asset_loop_.start();
     else asset_loop_.stop();
   }

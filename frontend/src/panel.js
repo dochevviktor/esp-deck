@@ -1,5 +1,5 @@
 import {renderPreview} from "./preview.js";
-import {blankKey, defaults, rearrange, previewVisual} from "./layout.js";
+import {blankKey, defaults, positioning, rearrange, previewVisual, pageKeys, allKeys} from "./layout.js";
 import {decodeArtwork} from "./png.js";
 
 const fonts = ESP_DECK_FONTS;
@@ -64,7 +64,17 @@ class ESPDeckPanel extends HTMLElement {
   }
   notice(text, error = false) {if (this.$("#notice")) {this.$("#notice").textContent = text; this.$("#notice").className = `notice${error ? " error" : ""}`;}}
   remember() {this.history.push(structuredClone(this.layout)); if (this.history.length > 30) this.history.shift();}
-  edit(callback, full = false) {this.remember(); callback(this.layout.keys[this.selected]); this.dirty = true; if (full) this.render(); else {this.updateStatus(); this.draw();}}
+  edit(callback, full = false) {
+    this.remember(); const previous = this.layout; callback(this.layout.keys[this.selected]);
+    if (previous === this.layout && this.editOverlay && this.layout.version === 2) this.layout.overlays.find(p => p.id === this.editOverlay).keys[this.selected] = structuredClone(this.layout.keys[this.selected]);
+    this.dirty = true; if (full) this.render(); else {this.updateStatus(); this.draw();}
+  }
+  bindKeys() {
+    if (this.layout.version !== 2) {this.editPage = this.editOverlay = null; return;}
+    if (!this.layout.pages.some(p => p.id === this.editPage)) this.editPage = this.layout.default_page;
+    if (!this.layout.overlays.some(p => p.id === this.editOverlay)) this.editOverlay = null;
+    Object.defineProperty(this.layout, "keys", {value: pageKeys(this.layout, this.editPage, this.editOverlay), configurable: true, writable: true});
+  }
   async save(apply) {
     if (this.dirty) {
       await this.command("save_layout", {layout: this.layout, expected_revision: this.record.draft_revision});
@@ -73,6 +83,8 @@ class ESPDeckPanel extends HTMLElement {
     if (apply) await this.command("apply_layout", {expected_revision: this.record.draft_revision});
     this.status = await this.command("status");
     this.record.applied_revision = this.status.applied_revision;
+    if (apply) this.record.applied = structuredClone(this.record.draft);
+    if (this.layout.version === 2) this.render();
     this.notice(apply ? "Layout applied. The backend is synchronizing your deck." : "Draft saved. Apply when you’re ready to update the deck.");
   }
   updateStatus() {
@@ -86,6 +98,7 @@ class ESPDeckPanel extends HTMLElement {
     this.$("#undo").disabled = this.busy || !this.history.length;
   }
   render() {
+    this.bindKeys();
     this.previewEpoch++;
     this.shadowRoot.innerHTML = `<style>${styles}</style>
       <header><ha-menu-button></ha-menu-button><h1>ESP Deck</h1><select id="deck-choice" aria-label="Deck">${this.entries.map(e => `<option value="${escape(e.entry_id)}" ${e.entry_id === this.entry ? "selected" : ""}>${escape(e.title)}</option>`).join("")}</select></header>
@@ -97,6 +110,11 @@ class ESPDeckPanel extends HTMLElement {
       <p id="status-text" class="muted"></p><div class="row"><button id="retry" data-work>Retry synchronization</button><a href="/config/integrations/integration/esp_deck">Repair / integration settings</a></div>
       <details><summary>Library settings & backup</summary><label>Home Assistant address reachable by the deck<input id="origin" value="${escape(this.library.origin)}" placeholder="http://homeassistant.local:8123"></label><p class="muted">v1 firmware must already allow this origin. Changing this address does not provision the device. Plain HTTP artwork should be non-sensitive.</p><div class="row"><button id="set-origin" data-work>Save address</button><button id="revoke" data-work>Revoke download links</button><button id="collect" data-work>Remove unused artwork</button></div><p class="muted">Saved draft, applied and backup artwork is retained. Recent downloads have a two-minute grace period.</p><div class="row"><button id="export">Export draft</button><button id="export-applied">Export applied</button><button id="restore" data-work>Restore backup to draft</button></div><label>Import layout<input type="file" id="import" accept="application/json,.json"></label><p class="muted">Exports contain bindings and artwork hashes, without download credentials or source images. Keep them private. Artwork must be available in this deck’s library when importing.</p></details>
       </section><section class="card" id="editor"></section></div></main>`;
+    this.renderPages();
+    if (this.status.capabilities?.origin_provisioning) {
+      this.$("#set-origin").textContent = "Verify & provision address";
+      this.$("#origin").closest("label").nextElementSibling.textContent = "The device tests this address before saving its allowlist. Choose a LAN address the deck can reach, or HTTPS with a trusted certificate.";
+    }
     this.$("ha-menu-button").hass = this.hass;
     this.$("#deck-choice").onchange = e => {
       if (this.dirty) {e.target.value = this.entry; this.notice("Save or export your edits before switching decks.", true); return;}
@@ -125,7 +143,7 @@ class ESPDeckPanel extends HTMLElement {
     this.$("#collect").onclick = () => this.run(async () => {if (this.dirty) throw Error("Save your draft before removing unused artwork."); const result = await this.command("artwork_collect"); this.library = await this.command("artwork_list"); this.renderEditor(); this.notice(`Removed ${result.removed_files} unused files.`);});
     this.$("#export").onclick = () => {
       const layout = structuredClone(this.layout);
-      for (const key of layout.keys) {
+      for (const key of allKeys(layout)) {
         if (key.state) delete key.state.entity.registry_id;
         for (const edge of ["press", "release"]) for (const ref of key[edge]?.target?.entity_id || []) delete ref.registry_id;
       }
@@ -136,7 +154,49 @@ class ESPDeckPanel extends HTMLElement {
     this.$("#import").onchange = event => this.run(async () => {const file = event.target.files[0]; if (!file) return; if (file.size > 131072) throw Error("Layout is too large"); const document = JSON.parse(await file.text()); await this.command("import_layout", {document, expected_revision: this.record.draft_revision}); await this.load(); this.notice("Layout imported as a saved draft. Apply to activate it.");});
     this.renderEditor(); this.updateStatus(); this.draw();
   }
-  changeOrder(from, to, operation) {this.remember(); this.layout = rearrange(this.layout, from, to, operation); this.selected = to; this.dirty = true; this.render();}
+  changeOrder(from, to, operation) {
+    this.remember(); const keys = rearrange({keys: this.layout.keys}, from, to, operation).keys;
+    if (this.layout.version === 1) this.layout.keys = keys;
+    else if (this.editOverlay) this.layout.overlays.find(p => p.id === this.editOverlay).keys = Object.fromEntries(keys.map((k, i) => [i, k]));
+    else this.layout.pages.find(p => p.id === this.editPage).keys = keys;
+    this.selected = to; this.dirty = true; this.render();
+  }
+  renderPages() {
+    if (this.status.capabilities?.input_correlation !== "pull_context_v2") return;
+    const element = document.createElement("div"); element.className = "row";
+    this.$(".deck").before(element);
+    if (this.layout.version === 1) {
+      element.innerHTML = '<button id="enable-pages">Enable pages & overlays</button>';
+      this.$("#enable-pages").onclick = () => {this.remember(); this.layout = {version: 2, default_page: "main", pages: [{id: "main", name: "Main", keys: this.layout.keys}], overlays: []}; this.dirty = true; this.render();};
+      return;
+    }
+    const options = (items, current) => items.map(p => `<option value="${escape(p.id)}" ${p.id === current ? "selected" : ""}>${escape(p.name)}</option>`).join("");
+    element.innerHTML = `<label>Edit page<select id="edit-page">${options(this.layout.pages, this.editPage)}</select></label><label>Edit overlay<select id="edit-overlay"><option value="">Base page</option>${options(this.layout.overlays, this.editOverlay)}</select></label><label>Name<input id="page-name" maxlength="48" value="${escape((this.editOverlay ? this.layout.overlays.find(p => p.id === this.editOverlay) : this.layout.pages.find(p => p.id === this.editPage)).name)}"></label><button id="add-page">Add page</button><button id="add-overlay">Add overlay</button><button id="remove-page">Remove selected</button><button id="default-page">Start on this page</button><label>Active page<select id="active-page">${options(this.record.applied?.pages || [], this.status.active_page)}</select></label>${this.editOverlay ? '<button id="inherit-key">Inherit selected key</button><button id="clear-overlay-key">Clear selected key</button>' : ""}`;
+    this.$("#edit-page").onchange = e => {this.editPage = e.target.value; this.render();};
+    this.$("#edit-overlay").onchange = e => {this.editOverlay = e.target.value; this.render();};
+    const mutate = action => {this.remember(); action(); this.dirty = true; this.render();};
+    this.$("#page-name").onchange = e => mutate(() => {(this.editOverlay ? this.layout.overlays.find(p => p.id === this.editOverlay) : this.layout.pages.find(p => p.id === this.editPage)).name = e.target.value;});
+    for (const kind of ["page", "overlay"]) this.$(`#add-${kind}`).onclick = () => {
+      const items = this.layout[kind === "page" ? "pages" : "overlays"], cap = kind === "page" ? 8 : 4;
+      if (items.length >= cap) {this.notice(`Up to ${cap} ${kind}s are supported.`, true); return;}
+      mutate(() => {let n = 1; while (items.some(p => p.id === `${kind}_${n}`)) n++; const id = `${kind}_${n}`;
+        items.push({id, name: `${kind === "page" ? "Page" : "Overlay"} ${n}`, keys: kind === "page" ? Array.from({length: 15}, blankKey) : {}});
+        if (kind === "page") {this.editPage = id; this.editOverlay = null;} else this.editOverlay = id;
+      });
+    };
+    this.$("#remove-page").onclick = () => {
+      if (!this.editOverlay && this.layout.pages.length === 1) {this.notice("Keep at least one page.", true); return;}
+      const id = this.editOverlay || this.editPage;
+      if (allKeys(this.layout).some(k => k.navigation?.target === id)) {this.notice("Remove navigation bindings to this page or overlay first.", true); return;}
+      mutate(() => {const kind = this.editOverlay ? "overlays" : "pages"; this.layout[kind] = this.layout[kind].filter(p => p.id !== id); if (this.layout.default_page === id) this.layout.default_page = this.layout.pages[0].id;});
+    };
+    this.$("#default-page").onclick = () => mutate(() => {this.layout.default_page = this.editPage;});
+    this.$("#active-page").onchange = e => this.run(async () => {this.status = await this.command("select_page", {page: e.target.value});});
+    if (this.editOverlay) {
+      this.$("#inherit-key").onclick = () => mutate(() => {delete this.layout.overlays.find(p => p.id === this.editOverlay).keys[this.selected];});
+      this.$("#clear-overlay-key").onclick = () => mutate(() => {this.layout.overlays.find(p => p.id === this.editOverlay).keys[this.selected] = null;});
+    }
+  }
   download(document) {const url = URL.createObjectURL(new Blob([JSON.stringify(document, null, 2)], {type: "application/json"})); const link = documentElement("a"); link.href = url; link.download = "esp-deck-layout.json"; link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);}
   entities(domains) {return Object.values(this.hass.states).filter(s => !domains || domains.includes(s.entity_id.split(".")[0])).sort((a, b) => a.entity_id.localeCompare(b.entity_id));}
   entityOptions(current, domains) {const entries = this.entities(domains); if (current && !entries.some(s => s.entity_id === current)) entries.unshift({entity_id: current, attributes: {friendly_name: "Missing entity"}}); return `<option value="">None</option>${entries.map(s => `<option value="${escape(s.entity_id)}" ${s.entity_id === current ? "selected" : ""}>${escape(s.attributes.friendly_name || s.entity_id)} · ${escape(s.entity_id)}</option>`).join("")}`;}
@@ -144,6 +204,7 @@ class ESPDeckPanel extends HTMLElement {
     const key = this.layout.keys[this.selected];
     this.$("#editor").innerHTML = `<h2>Key ${this.selected + 1}</h2><div class="preview-row"><canvas id="large-preview" class="large-preview" width="72" height="72"></canvas><p class="muted">Preview only.<br>Selecting a key never runs its action.<br><small>Bundled glyphs · fixed bottom label</small></p></div><div class="tabs" role="tablist">${["binding", "appearance", "state rules"].map(tab => `<button role="tab" aria-selected="${this.tab === tab}" data-tab="${tab}">${tab[0].toUpperCase() + tab.slice(1)}</button>`).join("")}</div><div id="fields"></div>`;
     this.$$('[data-tab]').forEach(button => button.onclick = () => {this.tab = button.dataset.tab; this.renderEditor(); this.draw();});
+    this.$(".preview-row small").textContent = this.status.capabilities?.positioning ? "Bundled glyphs · bounded label position" : "Bundled glyphs · fixed bottom label";
     if (this.tab === "binding") this.renderBinding(key);
     if (this.tab === "appearance") this.renderAppearance(key);
     if (this.tab === "state rules") this.renderRules(key);
@@ -153,7 +214,16 @@ class ESPDeckPanel extends HTMLElement {
     const current = entityId(key.press?.target?.entity_id?.[0]);
     this.$("#fields").innerHTML = `<label>Entity preset<select id="preset-entity">${this.entityOptions(current, ["light", "switch", "input_boolean", "script", "scene"])}</select></label><button id="preset" class="primary" data-work>Use preset</button><p class="muted">Lights and switches get toggle actions and on/off/unavailable colors. Scripts and scenes run on press. A preset replaces this key’s current configuration.</p><label>Binding mode<select id="mode"><option value="managed" ${key.mode === "managed" ? "selected" : ""}>Managed actions</option><option value="automation" ${key.mode === "automation" ? "selected" : ""}>Home Assistant automation</option></select></label><div id="edges"></div>`;
     this.$("#preset").onclick = () => this.run(async () => {const id = this.$("#preset-entity").value; if (!id) throw Error("Select an entity first"); const label = key.visual.text || (this.hass.states[id]?.attributes.friendly_name || id.split(".")[1]).slice(0, 24); const result = await this.command("preset", {entity_id: id, label}); this.edit(() => {this.layout.keys[this.selected] = result.key;}, true);});
-    this.$("#mode").onchange = event => this.edit(k => {k.mode = event.target.value; if (k.mode === "automation") {k.press = null; k.release = null;}}, true);
+    this.$("#mode").onchange = event => this.edit(k => {k.mode = event.target.value; if (k.mode === "automation") {k.press = null; k.release = null; delete k.navigation;}}, true);
+    if (this.layout.version === 2 && this.status.capabilities?.input_correlation === "pull_context_v2") {
+      const label = document.createElement("label"); label.textContent = "Navigation / modifier";
+      const select = document.createElement("select"); select.id = "navigation";
+      select.innerHTML = '<option value="">Normal binding</option>' + ["page", "overlay", "momentary"].flatMap(kind => (kind === "page" ? this.layout.pages : this.layout.overlays).map(p => `<option value="${kind}:${escape(p.id)}">${kind === "momentary" ? "Hold overlay" : kind === "overlay" ? "Toggle overlay" : "Go to page"} · ${escape(p.name)}</option>`)).join("");
+      select.value = key.navigation ? `${key.navigation.kind}:${key.navigation.target}` : "";
+      label.append(select); this.$("#edges").before(label);
+      select.onchange = e => this.edit(k => {if (!e.target.value) delete k.navigation; else {const [kind, target] = e.target.value.split(":"); k.navigation = {kind, target}; k.mode = "managed"; k.press = k.release = null;}}, true);
+      if (key.navigation) {this.$("#edges").textContent = "This key controls pages or overlays. A momentary overlay ends when this accepted press is released."; return;}
+    }
     if (key.mode === "automation") {this.$("#edges").innerHTML = `<p>Use the <code>esp_deck_key</code> event in an <a href="/config/automation/dashboard">HA automation</a>. Filter entry_id <code>${escape(this.entry)}</code>, key <code>${this.selected}</code>, and edge <code>press</code> or <code>release</code>. Managed actions are disabled for this key.</p>`; return;}
     this.$("#edges").innerHTML = ["press", "release"].map(edge => {
       const binding = key[edge]; const targets = binding?.target?.entity_id || [];
@@ -173,6 +243,14 @@ class ESPDeckPanel extends HTMLElement {
   }
   bindAppearance(prefix, apply) {
     for (const field of ["text", "font", "fit", "text_color", "outline_color", "background_color"]) this.$(`#${prefix}${field}`).onchange = event => this.edit(key => apply(key, field, field === "font" ? Number(event.target.value) : event.target.value));
+    if (this.status.capabilities?.positioning) {
+      const key = this.layout.keys[this.selected];
+      const appearance = {...positioning, ...key.visual, ...(prefix === "s-" ? key.state[this.ruleVariant] : {})};
+      const box = document.createElement("div"); box.className = "row";
+      box.innerHTML = [["text_x", "Label left", 0, 48], ["text_y", "Label top", 0, 71], ["text_width", "Label width", 24, 72], ["text_height", "Label height", 1, 72]].map(([field, name, min, max]) => `<label>${name}<input id="${prefix}${field}" type="number" min="${min}" max="${max}" value="${appearance[field]}"></label>`).join("") + [["text_align", ["Left", "Center", "Right"]], ["text_valign", ["Top", "Middle", "Bottom"]]].map(([field, labels]) => `<label>${field === "text_align" ? "Horizontal alignment" : "Vertical alignment"}<select id="${prefix}${field}">${labels.map((name, i) => `<option value="${i}" ${appearance[field] === i ? "selected" : ""}>${name}</option>`).join("")}</select></label>`).join("");
+      this.$(`#${prefix}background_color`).closest(".row").after(box);
+      for (const field of Object.keys(positioning)) this.$(`#${prefix}${field}`).onchange = e => this.edit(k => apply(k, field, Number(e.target.value)));
+    }
   }
   renderAppearance(key) {
     this.$("#fields").innerHTML = this.appearanceFields({...defaults, ...key.visual}, "v-") + `<label class="upload">Upload artwork<input id="upload" type="file" accept="image/png,image/jpeg"></label><p class="muted">PNG or JPEG · up to 10 MiB / 4096 × 4096. Artwork is stored as 72 × 72 PNG; labels stay editable on the device.</p><div class="row"><button id="remove-image">Remove image</button><button id="delete-image" data-work>Delete selected artwork</button></div><div id="crop-fields"></div><h3>Artwork library</h3><div class="library">${this.library.variants.map(asset => `<button class="asset" data-asset="${asset.asset_id}" aria-label="Artwork ${asset.asset_id.slice(0, 8)}" aria-pressed="${key.visual.asset_id === asset.asset_id}"><canvas width="72" height="72"></canvas></button>`).join("")}</div>${key.visual.image_url ? '<p class="notice">This tile uses an existing external image URL. The editor does not fetch arbitrary external images. Upload artwork for an exact preview.</p>' : ""}`;

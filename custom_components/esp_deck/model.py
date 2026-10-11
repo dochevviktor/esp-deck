@@ -6,7 +6,7 @@ import math
 import re
 from urllib.parse import urlsplit
 
-from .const import DEFAULT_VISUAL, KEY_COUNT, MAX_LAYOUT_BYTES
+from .const import DEFAULT_VISUAL, POSITION_DEFAULTS, KEY_COUNT, MAX_LAYOUT_BYTES
 
 
 class LayoutError(ValueError):
@@ -15,7 +15,7 @@ class LayoutError(ValueError):
 
 def bounded_json(value, limit=MAX_LAYOUT_BYTES):
     """Reject deep/non-JSON structures before serializing or copying them."""
-    remaining = 8192
+    remaining = 32768
 
     def visit(item, depth=0):
         nonlocal remaining
@@ -66,7 +66,7 @@ def entity_ref(value):
 
 
 def visual(value, *, partial=False):
-    mapping(value, (*DEFAULT_VISUAL, "asset_id"))
+    mapping(value, (*DEFAULT_VISUAL, *POSITION_DEFAULTS, "asset_id"))
     result = dict(value) if partial else {**DEFAULT_VISUAL, "asset_id": "", **value}
     if "asset_id" in result:
         if not isinstance(result["asset_id"], str) or (result["asset_id"] and not re.fullmatch(r"[a-f0-9]{64}", result["asset_id"])):
@@ -78,7 +78,10 @@ def visual(value, *, partial=False):
     if "image_url" in value and not value.get("asset_id"):
         result["asset_id"] = ""
     for field, item in result.items():
-        if field == "font":
+        if field in POSITION_DEFAULTS:
+            if type(item) is not int:
+                raise LayoutError("invalid_position")
+        elif field == "font":
             if type(item) is not int or item not in (12, 16, 20):
                 raise LayoutError("invalid_font")
         elif not isinstance(item, str):
@@ -94,6 +97,12 @@ def visual(value, *, partial=False):
                 (ord(c) < 32 and c != "\n") or 127 <= ord(c) < 160 for c in item
             ):
                 raise LayoutError("invalid_text")
+    box = {**POSITION_DEFAULTS, **{k: v for k, v in result.items() if k in POSITION_DEFAULTS}}
+    if not (0 <= box["text_x"] <= 48 and 0 <= box["text_y"] <= 71
+            and 24 <= box["text_width"] <= (72 if partial else 72 - box["text_x"])
+            and 1 <= box["text_height"] <= (72 if partial else 72 - box["text_y"])
+            and box["text_align"] in (0, 1, 2) and box["text_valign"] in (0, 1, 2)):
+        raise LayoutError("invalid_position")
     if "image_revision" in result and "image_url" not in result:
         raise LayoutError("invalid_image")
     if "image_url" in result:
@@ -143,7 +152,7 @@ def action(value):
 
 
 def key_config(value):
-    mapping(value, ("visual", "mode", "press", "release", "state"))
+    mapping(value, ("visual", "mode", "press", "release", "state", "navigation"))
     mode = value.get("mode", "managed")
     if mode not in ("managed", "automation"):
         raise LayoutError("invalid_mode")
@@ -151,16 +160,27 @@ def key_config(value):
               "press": action(value.get("press")), "release": action(value.get("release")), "state": None}
     if mode == "automation" and (result["press"] or result["release"]):
         raise LayoutError("competing_bindings")
+    if value.get("navigation") is not None:
+        nav = mapping(value["navigation"], ("kind", "target"), ("kind", "target"))
+        if nav["kind"] not in ("page", "overlay", "momentary") or not valid_name(nav["target"]):
+            raise LayoutError("invalid_navigation")
+        if mode != "managed" or result["press"] or result["release"]:
+            raise LayoutError("competing_bindings")
+        result["navigation"] = dict(nav)
     if (rule := value.get("state")) is not None:
         mapping(rule, ("entity", "on", "off", "unavailable"), ("entity",))
         result["state"] = {"entity": entity_ref(rule["entity"]),
                            **{state: visual(rule.get(state, {}), partial=True)
                               for state in ("on", "off", "unavailable")}}
+        for state in ("on", "off", "unavailable"):
+            visual({**result["visual"], **result["state"][state]})
     return result
 
 
 def validate_layout(value):
     bounded_json(value)
+    if isinstance(value, dict) and type(value.get("version")) is int and value["version"] == 2:
+        return validate_pages(value)
     mapping(value, ("version", "keys"), ("version", "keys"))
     if type(value["version"]) is not int or value["version"] != 1:
         raise LayoutError("unsupported_layout_version")
@@ -169,13 +189,95 @@ def validate_layout(value):
     return {"version": 1, "keys": [key_config(key) for key in value["keys"]]}
 
 
+def valid_name(value):
+    return isinstance(value, str) and re.fullmatch(r"[a-z0-9_]{1,32}", value)
+
+
+def validate_pages(value):
+    mapping(value, ("version", "pages", "overlays", "default_page"), ("pages", "default_page"))
+    if not isinstance(value["pages"], list) or not 1 <= len(value["pages"]) <= 8:
+        raise LayoutError("page_limit")
+    overlays = value.get("overlays", [])
+    if not isinstance(overlays, list) or len(overlays) > 4:
+        raise LayoutError("overlay_limit")
+    result = {"version": 2, "pages": [], "overlays": [], "default_page": value["default_page"]}
+    for kind, records in (("pages", value["pages"]), ("overlays", overlays)):
+        ids = set()
+        for item in records:
+            mapping(item, ("id", "name", "keys"), ("id", "name", "keys"))
+            if (not valid_name(item["id"]) or item["id"] in ids or not isinstance(item["name"], str)
+                    or not 1 <= len(item["name"]) <= 48 or any(ord(c) < 32 for c in item["name"])):
+                raise LayoutError("invalid_page")
+            ids.add(item["id"])
+            if kind == "pages":
+                if not isinstance(item["keys"], list) or len(item["keys"]) != KEY_COUNT:
+                    raise LayoutError("expected_15_keys")
+                keys = [key_config(key) for key in item["keys"]]
+            else:
+                if (not isinstance(item["keys"], dict) or
+                        any(key not in {str(k) for k in range(KEY_COUNT)} for key in item["keys"])):
+                    raise LayoutError("invalid_overlay")
+                keys = {key: key_config(tile) if tile is not None else None for key, tile in item["keys"].items()}
+            result[kind].append({"id": item["id"], "name": item["name"], "keys": keys})
+    pages = {page["id"] for page in result["pages"]}
+    layers = {layer["id"] for layer in result["overlays"]}
+    if not valid_name(result["default_page"]) or result["default_page"] not in pages:
+        raise LayoutError("invalid_page")
+    for key in all_keys(result):
+        if nav := key.get("navigation"):
+            if nav["target"] not in (pages if nav["kind"] == "page" else layers):
+                raise LayoutError("invalid_navigation_target")
+    return result
+
+
+def all_keys(layout):
+    if layout["version"] == 1:
+        yield from layout["keys"]
+    else:
+        for page in layout["pages"]:
+            yield from page["keys"]
+        for layer in layout["overlays"]:
+            yield from (key for key in layer["keys"].values() if key is not None)
+
+
+def resolve_keys(layout, page=None, overlay=None):
+    if layout["version"] == 1:
+        return layout["keys"]
+    page = page or layout["default_page"]
+    selected = next((item for item in layout["pages"] if item["id"] == page), None)
+    if selected is None:
+        raise LayoutError("invalid_page")
+    if not overlay:
+        return selected["keys"]
+    keys = list(selected["keys"])
+    if overlay:
+        layer = next((item for item in layout["overlays"] if item["id"] == overlay), None)
+        if layer is None:
+            raise LayoutError("invalid_overlay")
+        for index, config in layer["keys"].items():
+            keys[int(index)] = config if config is not None else key_config({})
+    return keys
+
+
+def require_capabilities(layout, capabilities):
+    if layout["version"] == 2 and capabilities.get("input_correlation") != "pull_context_v2":
+        raise LayoutError("firmware_upgrade_required")
+    for key in all_keys(layout):
+        if key.get("navigation") and layout["version"] != 2:
+            raise LayoutError("navigation_requires_pages")
+        for appearance in (key["visual"], *((key["state"] or {}).get(s, {}) for s in ("on", "off", "unavailable"))):
+            if not capabilities.get("positioning") and any(
+                    field in appearance and appearance[field] != default for field, default in POSITION_DEFAULTS.items()):
+                raise LayoutError("firmware_upgrade_required")
+
+
 def empty_layout():
     return validate_layout({"version": 1, "keys": [{} for _ in range(KEY_COUNT)]})
 
 
 def references(layout):
     """Yield mutable references for registry pinning and rename-aware export."""
-    for key in layout["keys"]:
+    for key in all_keys(layout):
         if key["state"]:
             yield key["state"]["entity"]
         for edge in ("press", "release"):

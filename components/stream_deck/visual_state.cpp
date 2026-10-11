@@ -100,16 +100,29 @@ Error decode_label(std::string_view text, std::array<uint32_t, MAX_LABEL_CODEPOI
 bool State::operator==(const State &other) const {
   return image_url == other.image_url && image_revision == other.image_revision && text == other.text &&
          text_color == other.text_color && outline_color == other.outline_color &&
-         background_color == other.background_color && font == other.font && fit == other.fit;
+         background_color == other.background_color && font == other.font && fit == other.fit &&
+         text_x == other.text_x && text_y == other.text_y && text_width == other.text_width &&
+         text_height == other.text_height && text_align == other.text_align && text_valign == other.text_valign;
 }
 
 Error apply_patch(const Command &cmd, const State &base, State &result) {
-  if (cmd.fields <= 0 || (cmd.fields & ~ALL_FIELDS) != 0) return Error::INVALID_FIELDS;
+  if (cmd.fields <= 0 || (cmd.fields & ~(cmd.v2 ? V2_FIELDS : ALL_FIELDS)) != 0) return Error::INVALID_FIELDS;
+  if (cmd.context.size() > 32 || (cmd.v2 ? cmd.context.empty() : !cmd.context.empty())) return Error::INVALID_CONTEXT;
+  for (char c : cmd.context) if (!alnum(c)) return Error::INVALID_CONTEXT;
   // Even ignored placeholders have finite byte limits at the API boundary.
   if (cmd.image_url.size() > MAX_URL_BYTES || cmd.image_revision.size() > MAX_IMAGE_REVISION_BYTES ||
       cmd.text.size() > MAX_LABEL_BYTES || cmd.text_color.size() > 7 || cmd.outline_color.size() > 7 ||
       cmd.background_color.size() > 7 || cmd.fit.size() > 7) return Error::LIMIT_EXCEEDED;
   State candidate = base;
+  if (cmd.fields & POSITION) {
+    if (cmd.text_x < 0 || cmd.text_y < 0 || cmd.text_width < 24 || cmd.text_height < 1 ||
+        cmd.text_x > 48 || cmd.text_y > 71 || cmd.text_width > 72 - cmd.text_x ||
+        cmd.text_height > 72 - cmd.text_y || cmd.text_align < 0 || cmd.text_align > 2 ||
+        cmd.text_valign < 0 || cmd.text_valign > 2) return Error::INVALID_POSITION;
+    candidate.text_x = cmd.text_x; candidate.text_y = cmd.text_y;
+    candidate.text_width = cmd.text_width; candidate.text_height = cmd.text_height;
+    candidate.text_align = cmd.text_align; candidate.text_valign = cmd.text_valign;
+  }
   if (cmd.fields & IMAGE) {
     if (cmd.image_url.empty()) {
       if (!cmd.image_revision.empty()) return Error::INVALID_IMAGE_REVISION;
@@ -162,10 +175,13 @@ Submission Store::submit(const Command &cmd) {
   const auto error = apply_patch(cmd, slot.desired, state);
   if (error != Error::NONE) return reject(error);
   if (uint32_t(cmd.revision) == slot.status.revision) {
-    if (cmd.fields != slot.fields || !(state == slot.desired)) return reject(Error::REVISION_CONFLICT);
+    if (cmd.fields != slot.fields || !(state == slot.desired) || cmd.context != slot.context.view())
+      return reject(Error::REVISION_CONFLICT);
     return {true, slot.status.error, slot.status.phase, slot.status.revision};
   }
   slot.desired = state;
+  scheduler_.input_barrier();
+  slot.context.assign(cmd.context);
   slot.fields = cmd.fields;
   slot.status.revision = uint32_t(cmd.revision);
   slot.status.error = Error::NONE;
@@ -213,11 +229,18 @@ bool Store::finish(const RenderJob &job, const ImageRef &image) {
   auto &slot = slots_[job.key];
   if (slot.status.revision != job.revision) return false;
   if (!scheduler_.set_image(job.key, image)) return false;
+  slot.schedule_revision = scheduler_.revision(job.key);
   slot.rendered = slot.desired;
   slot.status.rendered_revision = job.revision;
   slot.status.phase = Phase::RENDERED;
   slot.status.error = Error::NONE;
   return true;
+}
+uint32_t Store::applied_revision(int key) const {
+  if (protocol::wire_key(key) < 0) return 0;
+  const auto &slot = slots_[key];
+  return slot.status.phase == Phase::RENDERED && scheduler_.applied(key, slot.schedule_revision)
+      ? slot.status.rendered_revision : 0;
 }
 bool Store::fail(const RenderJob &job, Error error) {
   if (!matches_active_(job)) return false;
@@ -255,6 +278,8 @@ const char *error_name(Error error) {
     case Error::UNSUPPORTED_ENCODING: return "unsupported_encoding";
     case Error::UNSUPPORTED_PNG: return "unsupported_png";
     case Error::CLOCK_NOT_READY: return "clock_not_ready";
+    case Error::INVALID_POSITION: return "invalid_position";
+    case Error::INVALID_CONTEXT: return "invalid_context";
   }
   return "unknown";
 }

@@ -12,6 +12,9 @@ export function renderPreview(visual, source, fonts) {
     return [Math.max(max, pen) - min, min];
   };
   const lines = [];
+  const bx = visual.text_x ?? 3, by = visual.text_y ?? 3;
+  const bw = Math.max(24, visual.text_width ?? 66), bh = visual.text_height ?? 66;
+  const align = visual.text_align ?? 1, valign = visual.text_valign ?? 2;
   let position = 0;
   while (position < points.length && lines.length < 2) {
     const line = []; lines.push(line);
@@ -19,7 +22,7 @@ export function renderPreview(visual, source, fonts) {
     const start = position; let lastSpace = points.length;
     while (position < points.length && points[position] !== 10) {
       line.push(points[position]);
-      if (bounds(line)[0] > 66) {line.pop(); break;}
+      if (bounds(line)[0] > bw) {line.pop(); break;}
       if (points[position] === 32) lastSpace = position;
       position++;
     }
@@ -30,18 +33,19 @@ export function renderPreview(visual, source, fonts) {
   while (points[position] === 32 || points[position] === 10) position++;
   if (position < points.length) {
     const last = lines.at(-1);
-    while (bounds([...last, 46, 46, 46])[0] > 66) last.pop();
+    while (last.length && bounds([...last, 46, 46, 46])[0] > bw) last.pop();
     last.push(46, 46, 46);
   }
   for (let row = 0; row < lines.length; row++) {
     const [width, minimum] = bounds(lines[row]);
-    let x = Math.trunc((72 - width) / 2) - minimum;
-    const y = 69 - lines.length * font.height + row * font.height;
+    let x = bx - minimum + (align === 0 ? 0 : align === 1 ? Math.trunc((bw - width) / 2) : bw - width);
+    const spare = bh - lines.length * font.height;
+    const y = by + (valign === 0 ? 0 : valign === 1 ? Math.trunc(spare / 2) : spare) + row * font.height;
     for (const point of lines[row]) {
       const [, offset, advance, w, h, ox, oy] = glyphs.get(point);
       for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) {
         const px = x + ox + i, py = y + oy + j, n = j * w + i;
-        if (px >= 0 && px < 72 && py >= 0 && py < 72) {
+        if (px >= bx && px < bx + bw && py >= by && py < by + bh && px >= 0 && px < 72 && py >= 0 && py < 72) {
           const value = ((font.bits[offset + (n >> 1)] >> (n % 2 ? 0 : 4)) & 15) * 17;
           ink[py * 72 + px] = Math.max(ink[py * 72 + px], value);
         }

@@ -138,7 +138,11 @@ def stage():
     # Reuse action definitions and their C++ lambdas byte-for-byte. Only the
     # ESP32-specific stream_deck schema entry is replaced by the host adapter.
     package = (ROOT / "examples/packages/runtime_api.yaml").read_text()
-    private_write(host / "runtime_api.yaml", "api:\n" + package.split("\napi:\n", 1)[1])
+    v2 = (ROOT / "examples/packages/runtime_api_v2.yaml").read_text()
+    private_write(host / "runtime_api.yaml", "api:\n" + package.split("\napi:\n", 1)[1]
+                  + v2.split("  actions:\n", 1)[1])
+    for name in ("runtime_v2.h", "origin_provisioning.h"):
+        shutil.copy2(production / name, component)
     private_write(host / "secrets.yaml", yaml.safe_dump({"api_encryption_key": credentials()["api_encryption_key"]}))
     config = LAB / "config"
     config.mkdir(exist_ok=True)

@@ -158,6 +158,11 @@ void pipeline_tests() {
   auto retained_label = command(14, 4); retained_label.fields = v::TEXT; retained_label.text = "Cached";
   assert(store.submit(retained_label).accepted); settle(pipeline, now);
   assert(fetch.calls == calls);  // Eviction never removed this key's retained background.
+  auto positioned = retained_label;
+  positioned.revision = 5; positioned.fields = v::POSITION; positioned.v2 = true;
+  positioned.context = "positioned"; positioned.text_align = 0; positioned.text_valign = 0;
+  assert(store.submit(positioned).accepted); settle(pipeline, now);
+  assert(fetch.calls == calls && store.status(14)->rendered_revision == 5);
   const auto last_rendered = store.status(0)->rendered_revision;
   auto invalid = command(0, 25, "bad");
   assert(store.submit(invalid).accepted); pipeline.loop(now++);
@@ -283,7 +288,7 @@ void api_tests() {
   };
   std::map<std::string, Value> values;
   api.get(session, 0).write(Object{values});
-  assert(values.size() == 8 && std::get<std::string>(values["session"]) == session);
+  assert(values.size() == 11 && std::get<std::string>(values["session"]) == session);
   assert(std::get<int32_t>(values["key"]) == 0 && std::get<int32_t>(values["request_revision"]) == 0);
   assert(std::get<bool>(values["accepted"]) && std::get<uint32_t>(values["revision"]) == 6);
   assert(std::get<uint32_t>(values["rendered_revision"]) == 6);

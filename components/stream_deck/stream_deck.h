@@ -6,11 +6,13 @@
 #include "visual_api.h"
 #include "esphome/core/automation.h"
 #include "esphome/core/component.h"
+#include "esphome/core/hal.h"
 #include "esphome/components/binary_sensor/binary_sensor.h"
 #include "esphome/components/number/number.h"
 #include "esphome/components/sensor/sensor.h"
 #ifdef USE_STREAM_DECK_RUNTIME_API
 #include "esphome/components/text_sensor/text_sensor.h"
+#include "esphome/core/preferences.h"
 #endif
 #ifdef USE_STREAM_DECK_KEY_EVENTS
 #include "esphome/components/event/event.h"
@@ -49,6 +51,23 @@ class StreamDeck : public Component {
   visual::Api visual_api() {
     return {visual_session(), assets_ ? &assets_->store : nullptr, assets_ ? &assets_->pipeline : nullptr};
   }
+  template<typename Object> void capabilities(Object root) {
+    visual::capabilities(root, asset_policy_);
+    root["session"] = visual_session();
+    root["origin_probe"] = assets_ ? assets_->provisioning.status() : "unavailable";
+  }
+  template<typename Object> void read_inputs(std::string_view session, std::string_view reader, int32_t ack, Object root) {
+    root["session"] = visual_session(); root["accepted"] = false;
+    if (!assets_ || !assets_->store.matches_session(session)) { root["error"] = "wrong_session"; return; }
+    assets_->inputs.read(reader, ack, millis(), root);
+  }
+  template<typename Object> void provision_origins(std::string_view session, std::string_view origins,
+                                                  std::string_view url, Object root) {
+    root["session"] = visual_session();
+    const char *error = !assets_ || !assets_->store.matches_session(session) ? "wrong_session" :
+        assets_->provisioning.begin(origins, url, millis());
+    root["accepted"] = std::string_view(error) == "none"; root["error"] = error;
+  }
 #endif
 #ifdef USE_STREAM_DECK_ASSETS
   void add_asset_origin(const std::string &origin) { asset_policy_.add(origin); }
@@ -80,6 +99,7 @@ class StreamDeck : public Component {
 #endif
 #ifdef USE_STREAM_DECK_RUNTIME_API
   text_sensor::TextSensor *session_sensor_{nullptr};
+  ESPPreferenceObject origin_preferences_;
 #endif
 #ifdef USE_STREAM_DECK_ASSETS
   assets::OriginPolicy asset_policy_;

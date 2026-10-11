@@ -192,6 +192,7 @@ class HomeAssistantTests(unittest.TestCase):
         class Loader(yaml.SafeLoader):
             pass
         Loader.add_constructor("!lambda", lambda loader, node: loader.construct_scalar(node))
+        Loader.add_constructor("!include", lambda loader, node: loader.construct_scalar(node))
         package = yaml.load((ROOT / "examples/packages/runtime_api.yaml").read_text(), Loader=Loader)
         actions = {item["action"]: item for item in package["api"]["actions"]}
         self.assertEqual(set(actions), {"set_key_visual", "clear_key_visual", "refresh_key_image", "get_key_visual_status"})

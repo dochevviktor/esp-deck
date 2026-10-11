@@ -317,6 +317,13 @@ void snapshots(const std::filesystem::path &directory, bool record) {
   save("unsupported", state);
   state.text.assign("Desk"); state.text_color = 0xffdc40; state.outline_color = 0;
   save("combined", state, {rgb.data(), rgb.size(), 216, 72, 72, r::PixelFormat::RGB});
+  state.text.assign("Positioned label wraps"); state.text_color = 0xffffff;
+  state.text_x = 24; state.text_y = 12; state.text_width = 48; state.text_height = 36;
+  for (uint8_t align = 0; align < 3; ++align) for (uint8_t valign = 0; valign < 3; ++valign) {
+    state.text_align = align; state.text_valign = valign;
+    const auto name = "position_" + std::to_string(align) + "_" + std::to_string(valign);
+    save(name.c_str(), state);
+  }
 }
 
 int main(int argc, char **argv) {

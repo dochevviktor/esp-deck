@@ -14,7 +14,7 @@ from homeassistant.core import SupportsResponse
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import device_registry as dr, entity_registry as er
 
-from .const import KEY_COUNT, MAX_REVISION, SIGNATURES
+from .const import KEY_COUNT, MAX_REVISION, SIGNATURES, V2_SIGNATURES
 from .model import LayoutError, references
 
 
@@ -108,7 +108,10 @@ class Adapter:
         if entry.entry_id != self.data["esphome_entry_id"]:
             raise AdapterError("device_changed")
         actions = {}
-        for name, signature in SIGNATURES.items():
+        signatures = dict(SIGNATURES)
+        if any(service.name in V2_SIGNATURES for service in runtime.services.values()):
+            signatures.update(V2_SIGNATURES)
+        for name, signature in signatures.items():
             matches = [service for service in runtime.services.values() if service.name == name]
             if len(matches) != 1:
                 raise AdapterError("incompatible_firmware")
@@ -140,6 +143,9 @@ class Adapter:
         return ResolvedDeck(state.state, session_entity.entity_id, events, actions)
 
     async def call(self, deck, operation, key, **values):
+        return check_response(await self.raw_call(deck, operation, session=deck.session, key=key, **values), deck.session, key)
+
+    async def raw_call(self, deck, operation, **values):
         # Recheck connectivity/names before every outbound request; no second client.
         current = self.resolve()
         if current.session != deck.session or current.actions != deck.actions:
@@ -147,13 +153,38 @@ class Adapter:
         try:
             async with asyncio.timeout(10):
                 result = await self.hass.services.async_call("esphome", deck.actions[operation],
-                    {"session": deck.session, "key": key, **values}, blocking=True, return_response=True)
+                    values, blocking=True, return_response=True)
         except (HomeAssistantError, TimeoutError) as err:
             raise AdapterError("native_action_failed") from err
-        return check_response(result, deck.session, key)
+        if not isinstance(result, dict):
+            raise AdapterError("invalid_native_response")
+        return result
+
+    async def capabilities(self, deck):
+        if "get_deck_capabilities" not in deck.actions:
+            return {"protocol_version": 1, "positioning": False, "origin_provisioning": False}
+        result = await self.raw_call(deck, "get_deck_capabilities")
+        if (result.get("session") != deck.session or result.get("protocol_version") != 2
+                or result.get("model") != "0FD9:0060" or result.get("keys") != 15
+                or result.get("width") != 72 or result.get("height") != 72
+                or result.get("fonts") != [12, 16, 20] or result.get("visual_fields") != 255
+                or result.get("input_correlation") != "pull_context_v2"
+                or result.get("input_lease_ms") != 1000
+                or type(result.get("positioning")) is not bool or type(result.get("origin_provisioning")) is not bool
+                or not isinstance(result.get("origins"), (list, type(None)))
+                or len(result.get("origins") or []) > 4):
+            raise AdapterError("incompatible_capabilities")
+        from .artwork import origin
+        try:
+            for address in result.get("origins") or []:
+                origin(address, max_bytes=272)
+        except (LayoutError, TypeError):
+            raise AdapterError("incompatible_capabilities") from None
+        return result
 
     async def probe(self):
         deck = self.resolve()
+        await self.capabilities(deck)
         response = await self.call(deck, "get_key_visual_status", 0)
         if not response["accepted"]:
             raise AdapterError("incompatible_firmware")
@@ -169,7 +200,14 @@ def check_response(value, session, key):
             or not isinstance(value.get("error"), str)
             or not re.fullmatch(r"[a-z_]{1,48}", value["error"])):
         raise AdapterError("invalid_native_response")
-    return {field: value[field] for field in ("accepted", "revision", "rendered_revision", "phase", "error")}
+    result = {field: value[field] for field in ("accepted", "revision", "rendered_revision", "phase", "error")}
+    if "applied_revision" in value:
+        if (type(value["applied_revision"]) is not int or not 0 <= value["applied_revision"] <= MAX_REVISION
+                or type(value.get("usb_generation")) is not int or not 0 <= value["usb_generation"] <= 0xffffffff
+                or not isinstance(value.get("context"), str) or not re.fullmatch(r"[a-zA-Z0-9]{0,32}", value["context"])):
+            raise AdapterError("invalid_native_response")
+        result.update({field: value[field] for field in ("applied_revision", "usb_generation", "context")})
+    return result
 
 
 def pin_references(hass, layout):

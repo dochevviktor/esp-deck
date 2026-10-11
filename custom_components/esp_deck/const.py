@@ -18,6 +18,8 @@ DEFAULT_VISUAL = {
     "text_color": "#FFFFFF", "outline_color": "#000000",
     "background_color": "#000000", "fit": "contain",
 }
+POSITION_DEFAULTS = {"text_x": 3, "text_y": 3, "text_width": 66, "text_height": 66,
+                     "text_align": 1, "text_valign": 2}
 # Native argument types are checked against discovery, not inferred from names.
 SIGNATURES = {
     "get_key_visual_status": {"session": "STRING", "key": "INT"},
@@ -31,4 +33,11 @@ SIGNATURES = {
     "refresh_key_image": {
         "session": "STRING", "key": "INT", "revision": "INT", "image_revision": "STRING",
     },
+}
+V2_SIGNATURES = {
+    "get_deck_capabilities": {},
+    "set_key_visual_v2": {**SIGNATURES["set_key_visual"], "binding_context": "STRING",
+                          **{name: "INT" for name in POSITION_DEFAULTS}},
+    "read_deck_inputs": {"session": "STRING", "reader": "STRING", "ack": "INT"},
+    "provision_asset_origins": {"session": "STRING", "origins": "STRING", "test_url": "STRING"},
 }

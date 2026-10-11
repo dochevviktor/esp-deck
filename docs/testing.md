@@ -1,5 +1,95 @@
 # Validation and remaining hardware gates
 
+## Runtime capabilities, positioning and safe pages, 2026-10-11 (P8)
+
+Implemented: runtime v2 capabilities and separate fixed-signature actions;
+bounded text boxes/alignment with unchanged default pixels/cache identities;
+explicit origin provisioning through the existing encrypted API and HTTP worker;
+and a persisted, validated finite origin record. HA 0.8 stores up to eight pages
+and four sparse overlays, resolves only the current 15 keys, and exposes a normal
+page select plus editor navigation/modifier controls. v1 remains compatible.
+See [the contract, input ordering audit and usage](runtime-v2.md).
+
+Input safety uses applied request revisions, USB generations and capture epochs,
+with captured press/release binding contexts. A bounded native action-response
+channel polls at approximately 100 ms, resynchronizing on disconnect, overflow,
+lost acknowledgements or one-second lease/response expiry. It does not infer
+display completion from `rendered` or order legacy event entities against status.
+Already accepted actions retain their context across simultaneous navigation;
+transitions/failures reject new presses on affected keys. Whole-deck atomicity
+and physical display readback are not claimed.
+
+Compiled: all seven supported firmware examples using temporary synthetic secrets
+on unchanged ESPHome 2026.9.0 / ESP-IDF 5.5.5 pins. The final example 05 validation
+reports 115,011 bytes static RAM and 1,093,983 bytes flash; these compiler figures
+are not runtime heap/PSRAM measurements. The final test-only host deck and bundled
+frontend also compile. The installed lab integration matches the source tree.
+No validation image was uploaded.
+
+Unit-tested: 60 Python unittest cases, including nine native executables; five
+frontend tests with twenty exact renderer/preview fixtures; all pinned upstream,
+font, rendering and PNG fixture checks. New tests cover applied versus rendered,
+same-image context changes, stale IN epochs/output generations, retained release
+pairs, failed tiles, lost acknowledgements/lease expiry, overflow, bounded origins,
+decode/clock failures, cancellation drain and position limits. Position-only
+updates reuse retained artwork without another fetch. The optional ASan/UBSan
+run failed at link time because this host lacks `/usr/lib64/libasan.so.8.0.0`;
+none of those sanitizer executables ran. Normal tests pass; no sanitizer pass or
+remote CI result is claimed.
+
+HA-engine-tested: 58 pytest cases against real HA 2026.10.1 with mocked native
+actions. New cases cover page/overlay bounds, inherit/clear precedence, inactive
+artwork references, storage/export/import, v1 capability rejection, captured
+release bindings, rapid changes, momentary ownership and simultaneous accepted
+press/navigation delivery. Existing authorization, migration, storage failure,
+coalescing, registry rename and unload coverage remains passing.
+
+HA-container/browser-tested: 24 scenarios against real HA 2026.10.1 and the
+encrypted virtual deck. Five P8 scenarios verify capability discovery, actual
+device-side probe-route fetching and failed-address retention, finite origin
+persistence across virtual reboot, same-pixel/different-binding changes without
+new USB image uploads, captured releases, concurrent navigation, failed and
+transitioning keys, rapid pages, reconnect during output, held modifier release,
+FIFO overflow and overlay reset. Chromium exercises page creation/naming,
+positioning, inherit/clear, navigation, Apply and operation after closing the
+editor. The v1 regression starts from an explicit one-page layout so the complete
+suite is repeatable after P8 has left a multi-page demo in the private lab.
+
+Hardware-verified: none newly for P8. The ESP was not flashed or contacted;
+example 04 remains the bench baseline. ESP-side fetch/TLS/NVS, physical text and
+display/input timing, electrical, first-click, repeated-recovery and soak gates
+remain pending in [hardware.md](hardware.md). The lab's native renderer and
+simulated USB completion do not waive them. P9 is next; HACS/Hassfest/distribution
+remain separate unfinished work.
+
+Commands run:
+
+```sh
+.venv/bin/python -m unittest discover -s tests -v
+.venv/bin/python tools/check_firmware.py --compile
+.venv/bin/python tools/check_firmware.py --compile --example 05_home_assistant_runtime
+npm run build --prefix frontend
+npm run check --prefix frontend
+npm test --prefix frontend
+.venv/bin/python tools/generate_reference_fixtures.py --check
+.venv/bin/python tools/generate_render_fonts.py --check
+.venv/bin/python tools/generate_render_fixtures.py --check
+.venv/bin/python tools/generate_png_fixtures.py --check
+.venv/bin/python tools/ha_lab.py up --fresh
+.venv/bin/python tools/ha_lab.py down
+.venv/bin/python tools/ha_lab.py up
+.venv/bin/python tools/ha_lab.py test
+SANITIZE=1 .venv/bin/python -m unittest discover -s tests -p 'test_native.py' -v
+git diff --check
+```
+
+The sanitizer command has the environment limitation described above. The last
+full ordinary suite, HA-engine and 24 live scenarios passed with no skips.
+Raw logs, JUnit, credentials, screenshots and binaries remain private/ignored;
+[sanitized P8 acceptance metadata](../tests/ha_lab/acceptance-p8-2026-10-11.json)
+records artifact/version identities and results. The lab remains running with a
+synthetic page-navigation example. Earlier acceptance records below are historical.
+
 ## Visual editor and artwork library, 2026-10-11 (P7)
 
 Implemented: ESP Deck 0.7.0's bundled admin panel, 5×3 select/move/swap/copy/clear

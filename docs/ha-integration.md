@@ -1,4 +1,11 @@
-# ESP Deck Home Assistant integration (P6/P7)
+# ESP Deck Home Assistant integration (P6–P8)
+
+Version 0.8 negotiates [runtime v2 capabilities](runtime-v2.md), verifies and
+provisions the HA artwork address, supports positioned text and resolves bounded
+pages/overlays in HA. A normal HA select entity chooses the active page. The
+backend uses the correlated native input channel on v2 and retains the original
+v1 event workflow for older runtime firmware. Setup and all operations reuse
+HA's existing ESPHome connection; no second permanent client is created.
 
 `custom_components/esp_deck/` is a locally installable integration for HA
 **2026.10.1 or newer**, developed against 2026.10.1. Earlier HA versions are not

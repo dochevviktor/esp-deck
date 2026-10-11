@@ -1,0 +1,78 @@
+{
+  "stage": "P8",
+  "base_commit": "bfa900db789eb3f54487aeab379e55df1124168e",
+  "integration_version": "0.8.0",
+  "tested_at_utc": "2026-10-11T17:14:38Z",
+  "images": {
+    "home_assistant": {
+      "tag": "2026.10.1",
+      "image": "ghcr.io/home-assistant/home-assistant:2026.10.1@sha256:130241f28d01fa80dfa3b44f7d89781c188d8642ecab9024f079f19f9f82baa0"
+    },
+    "esphome_host": {
+      "tag": "2026.9.0",
+      "image": "ghcr.io/esphome/esphome:2026.9.0@sha256:f6509fcf917a732fd80058567b237d5b9286b9dc6c8dde1b655fbb69ebd600ad"
+    }
+  },
+  "ha_packages": {
+    "python": "3.14.6",
+    "homeassistant": "2026.10.1",
+    "home-assistant-frontend": "20260930.3",
+    "aioesphomeapi": "46.6.0",
+    "aiohttp": "3.14.4"
+  },
+  "deck_packages": {
+    "python": "3.14.6",
+    "esphome": "2026.9.0",
+    "aioesphomeapi": "46.3.0",
+    "platformio": "6.1.19"
+  },
+  "deck_compiler": "14.2.0",
+  "virtual_binary_sha256": "63ae6b17e78f23f8cfe3df59c23dafa2de528c0a5f4c444d36d6683c47c9ff33",
+  "integration_tree_sha256": "fd2d0c84ec57815a99dce455b1efc4eb59b8bf0ec98e4da53a8c997e9a347dec",
+  "integration_tree_hash_method": "rg --files custom_components/esp_deck | sort | xargs sha256sum | sha256sum",
+  "firmware_source_tree_sha256": "65ce582b653d6b104a3c054701b1792052d4ee4a7840bf3fc2685bde1ea75f16",
+  "firmware_tree_hash_method": "rg --files components/stream_deck | sort | xargs sha256sum | sha256sum",
+  "frontend": {
+    "node": "24.13.0",
+    "npm": "11.6.2",
+    "esbuild": "0.25.12",
+    "bundle_sha256": "289980e757674b17e40efcf8fd9fabb23af82c031fbca8edc9b28e47dc1edb55",
+    "tests": 5,
+    "native_renderer_pixel_fixtures": 20
+  },
+  "host_unittest": {
+    "passed": 60,
+    "native_executables": 9,
+    "normalized_production_decoder_cases": 10
+  },
+  "sanitizers": {
+    "status": "blocked_at_link",
+    "reason": "Host GCC cannot find /usr/lib64/libasan.so.8.0.0; no sanitized executable ran."
+  },
+  "firmware": {
+    "synthetic_compilations_passed": 7,
+    "final_runtime_example_recompiled": true,
+    "runtime_static_ram_bytes": 115011,
+    "runtime_flash_bytes": 1093983,
+    "deployments": 0
+  },
+  "ha_engine_mock_native": {
+    "tests": 58,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "real_ha_native_api_browser": {
+    "tests": 24,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "fresh_synthetic_lab": "passed; previous private lab archived",
+  "direct_integration_installation": "passed",
+  "source_matches_installed_integration": true,
+  "hardware_verified": false,
+  "hacs_installed": false,
+  "remote_ci_run": false,
+  "notes": "v1 regression and v2 capabilities, origin fetch/failure/persistence, positions, captured input contexts, concurrent navigation, rapid pages, failed tiles, held modifiers/overflow/reconnect and editor tests passed. Only current resolved tiles reside on the virtual device. No credentials, raw logs, user artwork or build binaries are included. P9 distribution and physical gates remain pending."
+}

@@ -61,6 +61,7 @@ void USBTransport::input_done_(usb_transfer_t *transfer) {
   auto *self = static_cast<USBTransport *>(transfer->context);
   self->input_pending_ = false;
   self->input_done_flag_ = true;
+  self->captured_epoch_ = self->input_epoch_ ? *self->input_epoch_ : 0;
   if (transfer->status == USB_TRANSFER_STATUS_NO_DEVICE) self->gone_ = true;
 }
 void USBTransport::output_done_(usb_transfer_t *transfer) {
@@ -191,7 +192,7 @@ void USBTransport::handle_input_() {
     malformed_inputs_++;
     return;
   }
-  input_queue_.push(generation_, mask);
+  input_queue_.push(generation_, mask, captured_epoch_);
 }
 
 void USBTransport::dump_status() const {

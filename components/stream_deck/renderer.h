@@ -47,7 +47,8 @@ class Renderer {
 
  private:
   struct Placement { const Glyph *glyph; int x, y; };
-  bool layout_(std::string_view text);
+  bool layout_(const visual::State &state);
+  uint8_t clip_x_{3}, clip_y_{3}, clip_width_{66}, clip_height_{66};
   void background_row_();
   void mask_row_();
   void composite_row_();

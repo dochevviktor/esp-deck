@@ -30,6 +30,15 @@ class Scheduler {
   bool next(Job &job);
   bool complete(const Job &job);
   bool initialized() const { return attached_ && !reset_pending_ && applied_brightness_ >= 0; }
+  uint64_t revision(int key) const { return revisions_[key]; }
+  bool applied(int key, uint64_t revision) const {
+    return attached_ && applied_[key] && applied_revisions_[key] == revision && revisions_[key] == revision;
+  }
+  uint32_t generation() const { return attached_ ? generation_ : 0; }
+  // Sampled by the USB IN completion callback, before main-loop publication.
+  const uint32_t *input_epoch_address() const { return &input_epoch_; }
+  uint32_t input_epoch() const { return input_epoch_; }
+  void input_barrier() { ++input_epoch_; }
 
  protected:
   std::array<ImageRef, protocol::KEY_COUNT> desired_{};
@@ -38,16 +47,17 @@ class Scheduler {
   std::array<uint64_t, protocol::KEY_COUNT> applied_revisions_{};
   Job active_{};
   uint32_t generation_{0}, sequence_{0};
+  uint32_t input_epoch_{1};
   uint8_t brightness_{30}, cursor_{0};
   int applied_brightness_{-1};
   bool attached_{false}, reset_pending_{true}, busy_{false}, page2_pending_{false};
 };
 
-struct InputReport { uint32_t generation; uint16_t mask; bool resync; };
+struct InputReport { uint32_t generation; uint16_t mask; bool resync; uint32_t epoch{0}; };
 class InputQueue {
  public:
   static constexpr size_t CAPACITY = 32;
-  void push(uint32_t generation, uint16_t mask);
+  void push(uint32_t generation, uint16_t mask, uint32_t epoch = 0);
   bool pop(InputReport &report);
   void clear() { head_ = count_ = 0; }
   uint32_t overflows() const { return overflows_; }

@@ -550,6 +550,8 @@ async def test_admin_boundary_export_import_and_redacted_diagnostics(deck):
             data.update(origin="http://ha:8123")
         elif service == "artwork_delete":
             data.update(asset_id="a" * 64)
+        elif service == "select_page":
+            data.update(page="main")
         with pytest.raises(Unauthorized):
             await deck.hass.services.async_call("esp_deck", service, data,
                 blocking=True, return_response=True, context=Context(user_id=user.id))

@@ -4,7 +4,7 @@ from pathlib import Path
 import subprocess
 
 ROOT = Path(__file__).resolve().parents[1]
-def build_assets():
+def build_assets(test_name="test_assets"):
     build = ROOT / ".build"; build.mkdir(exist_ok=True)
     sanitize = ["-fsanitize=address,undefined", "-fno-omit-frame-pointer"] if os.getenv("SANITIZE") == "1" else []
     obj = build / "asset_inflate.o"
@@ -12,9 +12,9 @@ def build_assets():
                     "components/stream_deck/asset_inflate.c", "-o", str(obj)], cwd=ROOT, check=True)
     sources = ["asset_png.cpp", "asset_policy.cpp", "asset_pipeline.cpp", "runtime_image.cpp", "protocol.cpp",
                "visual_state.cpp", "visual_api.cpp", "scheduler.cpp", "renderer.cpp", "render_font.cpp", "render_font_data.cpp"]
-    binary = build / "test_assets"
+    binary = build / test_name
     subprocess.run(["g++", "-std=c++17", "-Wall", "-Wextra", "-Werror", "-g", *sanitize,
-                    "-Icomponents/stream_deck", "tests/native/test_assets.cpp",
+                    "-Icomponents/stream_deck", f"tests/native/{test_name}.cpp",
                     *("components/stream_deck/" + name for name in sources), str(obj), "-o", str(binary)], cwd=ROOT, check=True)
     return binary
 
