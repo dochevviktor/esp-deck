@@ -35,10 +35,11 @@ descriptor/FIFO constraints and the new example's HTTP/TLS settings; CI includes
 example 05. Remote CI was not executed here.
 
 Hardware-verified: **none for P4**. No upload, live HA server test or device asset
-request occurred. Example 04 remains installed. P5 must establish HA version/
-response support, a reachable PNG origin, deployment readiness and end-to-end
-rendering/input/reconnection. First-click, electrical, heap/timing and repeated
-recovery gates remain open. Native assertions and warnings-as-errors were used;
+request occurred. Example 04 remains installed. The extended plan assigns the
+HA lab/integration/editor to P5–P8 and physical acceptance to P9. Before device
+tests, establish HA version/response support, a reachable PNG origin and deployment
+readiness. First-click, electrical, heap/timing and repeated recovery gates
+remain open. Native assertions and warnings-as-errors were used;
 no local ASan/UBSan run is claimed.
 
 Commands run successfully:

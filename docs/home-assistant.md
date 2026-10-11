@@ -7,10 +7,16 @@ Changes within the supported styles and configured asset origins need no build
 or OTA. Example 04 remains the installed bench baseline: P4 has been compiled
 and host-tested, but has not been deployed or tested with a live HA server.
 
+This is the existing P4 manual setup guide. The [extended plan](implementation-plan.md)
+adds a Podman test lab and a HACS integration/editor that will replace routine
+YAML setup; those features are not implemented yet. See the
+[research and design](decisions/home-assistant-ux.md).
+
 ## Install the example after the deployment gate
 
 Before a device upload, establish the owner's HA version, actual reachable asset
-origin/PNG, and readiness to replace the bench firmware, as required by P5.
+origin/PNG, and readiness to replace the bench firmware, as required by P9.
+An isolated lab HA can be used instead of the owner's production instance.
 The HA installation must support ESPHome user-defined action responses and HA
 script `response_variable`; the actual installed HA version is still unknown.
 The firmware adapter compiles against pinned ESPHome 2026.9.0. See
@@ -182,13 +188,13 @@ example also guards restore, availability and attribute-only state transitions.
 No application queue saves presses for a future HA connection. Delivery during
 network interruptions is not guaranteed, and the existing first-report baseline
 can still consume the first physical click after USB attachment. That limitation
-is unchanged and must be qualified in P5.
+is unchanged and must be qualified in P9.
 
 Host tests execute the shipped HA templates/sequence logic with a fake API, test
 the production API/pipeline with fake HTTP, and drive production key publication
 with fake ESPHome entities. Firmware compiles the actual ESPHome action and event
 interfaces. These do not constitute a live HA integration or physical acceptance
-test. The [P5 checklist](implementation-plan.md#p5-verify-end-to-end-and-hand-off)
+test. The [P9 checklist](implementation-plan.md#p9-qualify-installation-physical-behavior-and-distribution)
 and [hardware gates](hardware.md) remain open.
 
 Sources: pinned local ESPHome `api/user_services.h`, `api/subscribe_state.cpp`

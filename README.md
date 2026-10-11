@@ -39,8 +39,12 @@ software implemented and tested: [the contract](docs/runtime-visuals.md), owned
 images, [rendering](docs/rendering.md), and [URL loading/cache](docs/asset-loading.md).
 Example 05 adds [HA runtime controls and layout replay](docs/home-assistant.md).
 Example 03 remains a fixed-entity demo; example 04 is the installed bench baseline.
-Next is P5's live HA/device validation. P3's actual asset URL/reachability check
-also remains pending. No firmware was uploaded for P0–P4.
+Next is P5's isolated Podman HA lab. The extended plan adds a HACS integration,
+visual editor, 72×72 image upload pipeline and bounded pages/layers in P6–P8;
+these are planned, not implemented. Physical qualification remains P9, and P3's
+actual ESP asset-reachability check is still pending. See the
+[HA/HACS architecture decision](docs/decisions/home-assistant-ux.md).
+No firmware was uploaded for P0–P4.
 
 ## Develop and test without a board
 

@@ -186,7 +186,7 @@ The worker stack and IDF network/TLS allocations are additional internal/SDK
 overhead, not charged as graphics. Existing internal free/minimum heap diagnostics
 remain available. USB DMA uses its existing dedicated internal buffers. These
 software caps are not measurements of network/USB coexistence or physical PSRAM
-reliability; P5 must collect those observations.
+reliability; P9 must collect those observations.
 
 `StreamDeck::submit_visual`, `visual_session`, and `visual_status` provide the
 typed bridge used by the probe and P4's native API adapter. New error

@@ -212,7 +212,7 @@ steps (initial target: at most 2 ms of local CPU work before yielding, still to
 be measured). Decoder source/workspace allocations
 are bounded before allocation. RGB canvas/BMP/cache data belongs in PSRAM;
 DMA USB transfers keep their existing internal allocations. Network/TLS/internal
-heap overhead is additional and must be measured in P5. P3 enforces these graphics
+heap overhead is additional and must be measured in P9. P3 enforces these graphics
 caps; network/decode/render coexistence still needs device measurement.
 
 ## Image ownership

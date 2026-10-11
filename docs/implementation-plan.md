@@ -12,9 +12,17 @@ synthetic secrets. The [asset loader](asset-loading.md) adds bounded asynchronou
 HTTP(S), strict PNG decoding and retained background caching to the
 [runtime contract](runtime-visuals.md) and [renderer](rendering.md).
 P4 adds [native API controls, key events and HA layout replay](home-assistant.md).
-P3's live asset-reachability check and P5's HA/device acceptance remain pending.
+P3's live asset-reachability check and HA/device acceptance remain pending.
 No firmware was deployed or newly hardware-verified; example 04 remains the
 installed bench baseline.
+
+Planning update, 2026-10-11: develop a HACS-distributed HA integration with a
+bundled visual editor, image uploads and later pages/layers. P5 now establishes
+an independent Podman HA lab; P6–P8 deliver the product experience; P9 retains
+the real-device and release gates from the original P5. The owner's production
+HA is not a prerequisite for software development/testing. This update is
+research/documentation only: no HA container or HACS code has been installed.
+Read [the research and architecture decision](decisions/home-assistant-ux.md).
 
 ## Resume in a fresh chat
 
@@ -23,25 +31,32 @@ installed bench baseline.
    [USB decision](decisions/usb-transport.md), and current
    [hardware evidence](hardware.md) and [test status](testing.md).
 2. Inspect the worktree and current sources; preserve local edits and secrets.
-3. Continue with P5 using [the runtime contract](runtime-visuals.md),
-   [P3's loader](asset-loading.md) and [P4's HA guide](home-assistant.md).
-   Example 05 and the HA scripts/automations are implemented and compiled.
-   Confirm HA version/action-response support, the real reachable PNG origin,
-   and readiness to replace the bench firmware before a requested deployment.
+3. Continue with P5's isolated HA lab and test-only virtual deck, using
+   [the architecture decision](decisions/home-assistant-ux.md),
+   [the runtime contract](runtime-visuals.md), [P3's loader](asset-loading.md)
+   and [P4's HA guide](home-assistant.md). Podman 5.8.4/rootless is available on
+   this Fedora 44 host; actual container startup remains to be tested. Use fresh
+   lab configuration and synthetic devices, not the owner's HA data or credentials.
 4. Keep example 04 as the known-working bench configuration. Runtime actions
    require example 05; they are not on the installed device yet. Do not hardcode
    HA entities into firmware, reset visual state on API logger connections, or
    repeat USB packet-size experiments for this stage.
+5. Build P6/P7 against the existing v1 API first. P8 adds capability-gated label
+   positioning, origin provisioning and safe page/layer switching. Before a
+   requested real-device upload in P9, verify device identity, preserve the bench
+   artifacts and establish the chosen HA asset address and deployment readiness.
 
 This plan supersedes the original handover's deferral of runtime text rendering
-and network-loaded artwork for this next stage. The fixed model/board, ESPHome
-native API, protocol independence, power rules and hardware gates still apply.
+and network-loaded artwork. The owner's P5 extension also brings a guided HA
+editor, upload normalization and bounded pages/layers into planned scope. The
+fixed model/board, ESPHome native API, protocol independence, power rules and
+hardware gates still apply.
 The original handover stays intact as the historical specification.
 
 ## Working baseline to preserve
 
-The repository baseline when this plan was written is `866bff7`; the implemented
-USB startup/decoder changes are in `181c54a`. Version pins are in
+The repository baseline when this plan was written is `866bff7`; P4 is now in
+`f862f54`. The USB startup/decoder changes are in `181c54a`. Version pins are in
 [versions.md](versions.md): ESPHome 2026.9.0, ESP-IDF 5.5.5, Python Stream Deck
 0.10.0 at `43666bb454186d1d7adeba9402f689449705d0b9`, and Pillow 12.3.0.
 
@@ -80,13 +95,14 @@ Preserve these established transport details:
 | Home Assistant owns | ESP32 owns |
 | --- | --- |
 | Key bindings, conditions, scripts, scenes and complex triggering | Physical key state and real press/release publication |
-| Image selection, label text and supported style values | Fetching/decoding, scaling, alpha composition and outlined text |
+| Image upload, 72×72 artwork preparation, labels and supported style values | Bounded fetching/decoding, final alpha composition and outlined text |
 | Visual updates based on actual entity state | Native BMP encoding, serialized USB output and desired-image restoration |
-| Authoritative layout and replay after restart | Bounded local caches and last successfully rendered tiles |
+| Authoritative layouts, bindings, active page/layer and replay after restart | Bounded current-key caches and last successfully rendered tiles |
 
 The existing key entities in `examples/packages/deck.yaml` already support
-HA-side automation bindings. Use binary-sensor transitions or deliberately added
-event entities; a Home Assistant `button` entity is an outbound command, not a
+HA-side automation bindings. P4's event entities publish real edges without an
+API subscription snapshot; prefer those for new bindings. A Home Assistant
+`button` entity is an outbound command, not a
 physical-key input. The new configuration must not also run the firmware-side
 `light.toggle` from example 03. Retain that example as a static demo, not the
 recommended rebinding workflow.
@@ -98,10 +114,35 @@ stage only with explicit decoder limits and tests. Bundle a small licensed font
 set with defined sizes and glyph coverage. Label changes use those fonts at
 runtime; arbitrary font uploads or unlimited character coverage are not promised.
 
-A drag-and-drop HA layout editor, direct file-upload UI, chunked image uploads,
-flash-persisted layouts, pages and animations are follow-on work. Other Stream
-Deck models, another host stack, MQTT and a permanent desktop bridge remain out
-of scope. A normal HA automation/script interface is sufficient for this stage.
+A guided editor, upload/crop/fit pipeline, key rearrangement and bounded pages/
+modifier layers are now planned in P6–P8. HA stores them; only the active 15 tiles
+need to reside on the ESP. Keep the P4 YAML interface for advanced use/testing,
+but routine setup must not require hand-editing it. Chunked image uploads to the
+ESP, flash-persisted layouts, animations, unlimited graphical layers/fonts, other
+models, a second host stack, MQTT and a permanent desktop bridge remain out of
+scope. A test-only virtual deck does not become a deployment dependency.
+
+## Intended user experience and implementation order
+
+After initial compatible firmware/Wi-Fi setup: install one HACS integration,
+select the ESPHome deck, open a 5×3 editor, choose a key's HA binding and appearance,
+upload/crop an image, and Apply. Provide presets for common entity states and an
+advanced route to HA scripts/automations. Revisions, key-index plumbing, asset
+URLs and replay are backend responsibilities. The editor works without adding
+a dashboard card; an optional card shares the same saved configuration.
+
+| Stage | Outcome | Needs the owner's HA/deck? |
+| --- | --- | --- |
+| P5 | Reproducible real HA lab, virtual deck and automated integration tests | No |
+| P6 | HA backend with discovery/setup, persisted layouts, bindings and synchronization | No |
+| P7 | Usable 5×3 editor and bounded upload → 72×72 PNG pipeline | No |
+| P8 | Capability-aware label position, origin setup and safe pages/modifier layers | No for software; device acceptance later |
+| P9 | Packaging/upgrade tests, then physical runtime and release qualification | Physical deck for hardware gates; lab HA can be used |
+
+HACS distributes the custom integration; this is not a Supervisor app/add-on.
+Use a bundled custom panel and a backend that runs with the browser closed.
+The [architecture decision](decisions/home-assistant-ux.md) records the primary
+sources, existing HA API constraints, upload access design and test boundaries.
 
 ## Runtime contract
 
@@ -286,28 +327,205 @@ cover baselines, held keys, overflow, stale generations and detach cleanup.
 HA helper tests cover full 15-key replay, current-state visuals, session/revision
 recovery, scalar string preservation and action-registration timing. Native API
 tests prove unchanged replay creates no download or new scheduled image.
-These are host/synthetic-build results; live HA actions and physical runtime
-rendering/reconnection acceptance belong to P5.
+These are host/synthetic-build results. P5 adds real HA lab sessions; P9 retains
+physical runtime/rendering/reconnection acceptance.
 
-### P5 Verify end to end and hand off
+### P5 Establish an independent HA integration lab
 
-- [x] Run the full host suite, fixture checks and synthetic compilation of all
-  existing examples plus the new runtime example. Record actual results/counts.
-- [ ] Before hardware deployment, confirm the HA version, reachable asset URL and
-  access method, and the owner's readiness to replace the bench firmware.
-  Preserve a private copy of the working deployment artifacts when appropriate.
-- [ ] Test image-only, text-only, outlined text and combined tiles on real keys;
-  verify changes initiated in HA independently of button presses.
-- [ ] Exercise rapid replacements during output, all keys during rendering,
-  invalid URLs/images, network loss, HA restart, ESP restart and deck reconnect.
-  Check API/OTA availability, input ordering, queue/errors and heap trends.
-- [ ] Record download/render/redraw timing and memory measurements rather than
-  promising animation rates or latency. Update implemented, compiled, unit-tested
-  and hardware-verified status separately.
+Planned files: `tools/ha_lab.py`, `tests/ha/`, `tests/ha_lab/`, a test-only ESPHome
+host adapter/configuration, and version/image locks separate from firmware pins.
 
-Acceptance: the owner can rebind controls and change images/text from HA without
-firmware changes, with reliable resynchronization and no regression in the tested
-USB path. Mark the remaining release/electrical gates independently.
+- [x] Record the P4 baseline: 48 Python cases, seven native executables, all
+  fixture checks and seven synthetic firmware builds passed.
+- [x] Check local prerequisites without mutation: Fedora 44, Podman 5.8.4,
+  rootless/Netavark, SELinux enforcing; no HA image/container or 8123/18123 listener
+  at research time. This is not a container startup test.
+- [ ] Add repeatable lab up/status/test/down commands. Pin a released HA image
+  by tag and digest; start by evaluating source-reviewed HA 2026.10.1. Record
+  Python/test-tool versions and later HACS/frontend versions. Keep these locks
+  separate from the ESPHome/IDF/Pillow fixture pins.
+- [ ] Create fresh private `.build/ha-lab/` config/data with synthetic accounts,
+  keys, a demo light, scenes and test scripts. Use a named rootless network and
+  `127.0.0.1:18123` for the UI. Handle SELinux on lab-owned mounts; no privileged
+  mode, USB passthrough or production HA config is needed. Scope teardown to
+  lab resources and preserve unrelated containers.
+- [ ] Prove pinned ESPHome `host` + encrypted native API in a small spike, then
+  add a test-only adapter for the portable Store/renderer/scheduler. Reuse the
+  P4 action signature and event behavior; simulate USB completions and physical
+  inputs. Add host HTTP fetching for asset-route tests without claiming coverage
+  of the IDF worker. Do not reimplement the encrypted wire protocol by hand.
+- [ ] Pair the virtual deck with HA's real ESPHome integration by explicit host/
+  port. Verify action-response support, entity/action discovery and registry
+  rename behavior before choosing the minimum supported HA version.
+- [ ] Execute the actual P4 helper scripts in HA, covering all 15 keys, numeric
+  labels/sessions, revision conflicts, unchanged replay, state feedback, outages,
+  HA restart, virtual ESP reboot and logger connections. Keep the existing
+  native tests as the independent renderer/USB oracle.
+- [ ] Add HA pytest tests and browser/API smoke tests with a clear distinction
+  between mocked clients, real container/native-API sessions and hardware. Inject
+  presses only through the virtual deck; avoid a production debug action.
+
+Acceptance: a repeatable command starts a clean HA lab, connects the virtual deck
+and runs the P4 integration scenarios without the owner's HA, ESP or GitHub
+account. Store sanitized logs/results and image/version identities. No electrical,
+USB, physical-display or actual ESP HTTP/OTA claim comes from this gate.
+
+### P6 Build the HACS integration backend and guided setup
+
+Planned files: `custom_components/esp_deck/` with manifest, config/options flow,
+storage, ESPHome adapter, binding/sync controllers, actions, diagnostics and
+translations; tests under `tests/ha/`.
+
+- [ ] Package one integration in the existing repository. Use HA config entries
+  to choose an existing ESPHome deck, verify the runtime signature and associate
+  stable device/entity registry references. Resolve names automatically; provide
+  a repair flow for missing, disabled, renamed or incompatible entities/actions.
+- [ ] Reuse HA's ESPHome connection and credentials through a narrow tested
+  adapter. Follow current helper/device-registry ownership rules. Do not create
+  duplicate physical devices or a second permanent native API client.
+- [ ] Persist a versioned HA layout model with draft/applied revisions, atomic
+  saves, migrations, backup/export/import and bounded asset references. Distinguish
+  this layout version from the ESP boot session and per-key request revisions.
+- [ ] Provide entity presets and explicit press/release bindings to HA actions,
+  scripts/scenes, plus key events for advanced automation. Execute bindings in
+  HA with context and error reporting; do not write entity IDs into ESP firmware
+  or rewrite the user's automations.yaml. Avoid duplicate managed/automation paths.
+- [ ] Move the P4 queued writer/replay logic into one backend controller per deck:
+  query current session/revisions, coalesce latest desired state, skip unchanged
+  visuals, subscribe to actual entity state and replay after HA/ESP reconnect.
+  Stop/unsubscribe cleanly on unload; discard stale tasks after configuration changes.
+- [ ] Explain migration from manual P4 scripts and disable competing replay/
+  binding paths deliberately. Preserve their ability to be used independently.
+- [ ] Expose save/sync/status operations and authenticated configuration APIs
+  with backend permission checks. Hiding the editor from non-admin users is not
+  itself authorization. Surface actionable failures and connectivity separately.
+
+Acceptance: adding the integration, selecting a virtual deck and binding a
+synthetic light works through HA; state changes, restarts and configuration
+reloads synchronize correctly with the browser closed. Export/import and unload
+tests pass. Direct local installation is sufficient; HACS login is not required
+for development. Use existing allowed-origin URLs until P7/P8 provide the wizard.
+
+### P7 Deliver the visual editor and efficient artwork library
+
+Planned files: frontend source/build lock, a compiled module shipped inside
+`custom_components/esp_deck/`, upload/asset views and browser/image tests.
+
+- [ ] Register a bundled sidebar/configuration panel. Show the actual 5×3 key
+  arrangement with select/move/swap/copy/clear, undo and keyboard/touch alternatives.
+  Separate binding, appearance and state rules; common actions need no YAML.
+- [ ] Support the current font sizes, colors, outline, image fit and on/off/
+  unavailable presets. Keep optional advanced HA scripts/automations discoverable.
+  Show draft versus applied state, save/apply progress and retry/repair. Selecting
+  a tile or previewing it must not fire the bound action.
+- [ ] Accept authenticated PNG/JPEG uploads into HA. Enforce encoded-byte and
+  decoded-pixel limits before expensive processing; reject malformed/animated/
+  unsupported content. Process EXIF/crop/zoom/offset, strip metadata and normalize
+  off the HA event loop into non-interlaced 72×72 PNGs, initially capped at 32 KiB.
+- [ ] Keep source/library disk usage and conversion concurrency bounded. Store
+  immutable variants by content hash and use that hash as `image_revision`.
+  Preserve alpha and keep dynamic labels in the ESP renderer. Label-only changes
+  must not generate/download another raster, and native orientation is applied once.
+- [ ] Implement the restricted, revocable asset-path capability described in
+  the architecture decision, compatible with the current no-header/no-query URL
+  contract. Authenticate editing/uploads; restrict device reads to referenced
+  normalized files. Cover credential redaction, path traversal, cross-device
+  access, revocation, in-flight retention and reference-aware garbage collection.
+- [ ] Verify every normalized fixture with the production PNG decoder. Reuse
+  bundled glyph metrics/render fixtures for previews; don't equate browser font
+  rendering with ESP pixels without comparison tests. Test large photos, alpha,
+  bad EXIF, limits, concurrent edits and refresh at the same source filename.
+- [ ] Provide a thin optional dashboard card only if it improves normal use;
+  it must share backend configuration and work without owning synchronization.
+
+Acceptance: from a fresh lab UI, pick a key, bind a light/script, upload and crop
+an image, change its label, move the key and apply, with no URL/counter editing.
+Only bounded 72×72 artwork is fetched by the virtual deck; relabeling performs
+zero additional asset GETs. State-driven operation continues after the editor
+closes. A normalized source reduces network/decoder work, not fixed USB report size.
+
+### P8 Add capabilities, positioning and safe pages/layers
+
+Planned files: a versioned runtime contract/API, bounded renderer/configuration
+extensions, HA page/layer resolver, simulator updates and ordering tests.
+
+- [ ] Add explicit capability reporting: protocol version, 15-key/72×72 model,
+  supported visual fields/fonts/limits, configured origins and status semantics.
+  Keep v1 working; hide advanced controls when a device lacks their capability.
+- [ ] Add a bounded encrypted-API origin-provisioning operation so setup can
+  select the HA address reachable from the ESP without rebuilding for each move.
+  Persist only explicit provisioning changes. Keep exact allowlists, verified
+  TLS and finite origins; validate a test fetch from the device. Private-CA
+  provisioning stays advanced. The current compiled origin is a documented v1 limit.
+- [ ] Version the visual action to support bounded text position/alignment within
+  72×72, with defined wrapping/clipping/outline behavior. Keep the current defaults
+  and label-cache reuse. Image transforms can stay in HA's normalized raster.
+  Do not silently add arguments to v1's fixed signature or rasterize every text
+  update into a network image as a shortcut.
+- [ ] Store named 15-key pages and sparse logical overlays in HA, initially
+  capped at 8 pages/4 overlays with one active overlay. Define inherit/clear and
+  precedence; expose page selection as a normal HA control. Resolve only the
+  active tiles to the ESP, not an unbounded page framebuffer/cache.
+- [ ] Specify and implement a tested input/display correlation mechanism before
+  enabling page/layer bindings. P4's `rendered` precedes two-page USB completion.
+  Track applied revisions and USB generation, gate transitioning keys, and reject
+  delayed edges from a previous binding context. Audit the actual native API
+  ordering/channel rather than relying on a fixed delay or a HA-side flag alone.
+- [ ] Capture binding context for an accepted press/release pair. Define navigation
+  keys and momentary modifiers, reset transient layers/holds on disconnect/restart/
+  overflow, and never replay input after an outage. Retain a safe unavailable/
+  retry state if a page cannot finish; do not promise an atomic whole-deck swap.
+- [ ] Exercise rapid page changes, failed tiles, concurrent presses, old callbacks,
+  held modifiers, same-image/different-binding keys and reconnect during output
+  in portable/simulator tests; add these cases to physical P9 acceptance.
+
+Acceptance: capabilities prevent unsupported settings; positioning renders within
+bounds; page/layer resolution is deterministic and stale/transition inputs cannot
+execute the wrong binding. Software tests pass without new hardware. This stage
+does require a compatible firmware update before those new features work on a
+real deck; later per-key/page edits do not require further builds.
+
+### P9 Qualify installation, physical behavior and distribution
+
+This retains the original P5 physical checks and adds product/release validation.
+Software installation tests can proceed before any device deployment.
+
+- [ ] Run HA pytest, real-container/native-API and browser suites, plus the full
+  host fixtures and synthetic builds for every supported firmware example.
+  Exercise the declared minimum/current HA versions and upgrade/reload/restart,
+  data migration, backup/restore and removal. Record actual versions and results.
+- [ ] Build release packaging with `hacs.json`, valid manifest, translations,
+  brand/licence assets and the bundled frontend. Run HACS validation and Hassfest.
+  Verify direct installation from the release artifact; separately smoke-test
+  HACS custom-repository install/update when GitHub device authorization is available.
+  Public release/default-store submission is a later publishing step, not a
+  prerequisite for local tests or custom-repository support.
+- [ ] Verify the guided flow with no manual YAML, URLs, revision counters or
+  frontend-resource registration after initial device setup. Detect incompatible
+  bench firmware with a clear upgrade path instead of unexplained missing controls.
+- [ ] Before a requested physical upload, confirm device identity, chosen HA
+  instance/version, reachable asset address/access and readiness to replace the
+  bench firmware. Back up private working artifacts; use local-secret deployment
+  builds only. The isolated lab HA may be used; production HA remains optional.
+- [ ] For device tests expose only the needed lab HA address/port on the LAN;
+  distinguish it from loopback/container names and match the configured origin.
+  Verify a real ESP fetch including clock/certificate behavior where applicable.
+- [ ] Test image-only, text-only, outlined/positioned text and combined tiles on
+  real keys; change visuals and bindings from HA independently of physical presses.
+  Verify crop/color/orientation and the upload/label-cache path end to end.
+- [ ] Exercise rapid replacements, pages/layers, all keys during rendering,
+  invalid assets, network loss, HA/ESP restart, logger clients and deck reconnect.
+  Verify API/OTA responsiveness, input ordering, stale-binding protection, queue/
+  error counters, timing and internal/PSRAM memory trends.
+- [ ] Record download/render/redraw timing and measured memory. Complete or retain
+  explicit pending status for the first-click, repeated-recovery, soak and
+  electrical gates in [hardware.md](hardware.md) and [testing.md](testing.md).
+
+Acceptance: installation and the core per-key editing flow are demonstrated in
+the lab; an actual ESP/deck session separately demonstrates the advertised runtime
+features. Report implemented, compiled, unit-tested, HA-container/browser-tested
+and hardware-verified evidence distinctly. Publication readiness does not waive
+physical/electrical qualification or imply default HACS inclusion.
 
 ## Known limitations and deferred decisions
 
@@ -327,10 +545,13 @@ qualification.
 
 P0 settled glyph coverage/size choices, byte/dimension limits and native API
 presence semantics in [the contract](runtime-visuals.md). P2 bundles DejaVu Sans
-2.37 with its license and deterministic glyph assets. Before hardware integration, establish HA
-server/version and allowed asset origin/access. These do not block rendering
-development. Additional codecs, fonts, upload transports and an HA editor remain
-follow-on work.
+2.37 with its license and deterministic glyph assets. P5 establishes the local HA
+test baseline independently of the owner. P7 adds JPEG import on HA while the ESP
+continues to receive PNG. P8 must resolve its input/display ordering and origin-
+provisioning design before advertising advanced features. Additional ESP codecs,
+arbitrary fonts, direct/chunked ESP uploads and unlimited graphical composition
+remain follow-on work. Physical tests need a reachable chosen HA endpoint, not
+necessarily the owner's production system.
 
 ## Validation and deployment commands
 
@@ -359,6 +580,11 @@ compiler logs, backup images and binaries private and ignored. Do not change
 dependency pins, flash partitions or the physical power arrangement implicitly.
 
 ## Reference material
+
+- [HA/HACS research and architecture decision](decisions/home-assistant-ux.md):
+  primary sources, rootless lab findings, backend/editor split, upload/access
+  design and the limits of software simulation. Future lab/integration/browser
+  commands are deliverables of P5–P7; they do not exist yet.
 
 - [Python basic example](https://python-elgato-streamdeck.readthedocs.io/en/stable/examples/basic.html):
   scale an icon, draw a label, convert to native format. Black outlining is a new
