@@ -2,11 +2,12 @@
 
 P0 defines and host-tests this contract; P1 implements owned native images and
 the scheduler boundary. P2 adds the [bounded local renderer](rendering.md),
-bundled fonts and PSRAM adapters, exercised by `renderer_probe`. The four numbered
-examples still use static artwork. P3 connects [bounded URL loading and caching](asset-loading.md),
-available through typed C++ calls and the separate loader probe. **No HA runtime
-API action is exposed yet.** P4 will add that interface; these payloads are not
-commands the installed bench firmware can run.
+bundled fonts and PSRAM adapters, exercised by `renderer_probe`. P3 connects
+[bounded URL loading and caching](asset-loading.md). P4 exposes the native actions
+through `examples/05_home_assistant_runtime.yaml`, with [HA helpers, key events
+and layout replay](home-assistant.md). Examples 01–04 keep their earlier behavior.
+P4 is compiled and host-tested, not deployed: the installed bench firmware cannot
+run these runtime actions.
 
 The portable implementation is `components/stream_deck/visual_state.*`. It has
 no ESPHome, USB, HTTP, JSON or font dependency. `Store` accepts validated patches,
@@ -17,15 +18,16 @@ commits only a complete successful native image to `Scheduler`.
 
 The HA-facing helper is
 [`examples/home_assistant/visual_patch.yaml`](../examples/home_assistant/visual_patch.yaml).
-It accepts `session`, `key`, `revision` and a `patch` dictionary. The helper is
-included now for contract/template testing; install it only when P4 provides
-the corresponding firmware action. Adjust the ESPHome device action prefix if
-the device name changes.
+It accepts `session`, `key`, `revision` and a `patch` dictionary and returns the
+native response. Normal HA writers use `script.stream_deck_apply` from
+`runtime_scripts.yaml`, which serializes calls and queries the current revision.
+Install the helpers with example 05; adjust the ESPHome action prefix and entity
+IDs if they differ in your HA registry.
 
 ```yaml
 action: script.stream_deck_visual_patch
 data:
-  session: "0123456789abcdef"  # Read the actual visual-session diagnostic in P4.
+  session: "0123456789abcdef"  # Read the actual Visual session diagnostic.
   key: 0
   revision: 41
   patch:
@@ -34,6 +36,7 @@ data:
     text: "Desk"
     text_color: "#FFFFFF"
     outline_color: "#000000"
+response_variable: visual_result
 ```
 
 Omission preserves the latest **accepted desired** value, including changes still
@@ -63,7 +66,7 @@ fields become a presence bit mask on the wire. P0 schema tests run this signatur
 against installed ESPHome 2026.9.0. Its identifier validator reserves `text`;
 the wire argument is therefore `label_text`, while HA's patch retains `text`.
 
-Proposed native action: `esphome.streamdeck_original_set_key_visual`.
+Native action: `esphome.streamdeck_original_set_key_visual`.
 
 | Argument | Native type | Meaning |
 | --- | --- | --- |
@@ -88,8 +91,9 @@ image upload is part of this action.
 ## Revisions, status and atomicity
 
 `session` is the controller's boot identity, not an API connection ID or USB
-generation. P4 must generate a fresh 64-bit identity at ESP startup, expose it
-through a diagnostic, and require it on commands. The portable `Store` receives
+generation. The component generates a fresh 64-bit identity at ESP startup,
+exposes it through the Visual session diagnostic, and requires it on commands.
+The portable `Store` receives
 that identity at construction. Commands for a previous boot fail with
 `wrong_session`; reconnecting an API logger cannot create a new visual session.
 
@@ -104,14 +108,24 @@ do not replace the current status or advance the accepted revision.
 
 Accepted requests report `queued`, then `rendering`, then `rendered` or `failed`.
 `idle` means no runtime request has been accepted for that key. Status retains
-the latest accepted revision and last successfully rendered revision. P4's
-action response and `get_key_visual_status(session, key)` must expose these
+the latest accepted revision and last successfully rendered revision. The
+action response and `get_key_visual_status(session, key)` expose these
 bounded per-key records, for example:
 
 ```json
 {"session":"0123456789abcdef","key":0,"request_revision":41,"accepted":true,
  "revision":41,"rendered_revision":40,"phase":"queued","error":"none"}
 ```
+
+All native actions require response data (`supports_response: only`). HA uses
+`response_variable` to capture the record. `accepted` describes the visual
+operation, independently of API transport success; even rejected requests return
+a record. Status queries set `request_revision` to 0 and can return
+`accepted: true` with a retained worker error. `clear_key_visual` clears image
+and label, preserving style; `refresh_key_image` changes the current desired
+URL's content revision, preserving other fields. Both use the same session/key/
+request-revision rules. Exact arguments and HA examples are in
+[the integration guide](home-assistant.md#native-operations-and-error-handling).
 
 `rendered` means a whole immutable native BMP has reached the USB scheduler's
 desired slot. It does not mean either USB page has completed or that the deck's
@@ -174,10 +188,11 @@ are pinned; only unpinned entries can be evicted, between jobs. An asset revisio
 change is the explicit refresh/invalidate
 operation, so URL reuse never forces an accidental permanent cache hit.
 
-In the future HA runtime configuration, `Store` must be the sole visual writer
-after boot. Mixing direct static `set_image` actions with runtime patches would
-make its last-rendered state inaccurate; the separate bench configuration remains
-the place for local bulb/arrow actions.
+In the HA runtime configuration, `Store` is the sole visual writer after boot.
+The `runtime_visuals` option rejects local hub key automations/static artwork and
+direct `set_image` calls cannot alter the scheduler. The separate bench
+configuration remains the place for local bulb/arrow actions. Explicit redraw
+preserves desired pixels and remains available.
 
 | Resource | v1 ceiling |
 | --- | --- |
@@ -237,7 +252,8 @@ in the USB completion callbacks.
 | API logger connection/disconnection | No visual lifecycle event; no clearing or inferred HA availability |
 
 Revisions/layout are not written to flash. HA-side binding changes require no
-firmware changes once P4 exists. Physical inputs remain guarded against startup
+firmware changes with example 05. Its native key event entities publish only
+real edges and do not replay state on API subscription. Physical inputs remain guarded against startup
 transitions; the existing first-report baseline limitation is unchanged. The
 USB/power rules and pending hardware gates in `docs/hardware.md` still apply.
 
@@ -246,5 +262,5 @@ Sources for the adapter shape: the locally installed pinned
 `api/__init__.py` validates names/types; the regression test uses those files.
 The public [ESPHome action documentation](https://esphome.io/components/api/#user-defined-actions)
 and [HA script syntax](https://www.home-assistant.io/docs/scripts/) describe the
-future integration points. HA helper tests render the templates locally; they
+integration points. HA helper tests execute the templates locally; they
 are not a Home Assistant server integration test.

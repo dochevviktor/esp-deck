@@ -1,4 +1,4 @@
-# P0 contract fixture. This action is not exposed by the four static examples.
+# P0 contract fixture, implemented by P4 in example 05. Examples 01–04 do not expose it.
 action: set_key_visual
 variables:
   session: string

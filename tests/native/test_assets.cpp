@@ -1,6 +1,7 @@
 #include "asset_png.h"
 #include "asset_policy.h"
 #include "asset_pipeline.h"
+#include "visual_api.h"
 #include "image_allocator.h"
 #include "../fixtures/png/cases.h"
 #include <cassert>
@@ -9,6 +10,8 @@
 #include <iterator>
 #include <vector>
 #include <deque>
+#include <map>
+#include <variant>
 
 using namespace esphome::stream_deck;
 namespace a = esphome::stream_deck::assets;
@@ -194,7 +197,102 @@ void pipeline_tests() {
   assert(store.status(0)->rendered_revision == 31 && pipeline.idle());
   pipeline.stop();
 }
+void api_tests() {
+  TestImageAllocator memory(v::MAX_GRAPHICS_BYTES);
+  a::Pool native(memory, v::MAX_NATIVE_BYTES);
+  Scheduler scheduler;
+  v::Store store(1, scheduler);
+  FakeFetcher fetch;
+  a::OriginPolicy policy; assert(policy.add("http://ha.local:8123"));
+  a::Pipeline pipeline(store, fetch, memory, native, policy);
+  const char *session = "0000000000000001";
+  v::Api api(session, &store, &pipeline);
+  uint32_t now = 0;
+  auto status = api.get(session, 0);
+  assert(status.accepted && status.status.phase == v::Phase::IDLE && status.status.revision == 0);
+  assert(api.get("0000000000000002", 0).error == v::Error::WRONG_SESSION);
+  assert(api.get(session, -1).error == v::Error::INVALID_KEY);
+  assert(api.clear(session, 15, 1).error == v::Error::INVALID_KEY);
+  assert(api.refresh(session, 0, 1, "new").error == v::Error::INVALID_URL);
+  assert(v::Api("", nullptr, nullptr).set(command(0, 1)).error == v::Error::OUT_OF_MEMORY);
+
+  auto cmd = command(0, 1);
+  status = api.set(cmd);
+  assert(status.accepted && status.status.phase == v::Phase::QUEUED && status.request_revision == 1);
+  assert(status.status.revision == 1 && status.status.rendered_revision == 0);
+  pipeline.loop(now++);
+  assert(api.get(session, 0).status.phase == v::Phase::RENDERING);
+  assert(api.set(cmd).accepted && fetch.calls == 1);  // Duplicate in flight.
+  fetch.complete(read("rgba.png")); settle(pipeline, now);
+  status = api.get(session, 0);
+  assert(status.accepted && status.error == v::Error::NONE && status.status.rendered_revision == 1);
+  scheduler.attach(1); Job job;
+  while (scheduler.next(job)) assert(scheduler.complete(job));
+  job = {};
+
+  // Re-create the stateless API adapter as a different client/HA restart would.
+  // Query current revision and replay all fields: unchanged tiles schedule no USB work.
+  v::Api reconnected(session, &store, &pipeline);
+  cmd.revision = reconnected.get(session, 0).status.revision + 1;
+  assert(reconnected.set(cmd).status.phase == v::Phase::RENDERED);
+  pipeline.loop(now++);
+  assert(fetch.calls == 1 && !scheduler.next(job));
+  auto label = cmd; label.revision++; label.fields = v::TEXT; label.text = "Renamed in HA";
+  assert(api.set(label).accepted); settle(pipeline, now);
+  assert(fetch.calls == 1 && api.get(session, 0).status.rendered_revision == 3);
+
+  const auto rejected = api.set(cmd);  // Old revision cannot replace status or desired pixels.
+  assert(!rejected.accepted && rejected.error == v::Error::STALE_REVISION && rejected.status.revision == 3);
+  assert(rejected.request_revision == 2 && rejected.status.rendered_revision == 3);
+  cmd.revision = 3;
+  assert(api.set(cmd).error == v::Error::REVISION_CONFLICT);
+  cmd.session = "0000000000000002"; cmd.revision = 4;
+  assert(api.set(cmd).error == v::Error::WRONG_SESSION);
+  cmd.session = session; cmd.image_url = "http://untrusted.local/a.png";
+  assert(api.set(cmd).error == v::Error::ORIGIN_NOT_ALLOWED);
+  assert(api.get(session, 0).status.revision == 3);
+
+  assert(api.refresh(session, 0, 4, "").error == v::Error::INVALID_IMAGE_REVISION);
+  assert(api.refresh(session, 0, 4, "two").accepted);
+  pipeline.loop(now++); assert(fetch.calls == 2);
+  fetch.complete({}, v::Error::FETCH_FAILED); settle(pipeline, now);
+  status = api.get(session, 0);
+  assert(status.accepted && status.error == v::Error::FETCH_FAILED && status.status.rendered_revision == 3);
+  assert(api.refresh(session, 0, 4, "two").error == v::Error::FETCH_FAILED);
+  pipeline.loop(now++); assert(fetch.calls == 2);  // Failed duplicate does not retry.
+  assert(api.refresh(session, 0, 5, "two").accepted);
+  pipeline.loop(now++); assert(fetch.calls == 3);
+  fetch.complete(read("rgba.png")); settle(pipeline, now);
+  assert(store.desired(0)->text.view() == "Renamed in HA");
+  assert(api.get(session, 0).status.rendered_revision == 5);
+
+  // Same boot/session survives deck detach; no new HTTP request to restore tiles.
+  scheduler.detach(); scheduler.attach(3);
+  while (scheduler.next(job)) assert(scheduler.complete(job));
+  job = {}; assert(fetch.calls == 3 && api.get(session, 0).status.revision == 5);
+  assert(api.clear(session, 0, 6).accepted); settle(pipeline, now);
+  assert(store.desired(0)->text.empty() && store.desired(0)->image_url.empty());
+  assert(api.clear(session, 0, 6).status.phase == v::Phase::RENDERED);
+  assert(fetch.calls == 3);
+
+  // Execute the same serializer used by the compiled api.respond lambdas.
+  using Value = std::variant<std::string, int32_t, uint32_t, bool, const char *>;
+  struct Object {
+    std::map<std::string, Value> &values;
+    Value &operator[](const char *key) { return values[key]; }
+  };
+  std::map<std::string, Value> values;
+  api.get(session, 0).write(Object{values});
+  assert(values.size() == 8 && std::get<std::string>(values["session"]) == session);
+  assert(std::get<int32_t>(values["key"]) == 0 && std::get<int32_t>(values["request_revision"]) == 0);
+  assert(std::get<bool>(values["accepted"]) && std::get<uint32_t>(values["revision"]) == 6);
+  assert(std::get<uint32_t>(values["rendered_revision"]) == 6);
+  assert(std::string(std::get<const char *>(values["phase"])) == "rendered");
+  assert(std::string(std::get<const char *>(values["error"])) == "none");
+  pipeline.stop();
+}
+
 int main() {
-  png_tests(); policy_tests(); pipeline_tests();
+  png_tests(); policy_tests(); pipeline_tests(); api_tests();
   std::cout << "Bounded PNG, origin policy, cache, cancellation and visual pipeline tests passed\n";
 }

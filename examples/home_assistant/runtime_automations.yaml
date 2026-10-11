@@ -1,0 +1,79 @@
+# Merge this list into HA automations.yaml. Replace the example light in both
+# this file and runtime_scripts.yaml. Check entity IDs in Developer Tools.
+- id: stream_deck_replay_layout
+  alias: Stream Deck replay authoritative layout
+  # One pending replay reads current state when it starts. A burst coalesces;
+  # there is no queue of old light states or old button presses to replay.
+  mode: queued
+  max: 2
+  max_exceeded: silent
+  triggers:
+    - trigger: homeassistant
+      event: start
+    - trigger: state
+      entity_id: sensor.stream_deck_original_visual_session
+    - trigger: state
+      entity_id: light.example_lamp
+    - trigger: event
+      event_type: automation_reloaded
+  actions:
+    # Service registration can finish after the session sensor arrives, without
+    # another state event to wake a wait_template. Recheck for at most 60 seconds.
+    - repeat:
+        sequence:
+          - delay: '00:00:01'
+        until: >-
+          {{ (states('sensor.stream_deck_original_visual_session') | regex_match('^[0-9a-fA-F]{16}$')
+              and has_service('esphome', 'streamdeck_original_get_key_visual_status')
+              and has_service('esphome', 'streamdeck_original_set_key_visual')) or repeat.index >= 60 }}
+    - condition: template
+      value_template: >-
+        {{ states('sensor.stream_deck_original_visual_session') | regex_match('^[0-9a-fA-F]{16}$')
+           and has_service('esphome', 'streamdeck_original_get_key_visual_status')
+           and has_service('esphome', 'streamdeck_original_set_key_visual') }}
+    - action: script.stream_deck_sync_layout
+
+- id: stream_deck_key_0_press
+  alias: Stream Deck key 0 press binding
+  mode: single
+  triggers:
+    - trigger: state
+      entity_id: event.stream_deck_original_key_0_edge
+  conditions:
+    # Event entities receive no snapshot from ESPHome. Also ignore HA restore,
+    # availability and attribute-only transitions. Unknown -> first real event
+    # is permitted; unavailable -> restored old timestamp is not.
+    - condition: template
+      value_template: >-
+        {{ trigger.from_state is not none and trigger.to_state is not none
+           and trigger.from_state.state != 'unavailable'
+           and trigger.to_state.state not in ['unknown', 'unavailable']
+           and trigger.from_state.state != trigger.to_state.state
+           and not trigger.to_state.attributes.get('restored', false)
+           and trigger.to_state.attributes.get('event_type') == 'press' }}
+  actions:
+    - action: light.toggle
+      target:
+        entity_id: light.example_lamp
+
+- id: stream_deck_key_0_release
+  alias: Stream Deck key 0 release binding
+  mode: single
+  triggers:
+    - trigger: state
+      entity_id: event.stream_deck_original_key_0_edge
+  conditions:
+    - condition: template
+      value_template: >-
+        {{ trigger.from_state is not none and trigger.to_state is not none
+           and trigger.from_state.state != 'unavailable'
+           and trigger.to_state.state not in ['unknown', 'unavailable']
+           and trigger.from_state.state != trigger.to_state.state
+           and not trigger.to_state.attributes.get('restored', false)
+           and trigger.to_state.attributes.get('event_type') == 'release' }}
+  actions:
+    # Replace this HA-only release action if desired; it does not toggle twice.
+    - action: logbook.log
+      data:
+        name: Stream Deck
+        message: Key 0 released

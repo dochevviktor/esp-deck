@@ -42,10 +42,23 @@ class ConfigTests(unittest.TestCase):
 
     def test_runtime_api_argument_contract(self):
         contract = yaml.safe_load((ROOT / "tests/fixtures/visual_api.yaml").read_text())
-        # Schema exercise only: do not advertise a nonfunctional visual action
-        # in the static examples while the P2/P3 renderer/loader is absent.
+        # Exercise the fixed signature independently of P4's production package.
         contract["then"] = [{"lambda": "(void) session; (void) key; (void) revision; (void) fields;"}]
         self.run_config(self.base() + "\n" + yaml.safe_dump({"api": {"actions": [contract]}}))
+
+    def test_runtime_requires_loader_psram_encryption_and_sole_writer(self):
+        source = (self.folder / "examples/05_home_assistant_runtime.yaml").read_text()
+        self.run_config(source.replace('  asset_loading:\n    allowed_origins: ["${asset_origin}"]', ''),
+                        False, "requires asset_loading and psram")
+        self.run_config(source + "\npsram: !remove\n", False, "requires asset_loading and psram")
+        self.run_config(source + "\napi:\n  encryption: !remove\nota: !remove\n", False, "requires encrypted native api")
+        self.run_config(source.replace('  asset_loading:', '  on_key_press:\n    - logger.log: unsafe\n  asset_loading:'),
+                        False, "use HA key events")
+
+    def test_event_key_bounds_and_duplicates(self):
+        source = (self.folder / "examples/05_home_assistant_runtime.yaml").read_text()
+        self.run_config(source.replace("key: 14", "key: 15"), False, "at most 14")
+        self.run_config(source.replace("key: 14", "key: 0"), False, "Duplicate stream_deck key")
 
     def test_asset_origin_bounds_and_credentials(self):
         for origin in ("http://user:secret@ha.local:8123", "http://ha.local:8123/path", "https://ha.local?key=secret",

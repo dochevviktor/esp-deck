@@ -145,12 +145,16 @@ Error apply_patch(const Command &cmd, const State &base, State &result) {
   return Error::NONE;
 }
 
+bool Store::matches_session(std::string_view value) const {
+  uint64_t session;
+  return value.size() == 16 && parse_hex(value, session) && session == session_;
+}
+
 Submission Store::submit(const Command &cmd) {
   if (protocol::wire_key(cmd.key) < 0) return {false, Error::INVALID_KEY};
   auto &slot = slots_[cmd.key];
   const auto reject = [&](Error error) { return Submission{false, error, slot.status.phase, slot.status.revision}; };
-  uint64_t session;
-  if (cmd.session.size() != 16 || !parse_hex(cmd.session, session) || session != session_)
+  if (!matches_session(cmd.session))
     return reject(Error::WRONG_SESSION);
   if (cmd.revision <= 0) return reject(Error::INVALID_REVISION);
   if (uint32_t(cmd.revision) < slot.status.revision) return reject(Error::STALE_REVISION);

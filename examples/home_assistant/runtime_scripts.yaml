@@ -1,0 +1,80 @@
+# Merge these and visual_patch.yaml into HA scripts.yaml. Adjust the session
+# entity ID/action prefix to the IDs registered by your ESPHome integration.
+stream_deck_apply:
+  alias: Stream Deck apply visual patch
+  description: Serialize all layout writers; read the ESP's accepted revision before each patch, including after HA restart.
+  mode: queued
+  max: 30
+  fields:
+    key:
+      description: Logical key 0..14.
+      required: true
+      selector:
+        number:
+          min: 0
+          max: 14
+          mode: box
+    patch:
+      description: Fields to change; omitted fields preserve desired values. Empty text/image_url clears.
+      required: true
+      selector:
+        object:
+  sequence:
+    - variables:
+        boot: "{{ dict(session=states('sensor.stream_deck_original_visual_session')) }}"
+    - if: "{{ not (boot.session is string and boot.session | regex_match('^[0-9a-fA-F]{16}$')) }}"
+      then:
+        - stop: The ESP visual session is unavailable; wait for reconnection.
+          error: true
+    - action: esphome.streamdeck_original_get_key_visual_status
+      data: "{{ dict(session=boot.session, key=key) }}"
+      response_variable: current
+    - if: "{{ not current.accepted or current.revision >= 2147483647 }}"
+      then:
+        - stop: "{{ 'Cannot advance visual revision: ' ~ current.error }}"
+          error: true
+    - action: script.stream_deck_visual_patch
+      data: "{{ dict(session=boot.session, key=key, revision=current.revision + 1, patch=patch) }}"
+      response_variable: result
+    - if: "{{ not result.accepted }}"
+      then:
+        - stop: "{{ 'Visual request rejected: ' ~ result.error }}"
+          error: true
+    - stop: Visual request accepted; query status for asynchronous render completion.
+      response_variable: result
+
+stream_deck_sync_layout:
+  alias: Stream Deck synchronize layout
+  description: Replay all 15 keys from current HA state. Edit this authoritative layout, labels and URLs in HA.
+  mode: single
+  sequence:
+    # All application-specific choices live here and in runtime_automations.yaml.
+    # These PNGs are provided in the repository's assets/source directory.
+    - variables:
+        lamp_entity: light.example_lamp
+        artwork_base: http://homeassistant.local:8123/local/streamdeck
+        artwork_revision: demo-v1
+        key_0_label: Desk
+    - repeat:
+        count: 15
+        sequence:
+          - variables:
+              logical_key: "{{ repeat.index - 1 }}"
+              lamp_state: "{{ states(lamp_entity) }}"
+          - action: script.stream_deck_apply
+            data:
+              key: "{{ logical_key }}"
+              patch:
+                image_url: >-
+                  {{ artwork_base ~ '/' ~ ('light_on.png' if lamp_state == 'on' else
+                     'light_off.png' if lamp_state == 'off' else 'unknown.png') if logical_key == 0 else '' }}
+                image_revision: "{{ artwork_revision if logical_key == 0 else '' }}"
+                text: >-
+                  {{ key_0_label ~ (' ON' if lamp_state == 'on' else ' OFF' if lamp_state == 'off' else ' ?')
+                     if logical_key == 0 else 'Home Assistant' if logical_key == 1 else '' }}
+                font: 16
+                text_color: '#FFFFFF'
+                outline_color: '#000000'
+                background_color: '#000000'
+                fit: contain
+            response_variable: tile_result

@@ -14,15 +14,14 @@ class VisualContractTests(unittest.TestCase):
         cls.script = yaml.safe_load((ROOT / "examples/home_assistant/visual_patch.yaml").read_text())["stream_deck_visual_patch"]
         cls.environment = NativeEnvironment(undefined=StrictUndefined)
 
-    def render(self, patch):
-        context = {"session": "0123456789abcdef", "key": 0, "revision": 1, "patch": patch}
+    def render(self, patch, session="0123456789abcdef"):
+        context = {"session": session, "key": 0, "revision": 1, "patch": patch}
         for step in self.script["sequence"]:
             if "if" in step:
                 if self.environment.from_string(step["if"]).render(context):
                     raise ValueError(step["then"][0]["stop"])
             else:
-                return {name: self.environment.from_string(template).render(context)
-                        for name, template in step["data"].items()}
+                return self.environment.from_string(step["data"]).render(context)
         self.fail("No native API action in helper")
 
     def test_helper_fixed_arguments_and_presence(self):
@@ -52,3 +51,9 @@ class VisualContractTests(unittest.TestCase):
         self.assertEqual(preserved["label_text"], cleared["label_text"])
         self.assertEqual(preserved["fields"], 4)
         self.assertEqual(cleared["fields"], 2)
+
+    def test_string_values_do_not_become_native_scalars(self):
+        for value in ("123", "True", "None", "[]", "{'x': 1}", "0.125"):
+            result = self.render({"text": value}, session="1234567890123456")
+            self.assertEqual(result["session"], "1234567890123456")
+            self.assertEqual(result["label_text"], value)

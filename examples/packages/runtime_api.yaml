@@ -1,0 +1,116 @@
+# Reusable native API surface. Include with base.yaml + deck.yaml and configure
+# asset_loading. All responses use the bounded record in docs/runtime-visuals.md.
+stream_deck:
+  runtime_visuals:
+    session:
+      name: Visual session
+
+api:
+  actions:
+    - action: set_key_visual
+      description: Atomically patch a key's desired artwork, label and style. Returns acceptance and current render status.
+      supports_response: only
+      variables:
+        session:
+          type: string
+          description: Current Visual session diagnostic, exactly 16 hexadecimal digits.
+        key:
+          type: int
+          description: Logical front-view key 0..14.
+        revision:
+          type: int
+          description: Increasing per-key request ID 1..2147483647; identical retries retain the ID.
+        fields:
+          type: int
+          description: Presence mask; image=1, text=2, font=4, text color=8, outline=16, background=32, fit=64.
+        image_url:
+          type: string
+          description: PNG URL on an allowed origin, or empty to clear. Used when bit 1 is set.
+        image_revision:
+          type: string
+          description: Asset content version; change when replacing the file. Empty when clearing the URL.
+        label_text:
+          type: string
+          description: Label up to 96 UTF-8 bytes / 48 characters, or empty to clear. Used by bit 2.
+        font:
+          type: int
+          description: Bundled font size 12, 16 or 20. Used by bit 4; otherwise supply 16.
+        text_color:
+          type: string
+          description: Label fill as '#RRGGBB'. Used by bit 8.
+        outline_color:
+          type: string
+          description: One-pixel outline as '#RRGGBB'. Used by bit 16.
+        background_color:
+          type: string
+          description: Solid background as '#RRGGBB'. Used by bit 32.
+        fit:
+          type: string
+          description: Artwork fit, contain or crop. Used by bit 64.
+      then:
+        - api.respond:
+            data: !lambda |-
+              esphome::stream_deck::visual::Command command;
+              auto view = [](const auto &value) { return std::string_view(value.c_str(), value.size()); };
+              command.session = view(session);
+              command.key = key; command.revision = revision; command.fields = fields;
+              command.image_url = view(image_url); command.image_revision = view(image_revision);
+              command.text = view(label_text); command.font = font;
+              command.text_color = view(text_color); command.outline_color = view(outline_color);
+              command.background_color = view(background_color); command.fit = view(fit);
+              id(deck).visual_api().set(command).write(root);
+
+    - action: clear_key_visual
+      description: Clear image and label, preserving style/background; revision rules match set_key_visual.
+      supports_response: only
+      variables:
+        session:
+          type: string
+          description: Current Visual session diagnostic.
+        key:
+          type: int
+          description: Logical key 0..14.
+        revision:
+          type: int
+          description: Increasing per-key request ID, or the same ID for an identical retry.
+      then:
+        - api.respond:
+            data: !lambda |-
+              id(deck).visual_api().clear({session.c_str(), session.size()}, key, revision).write(root);
+
+    - action: refresh_key_image
+      description: Replace the current desired URL's asset version, preserving label/style. Use a new content version to refetch.
+      supports_response: only
+      variables:
+        session:
+          type: string
+          description: Current Visual session diagnostic.
+        key:
+          type: int
+          description: Logical key 0..14; must already have desired artwork.
+        revision:
+          type: int
+          description: Increasing per-key request ID, or the same ID for an identical retry.
+        image_revision:
+          type: string
+          description: New nonempty asset version, at most 64 ASCII letters, digits or ._:-.
+      then:
+        - api.respond:
+            data: !lambda |-
+              id(deck).visual_api().refresh({session.c_str(), session.size()}, key, revision,
+                  {image_revision.c_str(), image_revision.size()}).write(root);
+
+    - action: get_key_visual_status
+      description: Read acceptance/render state without mutation. Rendered means scheduler desired pixels, not display readback.
+      supports_response: only
+      variables:
+        session:
+          type: string
+          description: Current Visual session diagnostic.
+        key:
+          type: int
+          description: Logical key 0..14.
+      then:
+        - api.respond:
+            data: !lambda |-
+              id(deck).visual_api().get({session.c_str(), session.size()}, key).write(root);

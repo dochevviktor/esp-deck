@@ -105,6 +105,7 @@ class Store {
   Store(const Store &) = delete;
   Store &operator=(const Store &) = delete;
   Submission submit(const Command &command);
+  bool matches_session(std::string_view session) const;
   const Status *status(int key) const;
   const State *desired(int key) const;
   bool next(RenderJob &job);

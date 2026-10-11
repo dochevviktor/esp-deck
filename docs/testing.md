@@ -1,5 +1,58 @@
 # Validation and remaining hardware gates
 
+## Home Assistant runtime controls, 2026-10-11 (P4)
+
+Implemented: generic native set/clear/refresh/status actions with descriptions
+and bounded responses, a visual-session diagnostic, 15 physical press/release
+event entities, exclusive runtime visual ownership, and HA scripts for serialized
+patches and authoritative layout replay. Example 05 has no fixed HA entity IDs
+or local bulb/arrow actions. Example 04 and USB framing, descriptor correction,
+DMA allocation and external VBUS behavior are unchanged. See [the HA integration
+guide](home-assistant.md) and [contract](runtime-visuals.md).
+
+Unit-tested: **48 Python cases**, including **seven native C++ executables**.
+Production visual API tests cover queued/rendering/rendered/failed responses,
+rejections retaining accepted/rendered revisions, duplicate/conflicting/stale
+requests, sessions, clear/refresh, failed fetches preserving pixels, label cache
+reuse, deck restoration without fetch, and unchanged replay without a new
+scheduled image. Response snapshots own their session strings. Production key
+publication tests cover all 15 keys, repeated reports, simultaneous edges, stale
+generations, initial/held baselines, overflow synchronization, disconnect without
+fabricated release, reattachment and rejection of direct runtime image changes.
+
+HA tests execute the actual helper/replay templates and sequence logic against
+a fake API: current entity state, all fields for 15 keys, HA-only layout edits,
+revision queries after HA restart, new ESP sessions, explicit failures, integer
+exhaustion, and event restore/availability guards. Dictionary templates preserve
+numeric-looking labels and digit-only sessions as strings. Replay rechecks late
+action registration with a bounded wait. Schema tests enforce encryption/PSRAM/
+loader/ownership requirements and unique bounded event keys. Pinned reference,
+font, rendering and PNG fixture checks all pass.
+
+Compiled: all **seven** configurations with synthetic secrets, including example
+05, on ESPHome 2026.9.0 / ESP-IDF 5.5.5. The checker verifies existing USB console/
+descriptor/FIFO constraints and the new example's HTTP/TLS settings; CI includes
+example 05. Remote CI was not executed here.
+
+Hardware-verified: **none for P4**. No upload, live HA server test or device asset
+request occurred. Example 04 remains installed. P5 must establish HA version/
+response support, a reachable PNG origin, deployment readiness and end-to-end
+rendering/input/reconnection. First-click, electrical, heap/timing and repeated
+recovery gates remain open. Native assertions and warnings-as-errors were used;
+no local ASan/UBSan run is claimed.
+
+Commands run successfully:
+
+```sh
+.venv/bin/python -m unittest discover -s tests -v
+.venv/bin/python tools/generate_reference_fixtures.py --check
+.venv/bin/python tools/generate_render_fonts.py --check
+.venv/bin/python tools/generate_render_fixtures.py --check
+.venv/bin/python tools/generate_png_fixtures.py --check
+.venv/bin/python tools/check_firmware.py --compile
+git diff --check
+```
+
 ## URL loading and caching, 2026-10-11 (P3)
 
 Implemented: opt-in HTTP(S) asset loading on one persistent worker, exact origin
@@ -57,7 +110,7 @@ Implemented: bounded RGB(A)/BGR(A) source views, aspect-preserving contain/crop,
 premultiplied-alpha bilinear sampling, outlined runtime text with licensed/pinned
 DejaVu Sans 2.37 at 12/16/20 px, exact native BMP encoding, and PSRAM-only
 workspace/image allocation. `render_esphome.h` bridges completed ESPHome images;
-PNG decoding and fetching/cache were added in P3 above; HA controls remain P4. See
+PNG decoding and fetching/cache were added in P3 above; P4 adds HA controls. See
 [rendering](rendering.md) for the precise pixel, lifetime and memory rules.
 
 Unit-tested: **31 Python cases**, including four native C++ executables. The
@@ -105,8 +158,8 @@ visual state, request/session validation, coalescing and atomic render commit,
 plus immutable native-image ownership through the scheduler and transport.
 At that checkpoint the host suite passed **28 Python cases**, including three
 native C++ executables. All four numbered examples compiled with
-synthetic secrets. P2 was completed subsequently as recorded above; the numbered
-examples continue to expose no URL fetching, font rendering or runtime API action.
+synthetic secrets. P2–P4 were completed subsequently as recorded above; examples
+01–04 continue to expose no URL fetching, font rendering or runtime API action.
 
 New tests exercise image/text/combined/clear patches; strict UTF-8, URL, colour,
 font and size validation; stale/conflicting/duplicate revisions; session mismatch;
@@ -175,9 +228,9 @@ confirmed. Firmware remained unchanged.
 
 | Category | Result |
 | --- | --- |
-| Implemented | Codec, scheduler, USB transport/entities/images/recovery, diagnostics, desktop probe, private builds, source-pinned IDF descriptor hook, P0/P1 visual contract/owned images, P2 local renderer/fonts/PSRAM, and P3 HTTP(S)/PNG/cache pipeline |
-| Unit-tested | 37 Python cases including six native C++ suites, PNG/pipeline/HTTP guards, renderer/font fixtures, runtime ownership/visual state, API contract/helper templates, captured descriptors, production USB simulations, build-hook guards and private staging |
-| Compiled | All four numbered examples, renderer_probe and asset_loader_probe with synthetic credentials. Earlier private deployments used examples 01, 02 and 04; ESP-IDF 5.5.5 / ESPHome 2026.9.0 |
+| Implemented | Codec, scheduler, USB transport/entities/images/recovery, diagnostics, desktop probe, private builds, source-pinned IDF descriptor hook, P0/P1 visual contract/owned images, P2 renderer/fonts/PSRAM, P3 HTTP(S)/PNG/cache, P4 native API responses/key events/HA replay |
+| Unit-tested | 48 Python cases including seven native C++ suites, PNG/pipeline/HTTP guards, renderer/font fixtures, runtime ownership/visual API, production key publication, HA helper/replay templates, captured descriptors, production USB simulations, build-hook guards and private staging |
+| Compiled | Examples 01–05 plus renderer_probe and asset_loader_probe with synthetic credentials. Earlier private deployments used examples 01, 02 and 04; ESP-IDF 5.5.5 / ESPHome 2026.9.0 |
 | Hardware-verified | Identity/flash, Wi-Fi, encrypted API/OTA, 8 MB PSRAM initialization, EP0 replies, 17-byte input, visible image feedback, press/release coverage for all 15 key indices, and one deck reconnect with full desired-image redraw and resumed input. Detailed mapping/visual/brightness checks, repeated recovery, ESP-only restarts, electrical and HA qualification remain pending |
 | Remote CI | Workflow provided; not executed in this session |
 
@@ -201,23 +254,24 @@ errors and assertions enabled, without sanitizers. `SANITIZE=1` enables ASan/UBS
 on a machine with those runtimes; the CI workflow requests them. This document
 does not claim a local sanitizer run passed.
 
-Latest synthetic builds, 2026-10-11, including P0–P3 and the IN-64 / OUT-512 path:
+Latest synthetic builds, 2026-10-11, including P0–P4 and the IN-64 / OUT-512 path:
 
 | Example | Static RAM estimate | Application flash estimate |
 | --- | ---: | ---: |
 | 01 USB probe | 108,371 B / 341,760 B | 783,987 B / 8,126,464 B |
-| 02 keys/brightness | 110,835 B / 341,760 B | 815,115 B / 8,126,464 B |
-| 03 images/HA | 111,307 B / 341,760 B | 870,851 B / 8,126,464 B |
-| 04 standalone hardware test | 110,995 B / 341,760 B | 847,031 B / 8,126,464 B |
-| Renderer probe | 111,675 B / 341,760 B | 882,015 B / 8,126,464 B |
-| Asset loader probe | 113,635 B / 341,760 B | 1,055,283 B / 8,126,464 B |
+| 02 keys/brightness | 110,835 B / 341,760 B | 815,119 B / 8,126,464 B |
+| 03 images/HA | 111,307 B / 341,760 B | 870,879 B / 8,126,464 B |
+| 04 standalone hardware test | 110,995 B / 341,760 B | 847,051 B / 8,126,464 B |
+| 05 HA runtime | 114,515 B / 341,760 B | 1,075,407 B / 8,126,464 B |
+| Renderer probe | 111,675 B / 341,760 B | 882,023 B / 8,126,464 B |
+| Asset loader probe | 113,635 B / 341,760 B | 1,055,271 B / 8,126,464 B |
 
 These linker estimates exclude runtime USB/task/network allocation and are not
 free-heap measurements. The renderer probe links the rendering path and defers
 its pixel allocations until after PSRAM initialization. The loader probe includes
 the visual store and fetch/decode/render pipeline; service/graphics and worker/TLS
-allocations occur at runtime. These are not peak-heap measurements or estimates
-for the complete P4 HA runtime firmware.
+allocations occur at runtime. Example 05 additionally links the real native API
+responses and event entities. None of these estimates measures peak heap.
 The checker also verifies the actual generated control
 cap (8192 for driver examples), periodic-OUT FIFO bias and disabled secondary USB
 console. Firmware

@@ -12,11 +12,13 @@ versions retained safely through both USB pages and cancellation (P0/P1).
 Local rendering (P2): aspect-preserving scaling, alpha composition, outlined
 runtime labels with bundled fonts, native BMP encoding and PSRAM allocation.
 Asset loading (P3): bounded HTTP(S), PNG decoding, retained background caching,
-origin restrictions and TLS verification; available to typed C++ callers/probes.
-Compiled: all six configurations on ESPHome 2026.9.0 / ESP-IDF 5.5.5.
+origin restrictions and TLS verification. HA controls (P4): generic visual/clear/
+refresh/status API responses, boot-session diagnostic, physical key events and
+HA-owned layout replay; no firmware binding to a particular HA entity.
+Compiled: all seven configurations on ESPHome 2026.9.0 / ESP-IDF 5.5.5.
 Unit-tested: upstream byte fixtures, scheduler/input behavior, simulated USB
-transfers, schema validation and captured desktop descriptors; 37 Python cases
-including ownership/rendering/PNG/cache/HTTP suites and HA helper templates.
+transfers, schema validation and captured desktop descriptors; 48 Python cases
+including seven native executables and HA helper/replay templates.
 Hardware-verified: desktop descriptors, ESP chip/flash identity, 8 MB PSRAM
 initialization, Wi-Fi, encrypted API and encrypted OTA. The S3 enumerates the
 deck at full speed. With the IN-64 / OUT-512 descriptor workaround, HID SET_IDLE
@@ -32,13 +34,13 @@ qualification and HA acceptance remain pending. See
 The original [handover](STREAM_DECK_ESPHOME_CODEX_HANDOVER.md) is preserved.
 Start with the [hardware checklist](docs/hardware.md) before connecting anything.
 
-The [Home Assistant runtime control plan](docs/implementation-plan.md) has P0–P3
+The [Home Assistant runtime control plan](docs/implementation-plan.md) has P0–P4
 software implemented and tested: [the contract](docs/runtime-visuals.md), owned
 images, [rendering](docs/rendering.md), and [URL loading/cache](docs/asset-loading.md).
-Next is P4, HA native API controls and layout replay. **HA runtime visual controls
-are not yet available.** Example 03 remains a fixed-entity demo; example 04 is the
-installed bench baseline. P3's actual asset URL/reachability check remains pending.
-No firmware was uploaded for P0–P3.
+Example 05 adds [HA runtime controls and layout replay](docs/home-assistant.md).
+Example 03 remains a fixed-entity demo; example 04 is the installed bench baseline.
+Next is P5's live HA/device validation. P3's actual asset URL/reachability check
+also remains pending. No firmware was uploaded for P0–P4.
 
 ## Develop and test without a board
 
@@ -88,6 +90,7 @@ API and encrypted OTA. No real credentials are committed.
 | `examples/02_keys_brightness.yaml` | All keys, brightness and diagnostics; blanks the displays |
 | `examples/03_images_home_assistant.yaml` | Key 0 toggles `light.example_lamp`; actual HA feedback selects ON/OFF/? |
 | `examples/04_hardware_test.yaml` | Standalone RGB/arrow patterns on keys 0/7/14; received presses show ON, releases restore the pattern; no HA actions |
+| `examples/05_home_assistant_runtime.yaml` | Generic HA-controlled images/text/styles, visual session/status, 15 key event entities and HA layout replay; not deployed/hardware-tested |
 | `examples/renderer_probe.yaml` | P2 local renderer: three font sizes, outlined text/artwork and truncation on keys 0/1/2/7/14; no runtime API or downloads; not hardware-tested |
 | `examples/asset_loader_probe.yaml` | P3 PNG URL + label on key 0, then a label-only cache update; configure a real allowed origin/URL; HTTPS waits for HA time; not deployed/hardware-tested |
 
@@ -98,7 +101,15 @@ a time. An ESP restart instead reapplies the boot layout. Display updates are
 change-driven, with a full redraw on attachment; periodic display polling is not
 needed for this behaviour.
 
-For the HA example change `light_entity` to your entity. Add the ESPHome integration
+For runtime bindings and visuals use [example 05's HA setup guide](docs/home-assistant.md).
+Its HA scripts own the layout and query revisions before each update; firmware
+starts blank and preserves the last good tiles offline. Labels reuse cached
+artwork. The sample HA automations bind press/release events and update key 0
+from actual lamp state. Rebinding or changing supported visuals within the
+configured asset origins requires no OTA. Runtime display/input and HA restart
+tests on the device remain pending.
+
+For the older static example 03, change `light_entity` to your entity. Add the ESPHome integration
 at `streamdeck-original.local`, port 6053, with your API key, and allow the device
 to perform HA actions in the integration options. A logging API client alone
 does not establish valid lamp state. Do not add a second toggle automation on the

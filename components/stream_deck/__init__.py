@@ -5,7 +5,7 @@ from pathlib import Path
 
 from esphome import automation
 import esphome.codegen as cg
-from esphome.components import binary_sensor as binary_sensor_component, esp32, sensor
+from esphome.components import binary_sensor as binary_sensor_component, esp32, sensor, text_sensor
 import esphome.config_validation as cv
 from esphome.const import CONF_ID, CONF_FILE
 from esphome.core import CORE, HexInt
@@ -14,8 +14,12 @@ import esphome.final_validate as fv
 
 DEPENDENCIES = ["esp32"]
 CONFLICTS_WITH = ["usb_host", "tinyusb"]
-AUTO_LOAD = ["binary_sensor", "number", "sensor"]
 MULTI_CONF = False
+
+
+def AUTO_LOAD(config):
+    base = ["binary_sensor", "number", "sensor"]
+    return base + ["text_sensor"] if not config or "runtime_visuals" in config else base
 
 deck_ns = cg.esphome_ns.namespace("stream_deck")
 StreamDeck = deck_ns.class_("StreamDeck", cg.Component)
@@ -82,6 +86,9 @@ CONFIG_SCHEMA = cv.All(
         cv.Optional("input_report_id", default=0x01): cv.hex_uint8_t,
         cv.Optional("usb_diagnostics", default=False): cv.boolean,
         cv.Optional("asset_loading"): ASSET_SCHEMA,
+        cv.Optional("runtime_visuals"): cv.Schema({
+            cv.Required("session"): text_sensor.text_sensor_schema(entity_category="diagnostic"),
+        }),
         cv.Optional("images", default=[]): cv.ensure_list(IMAGE_SCHEMA),
         cv.Optional("connected"): binary_sensor_component.binary_sensor_schema(
             device_class="connectivity", entity_category="diagnostic"),
@@ -100,7 +107,14 @@ def final_validate(config):
         raise cv.Invalid("stream_deck requires ESP-IDF")
     if full.get("logger", {}).get("hardware_uart") != "UART0":
         raise cv.Invalid("stream_deck requires logger.hardware_uart: UART0; native USB belongs to the host")
-    for platform, field in (("binary_sensor", "key"), ("number", None)):
+    if "runtime_visuals" in config:
+        if "asset_loading" not in config or "psram" not in full:
+            raise cv.Invalid("runtime_visuals requires asset_loading and psram")
+        if "encryption" not in full.get("api", {}):
+            raise cv.Invalid("runtime_visuals requires encrypted native api")
+        if config["images"] or "on_key_press" in config or "on_key_release" in config:
+            raise cv.Invalid("runtime_visuals owns artwork; use HA key events instead of local images/key automations")
+    for platform, field in (("binary_sensor", "key"), ("event", "key"), ("number", None)):
         seen = set()
         for entity in full.get(platform, []):
             if entity.get("platform") != "stream_deck":
@@ -163,6 +177,10 @@ async def to_code(config):
             cg.add(var.add_asset_origin(origin))
         if "ca_certificate" in config["asset_loading"]:
             cg.add(var.set_asset_ca(config["asset_loading"]["ca_certificate"].read_text()))
+    if "runtime_visuals" in config:
+        cg.add_define("USE_STREAM_DECK_RUNTIME_API")
+        entity = await text_sensor.new_text_sensor(config["runtime_visuals"]["session"])
+        cg.add(var.set_visual_session_sensor(entity))
     cg.add(var.set_brightness(config["initial_brightness"]))
     cg.add(var.set_usb_diagnostics(config["usb_diagnostics"]))
     if "input_report_id" in config:

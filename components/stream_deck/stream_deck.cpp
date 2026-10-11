@@ -28,6 +28,9 @@ void StreamDeck::setup() {
     assets_->fetcher.set_ca_certificate(asset_ca_);
   } else ESP_LOGE(TAG, "Asset service PSRAM allocation failed; USB/API remain independent");
 #endif
+#ifdef USE_STREAM_DECK_RUNTIME_API
+  if (session_sensor_ && assets_) session_sensor_->publish_state(visual_session());
+#endif
 }
 
 void StreamDeck::on_shutdown() {
@@ -79,6 +82,14 @@ void StreamDeck::publish_input_(const InputReport &report) {
         sensor->publish_state(pressed);
       }
     }
+#ifdef USE_STREAM_DECK_KEY_EVENTS
+    // Only real tracker edges. No snapshot on API subscribe/reconnect and no
+    // application backlog for a client that wasn't connected at the time.
+    if (key_events_[key]) {
+      if (edges.pressed & bit) key_events_[key]->trigger("press");
+      if (edges.released & bit) key_events_[key]->trigger("release");
+    }
+#endif
     if (edges.pressed & bit) press_trigger_.trigger(key);
     if (edges.released & bit) release_trigger_.trigger(key);
   }

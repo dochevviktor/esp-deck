@@ -1,6 +1,5 @@
-# Contract/helper for P0. Requires the runtime action from P4, which is not yet
-# exposed by any firmware example. These are HA scripts, not ESPHome YAML.
-# Include under script: or merge into scripts.yaml when P4 is available.
+# HA scripts, not ESPHome YAML. Merge into scripts.yaml with runtime_scripts.yaml.
+# Low-level helper with explicit revisions; normal callers use stream_deck_apply.
 stream_deck_visual_patch:
   alias: Stream Deck visual patch
   description: Change selected fields; omit to preserve, use empty text/image_url to clear.
@@ -58,23 +57,21 @@ stream_deck_visual_patch:
         - stop: Patch strings cannot be null or another type; font must be an integer.
           error: true
     - action: esphome.streamdeck_original_set_key_visual
-      data:
-        session: "{{ session }}"
-        key: "{{ key }}"
-        revision: "{{ revision }}"
-        fields: >-
-          {{ (1 if 'image_url' in patch else 0)
+      response_variable: visual_result
+      # One dictionary template preserves strings such as "123", "True" and
+      # an all-digit session; separately rendered scalars can become numbers.
+      data: >-
+        {{ dict(session=session, key=key, revision=revision,
+          fields=(1 if 'image_url' in patch else 0)
              + (2 if 'text' in patch else 0)
              + (4 if 'font' in patch else 0)
              + (8 if 'text_color' in patch else 0)
              + (16 if 'outline_color' in patch else 0)
              + (32 if 'background_color' in patch else 0)
-             + (64 if 'fit' in patch else 0) }}
-        image_url: "{{ patch.get('image_url', '') }}"
-        image_revision: "{{ patch.get('image_revision', '') }}"
-        label_text: "{{ patch.get('text', '') }}"
-        font: "{{ patch.get('font', 16) }}"
-        text_color: "{{ patch.get('text_color', '') }}"
-        outline_color: "{{ patch.get('outline_color', '') }}"
-        background_color: "{{ patch.get('background_color', '') }}"
-        fit: "{{ patch.get('fit', '') }}"
+             + (64 if 'fit' in patch else 0),
+          image_url=patch.get('image_url', ''), image_revision=patch.get('image_revision', ''),
+          label_text=patch.get('text', ''), font=patch.get('font', 16),
+          text_color=patch.get('text_color', ''), outline_color=patch.get('outline_color', ''),
+          background_color=patch.get('background_color', ''), fit=patch.get('fit', '')) }}
+    - stop: Visual request response.
+      response_variable: visual_result

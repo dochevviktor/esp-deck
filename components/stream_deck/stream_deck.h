@@ -3,11 +3,18 @@
 #include "scheduler.h"
 #include "usb_transport.h"
 #include "asset_runtime.h"
+#include "visual_api.h"
 #include "esphome/core/automation.h"
 #include "esphome/core/component.h"
 #include "esphome/components/binary_sensor/binary_sensor.h"
 #include "esphome/components/number/number.h"
 #include "esphome/components/sensor/sensor.h"
+#ifdef USE_STREAM_DECK_RUNTIME_API
+#include "esphome/components/text_sensor/text_sensor.h"
+#endif
+#ifdef USE_STREAM_DECK_KEY_EVENTS
+#include "esphome/components/event/event.h"
+#endif
 
 namespace esphome::stream_deck {
 
@@ -27,13 +34,22 @@ class StreamDeck : public Component {
   void set_min_heap_sensor(sensor::Sensor *sensor) { min_heap_sensor_ = sensor; }
   void set_input_report_id(int id) { transport_.set_input_report_id(id); }
   void set_usb_diagnostics(bool enabled) { transport_.set_usb_diagnostics(enabled); }
-  bool set_image(int key, const NativeImage *image) { return scheduler_.set_image(key, image); }
-  bool set_image(int key, const ImageRef &image) { return scheduler_.set_image(key, image); }
+  bool set_image(int key, const NativeImage *image) { return !runtime_visuals_ && scheduler_.set_image(key, image); }
+  bool set_image(int key, const ImageRef &image) { return !runtime_visuals_ && scheduler_.set_image(key, image); }
   bool set_brightness(float percent) { return scheduler_.set_brightness(percent); }
   uint8_t brightness() const { return scheduler_.brightness(); }
   void redraw() { scheduler_.redraw(); }
   Trigger<uint8_t> *get_press_trigger() { return &press_trigger_; }
   Trigger<uint8_t> *get_release_trigger() { return &release_trigger_; }
+#ifdef USE_STREAM_DECK_KEY_EVENTS
+  void set_key_event(uint8_t key, event::Event *entity) { key_events_[key] = entity; }
+#endif
+#ifdef USE_STREAM_DECK_RUNTIME_API
+  void set_visual_session_sensor(text_sensor::TextSensor *sensor) { session_sensor_ = sensor; runtime_visuals_ = true; }
+  visual::Api visual_api() {
+    return {visual_session(), assets_ ? &assets_->store : nullptr, assets_ ? &assets_->pipeline : nullptr};
+  }
+#endif
 #ifdef USE_STREAM_DECK_ASSETS
   void add_asset_origin(const std::string &origin) { asset_policy_.add(origin); }
   void set_asset_ca(const char *certificate) { asset_ca_ = certificate; }
@@ -58,7 +74,13 @@ class StreamDeck : public Component {
   sensor::Sensor *heap_sensor_{nullptr}, *min_heap_sensor_{nullptr};
   Trigger<uint8_t> press_trigger_, release_trigger_;
   uint32_t generation_{0}, last_diagnostics_{0}, last_errors_{0}, last_malformed_{0}, last_overflows_{0};
-  bool attached_{false}, ready_{false};
+  bool attached_{false}, ready_{false}, runtime_visuals_{false};
+#ifdef USE_STREAM_DECK_KEY_EVENTS
+  std::array<event::Event *, protocol::KEY_COUNT> key_events_{};
+#endif
+#ifdef USE_STREAM_DECK_RUNTIME_API
+  text_sensor::TextSensor *session_sensor_{nullptr};
+#endif
 #ifdef USE_STREAM_DECK_ASSETS
   assets::OriginPolicy asset_policy_;
   assets::PsramMemory asset_memory_;

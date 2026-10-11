@@ -11,7 +11,7 @@ def build_assets():
     subprocess.run(["gcc", "-std=c99", "-g", *sanitize, "-Icomponents/stream_deck", "-c",
                     "components/stream_deck/asset_inflate.c", "-o", str(obj)], cwd=ROOT, check=True)
     sources = ["asset_png.cpp", "asset_policy.cpp", "asset_pipeline.cpp", "runtime_image.cpp", "protocol.cpp",
-               "visual_state.cpp", "scheduler.cpp", "renderer.cpp", "render_font.cpp", "render_font_data.cpp"]
+               "visual_state.cpp", "visual_api.cpp", "scheduler.cpp", "renderer.cpp", "render_font.cpp", "render_font_data.cpp"]
     binary = build / "test_assets"
     subprocess.run(["g++", "-std=c++17", "-Wall", "-Wextra", "-Werror", "-g", *sanitize,
                     "-Icomponents/stream_deck", "tests/native/test_assets.cpp",

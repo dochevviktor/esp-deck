@@ -6,14 +6,15 @@ the ESP32 composes images and text locally and handles USB. Once this capability
 is installed, changing a binding, image or supported text/style must not require
 another firmware build or upload.
 
-Status, 2026-10-11: P0–P3 software implemented and unit-tested (37 Python cases,
-including six native C++ executables). All six configurations compile with
+Status, 2026-10-11: P0–P4 software implemented and unit-tested (48 Python cases,
+including seven native C++ executables). All seven configurations compile with
 synthetic secrets. The [asset loader](asset-loading.md) adds bounded asynchronous
 HTTP(S), strict PNG decoding and retained background caching to the
 [runtime contract](runtime-visuals.md) and [renderer](rendering.md).
-P3's live asset-reachability check and P4/P5 remain pending. HA runtime API actions
-are not exposed yet. No firmware was deployed or newly hardware-verified;
-example 04 remains the installed bench baseline.
+P4 adds [native API controls, key events and HA layout replay](home-assistant.md).
+P3's live asset-reachability check and P5's HA/device acceptance remain pending.
+No firmware was deployed or newly hardware-verified; example 04 remains the
+installed bench baseline.
 
 ## Resume in a fresh chat
 
@@ -22,15 +23,15 @@ example 04 remains the installed bench baseline.
    [USB decision](decisions/usb-transport.md), and current
    [hardware evidence](hardware.md) and [test status](testing.md).
 2. Inspect the worktree and current sources; preserve local edits and secrets.
-3. Continue with P4 using [the finalized contract](runtime-visuals.md) and
-   [P3's loader](asset-loading.md). `StreamDeck::submit_visual`, `visual_session`
-   and `visual_status` are the typed bridge for native API actions. Expose them
-   with the tested fixed argument/presence representation, then add HA layout
-   replay and the generic example 05. Do not register another loader/renderer or
-   reset visual state when an API logger connects/disconnects.
-4. Keep example 04 as the known-working bench configuration. Add a separate
-   generic HA example; do not begin by choosing a light entity to hardcode into
-   the ESP firmware or repeating USB packet-size experiments.
+3. Continue with P5 using [the runtime contract](runtime-visuals.md),
+   [P3's loader](asset-loading.md) and [P4's HA guide](home-assistant.md).
+   Example 05 and the HA scripts/automations are implemented and compiled.
+   Confirm HA version/action-response support, the real reachable PNG origin,
+   and readiness to replace the bench firmware before a requested deployment.
+4. Keep example 04 as the known-working bench configuration. Runtime actions
+   require example 05; they are not on the installed device yet. Do not hardcode
+   HA entities into firmware, reset visual state on API logger connections, or
+   repeat USB packet-size experiments for this stage.
 
 This plan supersedes the original handover's deferral of runtime text rendering
 and network-loaded artwork for this next stage. The fixed model/board, ESPHome
@@ -106,7 +107,7 @@ of scope. A normal HA automation/script interface is sufficient for this stage.
 
 P0 selected a fixed native API signature with presence flags and an HA patch
 helper. The [complete contract](runtime-visuals.md) is authoritative. The following
-shows the helper payload shape; it is not a currently available firmware action:
+shows the helper payload shape exposed by example 05 (not the installed bench):
 
 ```yaml
 key: 0
@@ -255,20 +256,20 @@ Primary files: `components/stream_deck/__init__.py`, `stream_deck.*`, API action
 new `examples/05_home_assistant_runtime.yaml`, HA automation/script examples,
 `tools/check_firmware.py` and schema/integration tests.
 
-- [ ] Expose generic visual, clear, refresh/invalidate and status operations over
+- [x] Expose generic visual, clear, refresh/invalidate and status operations over
   the encrypted native API. Add useful field descriptions and error responses.
-- [ ] Publish stable key inputs without fixed HA entity IDs or firmware-side
+- [x] Publish stable key inputs without fixed HA entity IDs or firmware-side
   service calls. Remove the bench's automatic bulb/arrow substitutions from this
   new example; HA controls the desired artwork from actual state.
-- [ ] Provide HA examples for press/release automations, state-driven visuals and
+- [x] Provide HA examples for press/release automations, state-driven visuals and
   changing a key binding/image/label entirely from HA. Avoid duplicate local and
   HA action paths, startup-triggered actions and replay of presses after outages.
-- [ ] Make HA replay the latest layout on HA startup and ESP restart/reconnection,
+- [x] Make HA replay the latest layout on HA startup and ESP restart/reconnection,
   using an explicit boot/session identity and idempotent revisions as needed.
   A deck-only reconnect restores cached desired tiles without downloading again.
-- [ ] Define a safe offline/default display until synchronization. Cache in RAM
+- [x] Define a safe offline/default display until synchronization. Cache in RAM
   initially; do not write flash on every label or state change.
-- [ ] Add the new example to the build checker and update the public contract and
+- [x] Add the new example to the build checker and update the public contract and
   README without making the unchanged diagnostic example harder to use.
 
 Acceptance: HA-side rebinding requires no OTA. Image, label and supported style
@@ -276,9 +277,21 @@ changes require no compilation. Routine logger connections do not invalidate
 HA-owned state. Repeated synchronization is safe and does not resend unchanged
 images unnecessarily. No custom HA frontend is required for these basic controls.
 
+Software acceptance: `visual_api.*` wraps the existing Store/Pipeline and returns
+bounded revision/status/error records through the pinned `api.respond` interface.
+The runtime package requires encryption/PSRAM/asset loading and enforces Store's
+visual ownership. Fifteen native edge-event entities preserve the binary sensors
+while avoiding subscription-state replay as actions. Production publication tests
+cover baselines, held keys, overflow, stale generations and detach cleanup.
+HA helper tests cover full 15-key replay, current-state visuals, session/revision
+recovery, scalar string preservation and action-registration timing. Native API
+tests prove unchanged replay creates no download or new scheduled image.
+These are host/synthetic-build results; live HA actions and physical runtime
+rendering/reconnection acceptance belong to P5.
+
 ### P5 Verify end to end and hand off
 
-- [ ] Run the full host suite, fixture checks and synthetic compilation of all
+- [x] Run the full host suite, fixture checks and synthetic compilation of all
   existing examples plus the new runtime example. Record actual results/counts.
 - [ ] Before hardware deployment, confirm the HA version, reachable asset URL and
   access method, and the owner's readiness to replace the bench firmware.
@@ -334,7 +347,7 @@ git diff --check
 ```
 
 Do not upload `.build/firmware/` validation images. Only when a later device
-deployment is requested, and after example 05 exists, build it privately with:
+deployment is requested, build example 05 privately with:
 
 ```sh
 .venv/bin/python tools/check_firmware.py --compile --example 05_home_assistant_runtime --deploy

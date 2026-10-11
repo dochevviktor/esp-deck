@@ -11,6 +11,17 @@ from asset_test_build import build_assets, build_http
 
 
 class NativeTests(unittest.TestCase):
+    def test_key_events(self):
+        binary = ROOT / ".build/test_key_events"
+        binary.parent.mkdir(exist_ok=True)
+        sanitizer = ["-fsanitize=address,undefined", "-fno-omit-frame-pointer"] if os.getenv("SANITIZE") == "1" else []
+        subprocess.run(["g++", "-std=c++17", "-Wall", "-Wextra", "-Werror", "-g", *sanitizer,
+                        "-DUSE_STREAM_DECK_KEY_EVENTS", "-Itests/native/fakes", "-Icomponents/stream_deck",
+                        "tests/native/test_key_events.cpp", "components/stream_deck/stream_deck.cpp",
+                        "components/stream_deck/protocol.cpp", "components/stream_deck/scheduler.cpp",
+                        "components/stream_deck/runtime_image.cpp", "-o", str(binary)], cwd=ROOT, check=True)
+        subprocess.run([str(binary)], cwd=ROOT, check=True)
+
     def test_assets(self):
         subprocess.run([str(build_assets())], cwd=ROOT, check=True)
 

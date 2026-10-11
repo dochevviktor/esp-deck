@@ -4,7 +4,8 @@ P3 connects validated visual requests to HTTP(S), a bounded PNG decoder, the P2
 renderer, and the immutable-image scheduler. It is opt-in with `asset_loading`.
 The four numbered examples and `renderer_probe` retain their existing behavior.
 `asset_loader_probe` exercises the new path with a configurable asset URL; no
-firmware has been uploaded for this work. HA-facing runtime API actions are P4.
+firmware has been uploaded for this work. P4 adds HA-facing actions in example 05;
+see [HA runtime controls](home-assistant.md).
 
 ## Configuration and reachable assets
 
@@ -188,7 +189,7 @@ software caps are not measurements of network/USB coexistence or physical PSRAM
 reliability; P5 must collect those observations.
 
 `StreamDeck::submit_visual`, `visual_session`, and `visual_status` provide the
-typed bridge used by the probe and ready for P4's native API adapter. New error
+typed bridge used by the probe and P4's native API adapter. New error
 names include `origin_not_allowed`, `fetch_timeout`, `http_status`,
 `unsupported_encoding`, `unsupported_png`, and `clock_not_ready`; malformed PNG uses `decode_failed`.
 Status retains the last rendered revision on failure. `rendered` still means

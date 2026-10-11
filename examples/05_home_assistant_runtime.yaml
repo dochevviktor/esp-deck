@@ -1,0 +1,67 @@
+# Generic HA-controlled device. Bindings, PNG URLs, text and styles live in HA.
+# Blank on ESP boot; keep last good tiles offline; RAM only. See docs/home-assistant.md.
+substitutions:
+  asset_origin: http://homeassistant.local:8123
+
+packages:
+  base: !include packages/base.yaml
+  deck: !include packages/deck.yaml
+  runtime_api: !include packages/runtime_api.yaml
+
+stream_deck:
+  asset_loading:
+    allowed_origins: ["${asset_origin}"]
+
+# Needed for HTTPS certificate dates. There are no entity-specific subscriptions.
+time:
+  - platform: homeassistant
+    id: asset_clock
+
+# Real edges, never replayed as initial state. Binary key sensors remain available
+# for held-state display; bind actions to these events, not to both paths.
+event:
+  - platform: stream_deck
+    key: 0
+    name: Key 0 edge
+  - platform: stream_deck
+    key: 1
+    name: Key 1 edge
+  - platform: stream_deck
+    key: 2
+    name: Key 2 edge
+  - platform: stream_deck
+    key: 3
+    name: Key 3 edge
+  - platform: stream_deck
+    key: 4
+    name: Key 4 edge
+  - platform: stream_deck
+    key: 5
+    name: Key 5 edge
+  - platform: stream_deck
+    key: 6
+    name: Key 6 edge
+  - platform: stream_deck
+    key: 7
+    name: Key 7 edge
+  - platform: stream_deck
+    key: 8
+    name: Key 8 edge
+  - platform: stream_deck
+    key: 9
+    name: Key 9 edge
+  - platform: stream_deck
+    key: 10
+    name: Key 10 edge
+  - platform: stream_deck
+    key: 11
+    name: Key 11 edge
+  - platform: stream_deck
+    key: 12
+    name: Key 12 edge
+  - platform: stream_deck
+    key: 13
+    name: Key 13 edge
+  - platform: stream_deck
+    key: 14
+    name: Key 14 edge
