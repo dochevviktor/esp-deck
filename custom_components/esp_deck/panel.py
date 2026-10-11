@@ -147,7 +147,7 @@ async def setup_panel(hass):
     await hass.http.async_register_static_paths([StaticPathConfig("/esp_deck_static",
         str(Path(__file__).parent / "frontend"), cache_headers=False)])
     await async_register_panel(hass, frontend_url_path="esp-deck", webcomponent_name="esp-deck-panel",
-        sidebar_title="ESP Deck", sidebar_icon="mdi:dialpad", module_url="/esp_deck_static/esp-deck.js?v=0.8.0",
+        sidebar_title="ESP Deck", sidebar_icon="mdi:dialpad", module_url="/esp_deck_static/esp-deck.js?v=0.9.0",
         require_admin=True)
     # config_panel_domain replaces HA's options/repair control with a panel link.
     # Keep that control; the options menu links back to this editor instead.

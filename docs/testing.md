@@ -1,5 +1,102 @@
 # Validation and remaining hardware gates
 
+## P9 local installation and lifecycle qualification, 2026-10-11
+
+Implemented: version 0.9.0's deterministic allowlisted HA ZIP, `hacs.json`, bundled
+editor/English translations/licences/local brand assets, private archive staging,
+an owned-lab upgrade installer, pinned upstream distribution validators and CI
+checks. See [installation and release instructions](release.md). The archive has
+no firmware, local credentials or build trees. The installer retains old code and
+HA data; fresh lab setup archives the previous lab. The normal lab remains bound
+only to loopback. Nothing was published or committed by this session.
+
+Hassfest exposed an invalid repair translation combining `description` and
+`fix_flow`, and a missing config-entry-only schema. Both are fixed. Repair flows
+now receive their bounded error placeholder. Deleting a disabled config entry
+before component setup now loads the persisted artwork metadata so its token
+and artwork are also revoked/removed. Incompatible example-04 bench firmware gets
+concrete example-05/private-build/OTA/reload guidance. The editor accurately says
+when its existing address-verification operation completed a device fetch.
+
+Compiled: all **seven** supported ESP32 configurations with temporary synthetic
+secrets, unchanged ESPHome 2026.9.0 / ESP-IDF 5.5.5 and USB configuration. Example
+05 reports 115,011 B static RAM and 1,093,983 B flash; these are linker estimates,
+not measured runtime memory. The fresh encrypted host virtual deck compiled,
+and the updated editor bundle reproduces. No synthetic binary was uploaded.
+
+Unit-tested: **65 Python unittest cases**, with ASan/UBSan on the nine native
+executables and `UBSAN_OPTIONS=halt_on_error=1:print_stacktrace=1`. The final lab/
+packaging follow-ups were rechecked with their eleven targeted host cases.
+**Five frontend tests** pass, including twenty pixel-exact renderer fixtures.
+All pinned upstream/font/render/PNG fixture checks pass. New host cases cover
+determinism, standalone extraction, complete archive contents, exclusion of local
+secrets/builds/caches, symlinks, duplicate/traversal/missing/oversized entries and
+rejection before destination creation. The lab executes archived integration bytes.
+
+HA-engine-tested: **62 pytest cases** pass on real HA 2026.10.1, with mocked native
+actions. Four new cases cover bench upgrade guidance, rejection below the HA
+minimum, repair placeholders and deleting a disabled entry before setup. The
+upstream HA HTTP application's existing deprecation warning remains. No skips.
+
+HA-container/browser-tested: **28 scenarios** pass in a fresh HA 2026.10.1 /
+frontend 20260930.3 installation with the encrypted virtual deck. The declared
+minimum and current stable HA release are the same version as checked on this
+date; no earlier HA compatibility is claimed. Existing reload/restart/cache/
+state-feedback/input-fence/page tests remain passing. P9 adds archive identity/
+frontend serving, the editor's prefilled-address probe/upload/binding workflow,
+actual P8 code installation and upgrade to the ZIP, cold configuration backup/
+restore, entry removal and legacy layout-store migration through real restarts.
+Saved artwork, layouts, pages, overlays and bindings survive upgrade/restore;
+entry removal revokes old artwork access and preserves the ESPHome association.
+The final P9-only recheck also exercises direct code uninstallation and restart.
+
+Distribution validation: **not passed yet**. The pinned Hassfest run now reports
+only the manifest's missing documentation URL. The actual upstream HACS manifest
+schemas also require documentation/issue-tracker URLs; the checkout has no Git
+remote or provided repository identity, and no URLs/maintainers were invented.
+Local packaging tests do not waive this. Full online HACS repository validation,
+GitHub-authorized HACS custom-repository install/update, publication and default
+store submission are separate pending gates. The CI job is provided but no remote
+CI run is claimed.
+
+Hardware-verified: **none newly for P9**. No ESP was contacted or flashed; example
+04 remains installed. Real ESP fetching/TLS/NVS, physical labels/artwork/input
+timing, first-click, electrical, repeated recovery and soak tests remain pending.
+Lab HTTP and simulated USB completion are not physical acceptance. No native USB,
+UART0, transfer framing, dependency pin or unswitched-VBUS rule changed.
+
+Commands run:
+
+```sh
+SANITIZE=1 UBSAN_OPTIONS=halt_on_error=1:print_stacktrace=1 .venv/bin/python -m unittest discover -s tests -v
+.venv/bin/python tools/check_firmware.py --compile
+.venv/bin/python tools/generate_reference_fixtures.py --check
+.venv/bin/python tools/generate_render_fonts.py --check
+.venv/bin/python tools/generate_render_fixtures.py --check
+.venv/bin/python tools/generate_png_fixtures.py --check
+npm run build --prefix frontend
+npm run check --prefix frontend
+npm test --prefix frontend
+.venv/bin/python tools/package_release.py --check
+.venv/bin/python tools/package_release.py
+.venv/bin/python tools/ha_lab.py up --fresh --artifact .build/release/0.9.0/esp_deck.zip
+.venv/bin/python tools/ha_release.py .build/release/0.9.0/esp_deck.zip
+.venv/bin/python tools/ha_lab.py test
+.venv/bin/python tools/ha_lab.py test-release
+.venv/bin/python tools/check_distribution.py
+git diff --check
+```
+
+The [sanitized P9 acceptance record](../tests/ha_lab/acceptance-p9-2026-10-11.json)
+records the tested archive/source/image identities, counts and pending gates.
+The 28-case full run and final four-case P9 recheck passed with no skips.
+The distribution command fails for the metadata gate described above. Private
+logs, JUnit, cold backups, screenshots and binaries remain in ignored `.build/`.
+The installer's first development attempt exposed expired-token polling and
+SELinux labels on moved files; it now refreshes authentication after unauthenticated
+readiness and recreates only its stopped owned HA container to relabel its private
+mount. Subsequent archive installation and lifecycle runs use that corrected path.
+
 ## Runtime capabilities, positioning and safe pages, 2026-10-11 (P8)
 
 Implemented: runtime v2 capabilities and separate fixed-signature actions;

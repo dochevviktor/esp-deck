@@ -2,6 +2,9 @@
 
 import probatio as vol
 from homeassistant.components.repairs import RepairsFlow
+from homeassistant.helpers import issue_registry as ir
+
+from .const import DOMAIN
 
 from .adapter import Adapter, AdapterError
 
@@ -24,7 +27,10 @@ class ConnectionRepair(RepairsFlow):
             else:
                 await self.hass.config_entries.async_reload(entry.entry_id)
                 return self.async_create_entry(data={})
-        return self.async_show_form(step_id="init", data_schema=vol.Schema({}), errors=errors)
+        issue = ir.async_get(self.hass).async_get_issue(DOMAIN, f"{self.entry_id}_connection")
+        return self.async_show_form(step_id="init", data_schema=vol.Schema({}), errors=errors,
+            description_placeholders={"error": (issue.translation_placeholders or {}).get("error", "offline")
+                                      if issue else "offline"})
 
 
 async def async_create_fix_flow(hass, issue_id, data):

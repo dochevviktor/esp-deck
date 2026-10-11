@@ -1,0 +1,75 @@
+{
+  "stage": "P9 local installation and lifecycle qualification",
+  "date": "2026-10-11",
+  "integration_version": "0.9.0",
+  "base_commit": "279e58bce7303ea4e7c2cb07cf85cd4c2c9394e6",
+  "working_tree_changes": true,
+  "home_assistant": {
+    "python": "3.14.6 (main, Jun 16 2026, 10:51:48) [GCC 15.2.0]",
+    "homeassistant": "2026.10.1",
+    "home-assistant-frontend": "20260930.3",
+    "aioesphomeapi": "46.6.0",
+    "aiohttp": "3.14.4"
+  },
+  "ha_image": "ghcr.io/home-assistant/home-assistant:2026.10.1@sha256:130241f28d01fa80dfa3b44f7d89781c188d8642ecab9024f079f19f9f82baa0",
+  "esphome_host_image": "ghcr.io/esphome/esphome:2026.9.0@sha256:f6509fcf917a732fd80058567b237d5b9286b9dc6c8dde1b655fbb69ebd600ad",
+  "virtual_deck_sha256": "78c00028622ccb97dde89ed30e1e935a152a75a9b66ab5deec5be733ab856881",
+  "release_sha256": "6e18d0591a3b2a983d6972234a6fa566513ddb001c19616d006b69055173d3f6",
+  "release_files": 25,
+  "frontend_sha256": "988223d2ea3676709fdc5e19e0403a3622dd6cc448eb22452762d4cb5ef64075",
+  "host_tests": 65,
+  "native_executables": 9,
+  "asan_ubsan": "passed; UBSan halt_on_error=1",
+  "frontend_tests": 5,
+  "pixel_exact_fixtures": 20,
+  "ha_engine": {
+    "errors": "0",
+    "failures": "0",
+    "skipped": "0",
+    "tests": "62",
+    "time": "8.983"
+  },
+  "ha_live": {
+    "errors": "0",
+    "failures": "0",
+    "skipped": "0",
+    "tests": "28",
+    "time": "261.610"
+  },
+  "p9_final_lifecycle": {
+    "errors": "0",
+    "failures": "0",
+    "skipped": "0",
+    "tests": "4",
+    "time": "113.514"
+  },
+  "firmware_examples_compiled": [
+    "01_usb_probe",
+    "02_keys_brightness",
+    "03_images_home_assistant",
+    "04_hardware_test",
+    "05_home_assistant_runtime",
+    "renderer_probe",
+    "asset_loader_probe"
+  ],
+  "ha_minimum_and_current": "2026.10.1; verified 2026-10-11",
+  "upgrade_from": {
+    "version": "0.8.0",
+    "commit": "279e58bce7303ea4e7c2cb07cf85cd4c2c9394e6",
+    "result": "passed"
+  },
+  "backup_restore": "passed (cold full lab configuration; not Supervisor/cloud-provider qualification)",
+  "removal": "passed (entry and code removal/restart; ESPHome retained; full backup restored)",
+  "migration": "passed (store v0 to v1 through real HA restarts)",
+  "hassfest": "blocked: missing actual repository documentation URL",
+  "hacs_local_schemas": "blocked: missing documentation/issue tracker URLs",
+  "hacs_online_repository": "not run; repository unspecified and no GitHub authorization supplied",
+  "hacs_custom_repository_install_update": "not run",
+  "hardware": "not tested; no ESP contact or deployment",
+  "remote_ci": "not run",
+  "publication": "not performed",
+  "validators": {
+    "hassfest": "ghcr.io/home-assistant/hassfest@sha256:4b1adfb1e0a37710af0390708eb8000230b80b2193ccffbeed0a901fa9765181",
+    "hacs": "ghcr.io/hacs/action@sha256:dc92fdad2f6ffbe74bffb7269d781ea8e064f52d9bb486cdf3925d74e7ab6ebf"
+  }
+}

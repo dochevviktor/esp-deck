@@ -31,7 +31,7 @@
       "no_devices": "Add the ESPHome device in Home Assistant first.",
       "offline": "The ESPHome device is offline or has no valid visual session.",
       "actions_unavailable": "Wait for ESPHome to register its native actions, then retry.",
-      "incompatible_firmware": "This device needs the v1 runtime actions from example 05. Bench firmware is not compatible.",
+      "incompatible_firmware": "Install examples/05_home_assistant_runtime.yaml using the README's private build and encrypted OTA instructions, then reload the ESPHome integration and retry. The example 04 bench firmware has no runtime controls.",
       "incompatible_device": "Select an ESPHome device.",
       "incompatible_entity": "Select the visual-session sensor and press/release event entities from this deck.",
       "device_missing": "The selected ESPHome device was removed. Reconfigure ESP Deck to select its replacement.",
@@ -109,7 +109,7 @@
       "no_devices": "Add the ESPHome device in Home Assistant first.",
       "offline": "The ESPHome device is offline or has no valid visual session.",
       "actions_unavailable": "Wait for ESPHome to register its native actions, then retry.",
-      "incompatible_firmware": "This device needs the v1 runtime actions from example 05. Bench firmware is not compatible.",
+      "incompatible_firmware": "Install examples/05_home_assistant_runtime.yaml using the README's private build and encrypted OTA instructions, then reload the ESPHome integration and retry. The example 04 bench firmware has no runtime controls.",
       "incompatible_device": "Select an ESPHome device.",
       "incompatible_entity": "Select the visual-session sensor and press/release event entities from this deck.",
       "device_missing": "The selected ESPHome device was removed. Reconfigure ESP Deck to select its replacement.",
@@ -131,12 +131,11 @@
   "issues": {
     "connection": {
       "title": "ESP Deck needs attention",
-      "description": "Connection/configuration problem: {error}. Enable missing ESPHome entities or use ESP Deck Configure → Repair entity mapping. Use Reconfigure if the device was replaced. Bench firmware needs example 05.",
       "fix_flow": {
         "step": {
           "init": {
             "title": "Retry the repaired connection",
-            "description": "Enable disabled entities, restore the ESPHome connection, or use ESP Deck Configure → Repair entity mapping. If the device was replaced, use Reconfigure. Continue to check again."
+            "description": "Connection/configuration problem: {error}. Enable disabled entities, restore the ESPHome connection, or use ESP Deck Configure → Repair entity mapping. If the device was replaced, use Reconfigure. Bench firmware needs examples/05_home_assistant_runtime.yaml; follow the README's private build and encrypted OTA instructions. Continue to check again."
           }
         },
         "error": {

@@ -1,4 +1,9 @@
-# ESP Deck Home Assistant integration (P6–P8)
+# ESP Deck Home Assistant integration
+
+P9 packages version 0.9.0 as an installable ZIP with the editor, translations,
+brand images and licences. See [installation, upgrades and qualification](release.md).
+It fixes repair translation validation and removal of disabled entries after
+restart; saved layout/artwork formats and the v1/v2 contracts are unchanged.
 
 Version 0.8 negotiates [runtime v2 capabilities](runtime-v2.md), verifies and
 provisions the HA artwork address, supports positioned text and resolves bounded
@@ -12,9 +17,9 @@ HA's existing ESPHome connection; no second permanent client is created.
 supported/tested. It owns saved layouts, entity feedback, press/release bindings
 and synchronization while the browser is closed. P7's bundled
 [visual editor and artwork library](visual-editor.md) provide everyday editing
-without YAML or revision/URL plumbing. Pages/layers are P8 work. HACS installation, release
-metadata/branding, Hassfest and distribution validation remain P9 gates; a GitHub
-account is not needed to install/test this backend locally.
+without YAML or revision/URL plumbing. P8 supplies pages/layers. HACS online
+repository/install/update validation remains a separate P9 gate; a GitHub account
+is not needed for artifact installation or local tests.
 
 The real device needs example 05's existing v1 runtime API. The installed
 example 04 bench firmware is incompatible. P6 does not upload firmware, change

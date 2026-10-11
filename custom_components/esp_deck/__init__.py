@@ -2,7 +2,7 @@
 
 from homeassistant.const import Platform, __version__ as HA_VERSION
 from homeassistant.exceptions import ConfigEntryError
-from homeassistant.helpers import issue_registry as ir
+from homeassistant.helpers import config_validation as cv, issue_registry as ir
 from awesomeversion import AwesomeVersion
 
 from .api import register
@@ -10,7 +10,9 @@ from .const import DOMAIN, MIN_HA_VERSION
 from .controller import DeckController
 from .model import LayoutError, empty_layout, entity_preset, validate_layout
 from .storage import LayoutRepository
-from .artwork import DATA_KEY
+from .artwork import ArtworkLibrary, DATA_KEY
+
+CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
 
 async def async_setup(hass, config):
@@ -53,7 +55,12 @@ async def async_unload_entry(hass, entry):
 
 
 async def async_remove_entry(hass, entry):
+    library = hass.data.get(DATA_KEY)
+    if library is None:
+        # Removing a disabled entry after an HA restart need not have loaded
+        # async_setup/panel. Revoke its persisted capability and artwork too.
+        library = ArtworkLibrary(hass)
+        await library.load()
+    await library.remove_entry(entry.entry_id)
     await LayoutRepository(hass, entry.entry_id).store.async_remove()
-    if library := hass.data.get(DATA_KEY):
-        await library.remove_entry(entry.entry_id)
     ir.async_delete_issue(hass, DOMAIN, f"{entry.entry_id}_connection")

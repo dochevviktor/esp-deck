@@ -31,6 +31,7 @@ OWNER = hashlib.sha256(str(ROOT).encode()).hexdigest()[:12]
 PREFIX = f"esp-deck-lab-{OWNER}"
 LABEL = "io.esp-deck.lab"
 URL = "http://127.0.0.1:18123"
+ARTIFACT = None
 PORTABLE = ("protocol", "runtime_image", "scheduler", "visual_state", "visual_api",
             "asset_policy", "asset_pipeline", "asset_png", "renderer", "render_font")
 
@@ -162,10 +163,42 @@ def stage():
     tests = LAB / "pytest"
     shutil.copytree(ROOT / "tests/ha", tests / "tests", dirs_exist_ok=True)
     shutil.copytree(ROOT / "examples/home_assistant", tests / "examples", dirs_exist_ok=True)
-    shutil.copytree(ROOT / "custom_components", config / "custom_components", dirs_exist_ok=True,
-                    ignore=shutil.ignore_patterns("__pycache__"))
-    shutil.copytree(ROOT / "custom_components", tests / "custom_components", dirs_exist_ok=True,
-                    ignore=shutil.ignore_patterns("__pycache__"))
+    stage_integration(config / "custom_components")
+    stage_integration(tests / "custom_components")
+
+
+def stage_integration(destination, *, installed=False):
+    """Release tests execute archive bytes; normal development uses the source."""
+    receipt = LAB / "installation.json"
+    artifact = (LAB / "installed-release.zip" if installed and receipt.is_file()
+                and "sha256" in json.loads(receipt.read_text()) else None) if installed else ARTIFACT
+    if artifact is not None:
+        try:
+            from .package_release import inspect_archive, extract_new
+        except ImportError:
+            from package_release import inspect_archive, extract_new
+        payload = Path(artifact).read_bytes()
+        files = inspect_archive(payload)
+        target = destination / "esp_deck"
+        if target.is_symlink() or any(path.is_symlink() for path in target.parents):
+            raise RuntimeError("Refusing symlinked integration destination")
+        if target.exists():
+            archive = LAB / "installations" / secrets.token_hex(8)
+            archive.mkdir(parents=True, mode=0o700)
+            target.rename(archive / "previous")
+        extract_new(payload, target)
+        if not installed:
+            (LAB / "installed-release.zip").write_bytes(payload)
+            private_write(LAB / "installation.json", json.dumps({
+                "version": json.loads(files["manifest.json"])["version"],
+                "sha256": hashlib.sha256(payload).hexdigest(),
+                "files": {name: hashlib.sha256(data).hexdigest() for name, data in files.items()},
+            }, indent=2) + "\n")
+    else:
+        shutil.copytree(ROOT / "custom_components", destination, dirs_exist_ok=True,
+                        ignore=shutil.ignore_patterns("__pycache__"))
+        if not installed:
+            private_write(receipt, json.dumps({"source_tree": True}) + "\n")
 
 
 def ensure_image(key):
@@ -208,6 +241,25 @@ def start_container(suffix, image, args):
            "--network", PREFIX, "--network-alias", suffix,
            "--cap-drop=all", "--security-opt=no-new-privileges", *args, image,
            *( ["-m", "homeassistant", "--config", "/config"] if suffix == "ha" else []))
+
+
+def start_ha(*, recreate=False):
+    if recreate:
+        item = inspect_owned("container", PREFIX + "-ha")
+        if item:
+            if item["State"]["Running"]:
+                raise RuntimeError("Stop the owned HA container before recreating its private mount")
+            podman("rm", PREFIX + "-ha")
+    start_container("ha", ensure_image("home_assistant"), [
+        "-p", "127.0.0.1:18123:8123", "-v", f"{LAB / 'config'}:/config:Z", "--entrypoint", "python"])
+
+
+def wait_for_ha():
+    # Access tokens may have expired while stopped. Wait without sending stale
+    # authentication, then refresh before touching the authenticated API.
+    wait_for(lambda: urllib.request.urlopen(URL + "/", timeout=2).status == 200, description="HA UI")
+    refresh_token()
+    pair()
 
 
 def onboard():
@@ -266,6 +318,8 @@ def up():
         raise RuntimeError("This lab requires rootless Podman")
     running = inspect_owned("container", PREFIX + "-deck")
     if running and running["State"]["Running"]:
+        if ARTIFACT is not None:
+            raise RuntimeError("Run down before up --artifact, or use tools/ha_release.py to upgrade the lab")
         # A running executable/config must not be rebuilt or relabeled in place.
         # Use down/build/up to apply source changes.
         print("Reusing running virtual deck; down/up applies source/config changes", flush=True)
@@ -280,8 +334,7 @@ def up():
     start_container("deck", ensure_image("esphome_host"), [
         "-v", f"{LAB / 'deck'}:/lab:Z", "-w", "/lab", "--entrypoint",
         "/lab/.esphome/build/.pioenvs/streamdeck-original/program"])
-    start_container("ha", ensure_image("home_assistant"), [
-        "-p", "127.0.0.1:18123:8123", "-v", f"{LAB / 'config'}:/config:Z", "--entrypoint", "python"])
+    start_ha()
     print("Waiting for fresh HA and pairing the encrypted virtual deck", flush=True)
     # Already-onboarded HA returns 401/404 on the onboarding endpoint.
     creds = credentials()
@@ -348,13 +401,21 @@ def fresh():
 
 
 def main():
+    global ARTIFACT
     os.umask(0o077)
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("command", choices=("up", "build", "status", "test", "test-engine", "down"))
+    parser.add_argument("command", choices=("up", "build", "status", "test", "test-engine", "test-release", "down"))
     parser.add_argument("--fresh", action="store_true", help="up only: archive the previous lab and use fresh accounts/data")
+    parser.add_argument("--artifact", type=Path, help="up/build only: install a release ZIP instead of the source tree")
     args = parser.parse_args()
     if args.fresh and args.command != "up":
         parser.error("--fresh is only valid with up")
+    if args.artifact:
+        if args.command not in ("up", "build") or not args.artifact.is_file():
+            parser.error("--artifact requires an existing ZIP and up/build")
+        from package_release import inspect_archive
+        inspect_archive(args.artifact.read_bytes())
+        ARTIFACT = args.artifact.resolve()
     if args.command == "status":
         status()
         return
@@ -366,9 +427,12 @@ def main():
             raise RuntimeError("Another lab command is active") from error
         if args.fresh:
             fresh()
-        if args.command in ("test", "test-engine"):
+        if args.command in ("test", "test-engine", "test-release"):
             from ha_lab_tests import run_tests, run_engine_tests
-            (run_tests if args.command == "test" else run_engine_tests)()
+            if args.command == "test-engine":
+                run_engine_tests()
+            else:
+                run_tests(release_only=args.command == "test-release")
         else:
             globals()[args.command]()
 

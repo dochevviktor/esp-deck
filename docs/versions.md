@@ -21,10 +21,13 @@ credentials, C6 pin assignments and device-specific workarounds were not copied.
 | HIDAPI source audit only | 0.15.0, commit `d6b2a974608dec3b76fb1e36c189f22b9cf3650c` |
 | mDNS IDF component | `espressif/mdns` 1.12.0, pinned by ESPHome |
 | Native API/OTA crypto | `esphome/noise-c` 0.1.30, `esphome/libsodium` 1.10021.11, pinned by ESPHome |
-| Home Assistant tested version | 2026.10.1 in the isolated P5–P7 lab, frontend 20260930.3; production HA/device runtime acceptance pending |
-| ESP Deck HA integration | Local version 0.7.0; bundled editor/artwork library, v1 native action adapter; HA 2026.10.1 minimum; HACS distribution validation pending |
+| Home Assistant tested version | 2026.10.1 in the isolated lab, frontend 20260930.3; minimum and current stable checked 2026-10-11; production HA/device runtime acceptance pending |
+| ESP Deck HA integration | Local artifact 0.9.0; bundled editor/artwork, v1/v2 adapter; HA 2026.10.1 minimum; see [P9 distribution gates](release.md) |
 | HA artwork conversion | Pillow 12.3.0, supplied by the pinned HA image (no extra integration install) |
 | Editor build | Node 24.13.0, npm 11.6.2, esbuild 0.25.12; `frontend/package-lock.json`; no browser runtime dependency |
+| Hassfest validator | `ghcr.io/home-assistant/hassfest@sha256:4b1adfb1e0a37710af0390708eb8000230b80b2193ccffbeed0a901fa9765181` |
+| HACS local schema validator | `ghcr.io/hacs/action@sha256:dc92fdad2f6ffbe74bffb7269d781ea8e064f52d9bb486cdf3925d74e7ab6ebf`, upstream source `3f3080cbf909b8f51488e227be73f62902b4ef6c`; not an installed HACS UI |
+| Upgrade baseline | Actual integration 0.8.0 code at `279e58bce7303ea4e7c2cb07cf85cd4c2c9394e6`; schema versions retained in 0.9.0 |
 | Owner's working desktop Python revision | Not yet supplied |
 | Deck firmware | `1.0.191203`, read through desktop HID Feature 4 on 2026-10-10 |
 

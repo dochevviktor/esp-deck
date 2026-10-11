@@ -11,6 +11,10 @@ Detailed mapping/visual checks, brightness response, loaded electrical
 qualification, repeated recovery, ESP-only restarts and HA tests remain pending.
 The handover is the hardware source of truth; this is its operational checklist.
 
+P9 packaging/lifecycle testing, 2026-10-11, ran only in the isolated HA/virtual-deck
+lab. No physical ESP was contacted, deployed or newly verified. Example 04 remains
+installed; all runtime and electrical measurements below remain pending.
+
 P8 software adds [capabilities, positioning, origin provisioning and safe pages](runtime-v2.md).
 No P8 device deployment or new hardware verification occurred. Add these to P9:
 

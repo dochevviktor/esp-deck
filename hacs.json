@@ -1,0 +1,6 @@
+{
+  "name": "ESP Deck",
+  "homeassistant": "2026.10.1",
+  "zip_release": true,
+  "filename": "esp_deck.zip"
+}

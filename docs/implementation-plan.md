@@ -1,12 +1,23 @@
 # Home Assistant runtime control implementation plan
 
+P9 progress, 2026-10-11: local version 0.9.0 packaging, archive installation and
+lifecycle qualification are implemented. All seven synthetic firmware builds,
+65 host tests (ASan/UBSan), five frontend tests, 62 HA-engine cases and the
+28-scenario real HA/native-API/browser run pass. The four P9 lifecycle cases also
+pass their final recheck with complete code removal/restart. See [the release guide](release.md).
+Hassfest's repair-translation/schema errors are fixed; final HACS/Hassfest metadata
+validation is blocked on the actual GitHub documentation/issue URLs and maintainer.
+This checkout has no remote configured. HACS online install/update, physical
+deployment/runtime acceptance and the existing electrical/soak gates remain open.
+No ESP was contacted or flashed; example 04 remains the hardware baseline.
+
 Approved direction as of 2026-10-10: make ESP Deck a generic input and display
 device. Home Assistant owns key bindings, automations and visual configuration;
 the ESP32 composes images and text locally and handles USB. Once this capability
 is installed, changing a binding, image or supported text/style must not require
 another firmware build or upload.
 
-Status, 2026-10-11: P0–P8 software implemented and tested (60 Python unittest cases,
+P8 checkpoint, 2026-10-11: P0–P8 software implemented and tested (60 Python unittest cases,
 including nine native C++ executables; five frontend tests including twenty
 pixel-exact rendering fixtures; 58 real-HA engine tests with mocked native
 actions; 24 real-container/native-API/browser scenarios).
@@ -50,7 +61,8 @@ Read [the research and architecture decision](decisions/home-assistant-ux.md).
    [USB decision](decisions/usb-transport.md), and current
    [hardware evidence](hardware.md) and [test status](testing.md).
 2. Inspect the worktree and current sources; preserve local edits and secrets.
-3. Continue with P9 against [runtime v2](runtime-v2.md), the [integration backend](ha-integration.md),
+3. Continue the remaining P9 gates in [the release guide](release.md), against
+   [runtime v2](runtime-v2.md), the [integration backend](ha-integration.md),
    [P7 editor/artwork pipeline](visual-editor.md), isolated HA lab and test-only
    virtual deck, using
    [the architecture decision](decisions/home-assistant-ux.md),
@@ -563,17 +575,21 @@ from hardware: no deployment or new physical verification occurred.
 This retains the original P5 physical checks and adds product/release validation.
 Software installation tests can proceed before any device deployment.
 
-- [ ] Run HA pytest, real-container/native-API and browser suites, plus the full
+- [x] Run HA pytest, real-container/native-API and browser suites, plus the full
   host fixtures and synthetic builds for every supported firmware example.
   Exercise the declared minimum/current HA versions and upgrade/reload/restart,
   data migration, backup/restore and removal. Record actual versions and results.
-- [ ] Build release packaging with `hacs.json`, valid manifest, translations,
-  brand/licence assets and the bundled frontend. Run HACS validation and Hassfest.
-  Verify direct installation from the release artifact; separately smoke-test
-  HACS custom-repository install/update when GitHub device authorization is available.
+- [x] Build local installation packaging with `hacs.json`, translations,
+  brand/licence assets and the bundled frontend. Verify direct installation from
+  the artifact and actual P8-to-P9 code upgrade, preserving saved data.
+- [ ] Complete the manifest's real repository/maintainer metadata and pass HACS
+  validation and Hassfest. Both were run locally: the repaired translations and
+  component schema pass; missing documentation/issue URLs remain a blocker.
+  Separately smoke-test HACS custom-repository install/update when the repository
+  is published and GitHub device authorization is available.
   Public release/default-store submission is a later publishing step, not a
   prerequisite for local tests or custom-repository support.
-- [ ] Verify the guided flow with no manual YAML, URLs, revision counters or
+- [x] Verify the guided flow with no manual YAML, URLs, revision counters or
   frontend-resource registration after initial device setup. Detect incompatible
   bench firmware with a clear upgrade path instead of unexplained missing controls.
 - [ ] Before a requested physical upload, confirm device identity, chosen HA

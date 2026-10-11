@@ -1,4 +1,10 @@
-# Independent Home Assistant lab (P5–P8)
+# Independent Home Assistant lab
+
+P9 can install a release ZIP with `up --fresh --artifact PATH` and upgrade a
+running lab with `tools/ha_release.py PATH`. Archive installs also run the four
+installation/upgrade/backup/removal/migration scenarios; source-tree installs
+retain the original regression suites. The HA engine layer uses the same installed
+ZIP bytes. See [P9 commands and test boundaries](release.md).
 
 P8 adds capability/provisioning/positioning/page acceptance through the same
 encrypted host executable. The complete run has 58 HA-engine and 24 live

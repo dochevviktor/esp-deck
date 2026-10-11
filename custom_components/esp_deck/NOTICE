@@ -1,0 +1,7 @@
+ESP Deck is an independent project; it is not affiliated with Elgato, Seeed,
+Home Assistant, ESPHome or HACS. Product names belong to their respective owners.
+
+The editor includes rasterized glyphs from DejaVu Sans 2.37. Its copyright,
+permission and trademark notices are in frontend/LICENSE-DejaVu.txt.
+The original ESP Deck grid icon is distributed under this directory's MIT license.
+The HA release ZIP contains no firmware or third-party USB driver sources.

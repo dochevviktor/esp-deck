@@ -28,7 +28,7 @@ artwork_variant:
         object:
 artwork_configure:
   name: Set artwork address
-  description: Save the HA origin reachable by the deck. Does not provision the firmware allowlist. Administrator only.
+  description: Verify and save the HA artwork address on v2 firmware. v1 must already allow this origin. Administrator only.
   fields:
     entry_id: *entry
     origin:

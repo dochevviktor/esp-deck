@@ -138,7 +138,7 @@ class ESPDeckPanel extends HTMLElement {
     this.$("#apply").onclick = () => this.run(() => this.save(true));
     this.$("#preview-state").onchange = e => {this.variant = e.target.value; this.draw();};
     this.$("#retry").onclick = () => this.run(async () => {this.status = await this.command("sync");});
-    this.$("#set-origin").onclick = () => this.run(async () => {this.library = await this.command("artwork_configure", {origin: this.$("#origin").value}); this.notice("Artwork address saved. Apply or retry to check the device response.");});
+    this.$("#set-origin").onclick = () => this.run(async () => {this.library = await this.command("artwork_configure", {origin: this.$("#origin").value}); this.notice(this.status.capabilities?.origin_provisioning ? "Artwork access verified by the device and saved." : "Artwork address saved. Apply or retry to check the device response.");});
     this.$("#revoke").onclick = () => this.run(async () => {this.library = await this.command("artwork_revoke"); this.notice("Previous download links revoked. New links are being sent to the deck.");});
     this.$("#collect").onclick = () => this.run(async () => {if (this.dirty) throw Error("Save your draft before removing unused artwork."); const result = await this.command("artwork_collect"); this.library = await this.command("artwork_list"); this.renderEditor(); this.notice(`Removed ${result.removed_files} unused files.`);});
     this.$("#export").onclick = () => {

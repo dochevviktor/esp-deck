@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+  <title>ESP Deck</title>
+  <rect x="8" y="40" width="240" height="176" rx="28" fill="#172b43"/>
+  <g fill="#5dd9d0">
+    <rect x="24" y="60" width="32" height="32" rx="6"/>
+    <rect x="68" y="60" width="32" height="32" rx="6"/>
+    <rect x="112" y="60" width="32" height="32" rx="6"/>
+    <rect x="156" y="60" width="32" height="32" rx="6"/>
+    <rect x="200" y="60" width="32" height="32" rx="6"/>
+    <rect x="24" y="112" width="32" height="32" rx="6"/>
+    <rect x="68" y="112" width="32" height="32" rx="6"/>
+    <rect x="156" y="112" width="32" height="32" rx="6"/>
+    <rect x="200" y="112" width="32" height="32" rx="6"/>
+    <rect x="24" y="164" width="32" height="32" rx="6"/>
+    <rect x="68" y="164" width="32" height="32" rx="6"/>
+    <rect x="112" y="164" width="32" height="32" rx="6"/>
+    <rect x="156" y="164" width="32" height="32" rx="6"/>
+    <rect x="200" y="164" width="32" height="32" rx="6"/>
+  </g>
+  <rect x="112" y="112" width="32" height="32" rx="6" fill="#ffc66d"/>
+</svg>
