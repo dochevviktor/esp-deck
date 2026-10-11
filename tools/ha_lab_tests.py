@@ -15,6 +15,24 @@ def logged(command, path, *, env=None):
         raise RuntimeError(f"Test step failed; see {path}")
 
 
+def run_engine_tests():
+    lab.owned_directory()
+    # The HA-image Python and installed HA packages are the engine-test oracle.
+    test_root = lab.LAB / "pytest"
+    shutil.copytree(lab.ROOT / "tests/ha", test_root / "tests", dirs_exist_ok=True)
+    shutil.copytree(lab.ROOT / "examples/home_assistant", test_root / "examples", dirs_exist_ok=True)
+    shutil.copytree(lab.ROOT / "custom_components", test_root / "custom_components", dirs_exist_ok=True,
+                    ignore=shutil.ignore_patterns("__pycache__"))
+    lab.podman("run", "--rm", "--name", lab.PREFIX + "-pytest", "--label", f"{lab.LABEL}={lab.OWNER}",
+        "--cap-drop=all", "--security-opt=no-new-privileges", "-v", f"{test_root}:/tests:Z",
+        "--entrypoint", "sh", lab.LOCK["home_assistant"]["image"], "-c",
+        "python -m venv --system-site-packages /tests/venv && "
+        "/tests/venv/bin/pip install --no-deps -r /tests/tests/requirements.txt && "
+        "cd /tests && /tests/venv/bin/python -m pytest -q /tests/tests --junitxml=/tests/ha-engine.xml",
+        log=lab.LAB / "ha-engine.log")
+    print("HA engine tests passed (mock native transport)", flush=True)
+
+
 def run_tests():
     lab.owned_directory()
     for suffix in ("ha", "deck"):
@@ -22,20 +40,9 @@ def run_tests():
         if not item or not item["State"]["Running"]:
             raise RuntimeError("Run tools/ha_lab.py up before test")
     lab.refresh_token()
-    # The HA-image Python and installed HA packages are the engine-test oracle.
-    test_root = lab.LAB / "pytest"
-    shutil.copytree(lab.ROOT / "tests/ha", test_root / "tests", dirs_exist_ok=True)
-    shutil.copytree(lab.ROOT / "examples/home_assistant", test_root / "examples", dirs_exist_ok=True)
+    run_engine_tests()
     # Preserve the lab mount's SELinux label (copy2 would copy workspace xattrs).
     shutil.copyfile(lab.FIXTURES / "native_probe.py", lab.LAB / "deck/native_probe.py")
-    lab.podman("run", "--rm", "--name", lab.PREFIX + "-pytest", "--label", f"{lab.LABEL}={lab.OWNER}",
-        "--cap-drop=all", "--security-opt=no-new-privileges", "-v", f"{test_root}:/tests:Z",
-        "--entrypoint", "sh", lab.LOCK["home_assistant"]["image"], "-c",
-        "python -m venv --system-site-packages /tests/venv && "
-        "/tests/venv/bin/pip install --no-deps -r /tests/tests/requirements.txt && "
-        "/tests/venv/bin/python -m pytest -q /tests/tests --junitxml=/tests/ha-engine.xml",
-        log=lab.LAB / "ha-engine.log")
-    print("HA engine tests passed (mock native transport)", flush=True)
     runner = lab.LAB / "runner"
     if not (runner / "bin/python").exists():
         venv.EnvBuilder(with_pip=True).create(runner)
@@ -48,6 +55,7 @@ def run_tests():
     print("Running real HA/native-API and browser scenarios", flush=True)
     try:
         logged([str(runner / "bin/python"), "-m", "pytest", "-v", "-x", str(lab.FIXTURES / "test_live.py"),
+                str(lab.FIXTURES / "test_backend.py"),
                 "--junitxml=" + str(lab.LAB / "live.xml")], lab.LAB / "live-tests.log", env=environment)
     finally:
         # Raw logs stay private. Tests/report contain only synthetic payloads.

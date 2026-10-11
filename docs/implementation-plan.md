@@ -6,9 +6,9 @@ the ESP32 composes images and text locally and handles USB. Once this capability
 is installed, changing a binding, image or supported text/style must not require
 another firmware build or upload.
 
-Status, 2026-10-11: P0–P5 software implemented and tested (54 Python unittest cases,
-including seven native C++ executables; two real-HA engine tests with mocked
-native actions; nine real-container/native-API/browser scenarios).
+Status, 2026-10-11: P0–P6 software implemented and tested (54 Python unittest cases,
+including seven native C++ executables; 43 real-HA engine tests with mocked
+native actions; 16 real-container/native-API/browser scenarios).
 All seven firmware configurations compile with
 synthetic secrets. The [asset loader](asset-loading.md) adds bounded asynchronous
 HTTP(S), strict PNG decoding and retained background caching to the
@@ -17,6 +17,8 @@ P4 adds [native API controls, key events and HA layout replay](home-assistant.md
 P5 adds the [isolated HA lab](ha-lab.md), an encrypted ESPHome host virtual deck,
 and a replay fix found by real HA testing. P3's live ESP asset-reachability check
 and physical HA/device acceptance remain pending.
+P6 adds the [HA integration backend](ha-integration.md): guided setup/presets,
+atomic draft/applied layouts, bindings, admin APIs, repair and synchronization.
 No firmware was deployed or newly hardware-verified; example 04 remains the
 installed bench baseline.
 
@@ -26,7 +28,8 @@ an independent Podman HA lab; P6–P8 deliver the product experience; P9 retains
 the real-device and release gates from the original P5. The owner's production
 HA is not a prerequisite for software development/testing. This planning update
 was research/documentation at the time. P5 has since implemented and exercised
-the HA lab; HACS/integration/editor code remains P6–P9 work.
+the HA lab; P6's integration backend is locally installed/tested. The editor,
+uploads, advanced firmware and HACS distribution gates remain P7–P9 work.
 Read [the research and architecture decision](decisions/home-assistant-ux.md).
 
 ## Resume in a fresh chat
@@ -36,7 +39,8 @@ Read [the research and architecture decision](decisions/home-assistant-ux.md).
    [USB decision](decisions/usb-transport.md), and current
    [hardware evidence](hardware.md) and [test status](testing.md).
 2. Inspect the worktree and current sources; preserve local edits and secrets.
-3. Continue with P6 against P5's isolated HA lab and test-only virtual deck, using
+3. Continue with P7 against the [P6 backend](ha-integration.md), isolated HA lab
+   and test-only virtual deck, using
    [the architecture decision](decisions/home-assistant-ux.md),
    [the runtime contract](runtime-visuals.md), [P3's loader](asset-loading.md)
    and [P4's HA guide](home-assistant.md). Podman 5.8.4/rootless is available on
@@ -47,7 +51,7 @@ Read [the research and architecture decision](decisions/home-assistant-ux.md).
    require example 05; they are not on the installed device yet. Do not hardcode
    HA entities into firmware, reset visual state on API logger connections, or
    repeat USB packet-size experiments for this stage.
-5. Build P6/P7 against the existing v1 API first. P8 adds capability-gated label
+5. Build P7 on P6's authenticated APIs and existing v1 firmware. P8 adds label
    positioning, origin provisioning and safe page/layer switching. Before a
    requested real-device upload in P9, verify device identity, preserve the bench
    artifacts and establish the chosen HA asset address and deployment readiness.
@@ -388,31 +392,31 @@ references need updating. `down` preserves private data and unrelated containers
 
 ### P6 Build the HACS integration backend and guided setup
 
-Planned files: `custom_components/esp_deck/` with manifest, config/options flow,
+Implemented files: `custom_components/esp_deck/` with manifest, config/options flow,
 storage, ESPHome adapter, binding/sync controllers, actions, diagnostics and
 translations; tests under `tests/ha/`.
 
-- [ ] Package one integration in the existing repository. Use HA config entries
+- [x] Package one integration in the existing repository. Use HA config entries
   to choose an existing ESPHome deck, verify the runtime signature and associate
   stable device/entity registry references. Resolve names automatically; provide
   a repair flow for missing, disabled, renamed or incompatible entities/actions.
-- [ ] Reuse HA's ESPHome connection and credentials through a narrow tested
+- [x] Reuse HA's ESPHome connection and credentials through a narrow tested
   adapter. Follow current helper/device-registry ownership rules. Do not create
   duplicate physical devices or a second permanent native API client.
-- [ ] Persist a versioned HA layout model with draft/applied revisions, atomic
+- [x] Persist a versioned HA layout model with draft/applied revisions, atomic
   saves, migrations, backup/export/import and bounded asset references. Distinguish
   this layout version from the ESP boot session and per-key request revisions.
-- [ ] Provide entity presets and explicit press/release bindings to HA actions,
+- [x] Provide entity presets and explicit press/release bindings to HA actions,
   scripts/scenes, plus key events for advanced automation. Execute bindings in
   HA with context and error reporting; do not write entity IDs into ESP firmware
   or rewrite the user's automations.yaml. Avoid duplicate managed/automation paths.
-- [ ] Move the P4 queued writer/replay logic into one backend controller per deck:
+- [x] Move the P4 queued writer/replay logic into one backend controller per deck:
   query current session/revisions, coalesce latest desired state, skip unchanged
   visuals, subscribe to actual entity state and replay after HA/ESP reconnect.
   Stop/unsubscribe cleanly on unload; discard stale tasks after configuration changes.
-- [ ] Explain migration from manual P4 scripts and disable competing replay/
+- [x] Explain migration from manual P4 scripts and disable competing replay/
   binding paths deliberately. Preserve their ability to be used independently.
-- [ ] Expose save/sync/status operations and authenticated configuration APIs
+- [x] Expose save/sync/status operations and authenticated configuration APIs
   with backend permission checks. Hiding the editor from non-admin users is not
   itself authorization. Surface actionable failures and connectivity separately.
 
@@ -421,6 +425,20 @@ synthetic light works through HA; state changes, restarts and configuration
 reloads synchronize correctly with the browser closed. Export/import and unload
 tests pass. Direct local installation is sufficient; HACS login is not required
 for development. Use existing allowed-origin URLs until P7/P8 provide the wizard.
+
+Software acceptance: [the backend guide](ha-integration.md) documents the saved
+model, admin services/WebSocket API, guided presets and deliberate P4 handoff.
+HA registry UUIDs preserve associations across renames. The source-tested adapter
+uses existing ESPHome discovery metadata and HA services, without reading its
+credentials, claiming its physical device or creating another permanent client.
+Atomic storage failures/corruption fail closed; optimistic edits, backup/import,
+migrations, stale tasks, bounded binding queues, unload and permissions have
+real-engine tests. Seven added live scenarios cover setup/presets, actual light
+feedback, cache reuse, renames, failure reporting, HA/ESP restart, unload/reload
+and the integration/options UI. The combined suites have 43 engine tests and
+16 real-container/native-API/browser scenarios. All seven synthetic firmware
+configurations compile; none was deployed. Distribution metadata/HACS/Hassfest
+remain P9 gates and the visual editor remains P7.
 
 ### P7 Deliver the visual editor and efficient artwork library
 

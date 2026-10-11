@@ -10,7 +10,9 @@ Runtime firmware has not been deployed to the physical device.
 
 This is the existing P4 manual setup guide. The [extended plan](implementation-plan.md)
 adds a HACS integration/editor that will replace routine YAML setup. P5's
-[Podman lab](ha-lab.md) is implemented; the integration/editor is still planned. See the
+[Podman lab](ha-lab.md) and [P6 integration backend](ha-integration.md) are implemented.
+P6 supplies guided setup/presets and backend-owned layouts; the visual editor is
+P7. Use its deliberate handoff before switching from these manual helpers. See the
 [research and design](decisions/home-assistant-ux.md).
 
 ## Install the example after the deployment gate

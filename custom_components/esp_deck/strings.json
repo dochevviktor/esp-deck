@@ -1,0 +1,139 @@
+{
+  "title": "ESP Deck",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Select your ESPHome deck",
+        "description": "Select the already paired ESPHome device. Setup verifies the runtime v1 action signatures and all 15 key events. Compatible firmware is required; this integration uses HA's existing connection.",
+        "data": {
+          "device_id": "ESPHome device"
+        }
+      },
+      "handoff": {
+        "title": "Hand over layout and bindings",
+        "description": "ESP Deck will own all 15 visuals. Confirm that you have stopped other visual writers and duplicate key automations. The selected automations will be turned off (including running actions); the three shipped P4 helper scripts will be stopped. Their YAML is preserved. Optional: bind key 0 to an entity. Image URLs must already match the firmware's allowed origin; the artwork wizard comes later.",
+        "data": {
+          "exclusive_control": "I have stopped competing visual writers and duplicate bindings",
+          "disable_automations": "Manual automations to turn off",
+          "preset_entity": "Optional key 0 entity",
+          "label": "Key 0 label"
+        }
+      },
+      "reconfigure": {
+        "title": "Replace the ESPHome association",
+        "description": "Choose the compatible replacement. Existing layouts are preserved. Stop any manual replay and duplicate bindings on the replacement before continuing.",
+        "data": {
+          "device_id": "ESPHome device"
+        }
+      }
+    },
+    "error": {
+      "no_devices": "Add the ESPHome device in Home Assistant first.",
+      "offline": "The ESPHome device is offline or has no valid visual session.",
+      "actions_unavailable": "Wait for ESPHome to register its native actions, then retry.",
+      "incompatible_firmware": "This device needs the v1 runtime actions from example 05. Bench firmware is not compatible.",
+      "incompatible_device": "Select an ESPHome device.",
+      "incompatible_entity": "Select the visual-session sensor and press/release event entities from this deck.",
+      "device_missing": "The selected ESPHome device was removed. Reconfigure ESP Deck to select its replacement.",
+      "device_disabled": "Enable the ESPHome device and integration, then retry.",
+      "device_changed": "The ESPHome device association changed. Reconfigure ESP Deck.",
+      "entity_missing": "An entity was removed. Use Configure → Repair entity mapping.",
+      "entity_disabled": "Enable the missing session/key entity in the ESPHome device, then retry.",
+      "ambiguous_entities": "Each physical key needs a different press/release entity. Repair the mapping.",
+      "invalid_native_response": "The device did not return a valid v1 response. Check its firmware.",
+      "native_action_failed": "The native status request failed. Check ESPHome connectivity and retry.",
+      "session_changed": "The device restarted during setup. Retry.",
+      "confirm_handoff": "Confirm that competing manual writers and duplicate bindings have been stopped.",
+      "handoff_failed": "Could not stop the selected manual paths or validate the preset entity.",
+      "binding_failed": "Could not save/apply this preset. Check the entity and integration status."
+    },
+    "abort": {
+      "no_devices": "Add the ESPHome device in Home Assistant first.",
+      "already_configured": "This deck already has an ESP Deck controller.",
+      "reconfigure_successful": "The device association was repaired."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Configure ESP Deck",
+        "menu_options": {
+          "binding": "Set an entity preset",
+          "repair": "Repair entity mapping"
+        }
+      },
+      "binding": {
+        "title": "Set an entity preset",
+        "description": "Replace one key in the draft with a light/switch toggle or script/scene action. On/off/unavailable feedback follows actual HA state. Applying activates the whole saved draft. The visual editor is a later stage.",
+        "data": {
+          "key": "Key (0–14, front view, left to right)",
+          "entity_id": "Entity",
+          "label": "Label",
+          "apply": "Apply the draft"
+        }
+      },
+      "repair": {
+        "title": "Repair entity mapping",
+        "description": "Select the existing ESPHome session and edge entities. Enable disabled entities first. HA renames are followed automatically. Each event must belong to this deck and support press/release.",
+        "data": {
+          "session": "Visual session sensor",
+          "key_0": "Key 0 edge (row 1, column 1)",
+          "key_1": "Key 1 edge (row 1, column 2)",
+          "key_2": "Key 2 edge (row 1, column 3)",
+          "key_3": "Key 3 edge (row 1, column 4)",
+          "key_4": "Key 4 edge (row 1, column 5)",
+          "key_5": "Key 5 edge (row 2, column 1)",
+          "key_6": "Key 6 edge (row 2, column 2)",
+          "key_7": "Key 7 edge (row 2, column 3)",
+          "key_8": "Key 8 edge (row 2, column 4)",
+          "key_9": "Key 9 edge (row 2, column 5)",
+          "key_10": "Key 10 edge (row 3, column 1)",
+          "key_11": "Key 11 edge (row 3, column 2)",
+          "key_12": "Key 12 edge (row 3, column 3)",
+          "key_13": "Key 13 edge (row 3, column 4)",
+          "key_14": "Key 14 edge (row 3, column 5)"
+        }
+      }
+    },
+    "error": {
+      "no_devices": "Add the ESPHome device in Home Assistant first.",
+      "offline": "The ESPHome device is offline or has no valid visual session.",
+      "actions_unavailable": "Wait for ESPHome to register its native actions, then retry.",
+      "incompatible_firmware": "This device needs the v1 runtime actions from example 05. Bench firmware is not compatible.",
+      "incompatible_device": "Select an ESPHome device.",
+      "incompatible_entity": "Select the visual-session sensor and press/release event entities from this deck.",
+      "device_missing": "The selected ESPHome device was removed. Reconfigure ESP Deck to select its replacement.",
+      "device_disabled": "Enable the ESPHome device and integration, then retry.",
+      "device_changed": "The ESPHome device association changed. Reconfigure ESP Deck.",
+      "entity_missing": "An entity was removed. Use Configure → Repair entity mapping.",
+      "entity_disabled": "Enable the missing session/key entity in the ESPHome device, then retry.",
+      "ambiguous_entities": "Each physical key needs a different press/release entity. Repair the mapping.",
+      "invalid_native_response": "The device did not return a valid v1 response. Check its firmware.",
+      "native_action_failed": "The native status request failed. Check ESPHome connectivity and retry.",
+      "session_changed": "The device restarted during setup. Retry.",
+      "confirm_handoff": "Confirm that competing manual writers and duplicate bindings have been stopped.",
+      "handoff_failed": "Could not stop the selected manual paths or validate the preset entity.",
+      "binding_failed": "Could not save/apply this preset. Check the entity and integration status."
+    }
+  },
+  "issues": {
+    "connection": {
+      "title": "ESP Deck needs attention",
+      "description": "Connection/configuration problem: {error}. Enable missing ESPHome entities or use ESP Deck Configure → Repair entity mapping. Use Reconfigure if the device was replaced. Bench firmware needs example 05.",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Retry the repaired connection",
+            "description": "Enable disabled entities, restore the ESPHome connection, or use ESP Deck Configure → Repair entity mapping. If the device was replaced, use Reconfigure. Continue to check again."
+          }
+        },
+        "error": {
+          "not_repaired": "The connection or mapping still needs repair."
+        },
+        "abort": {
+          "entry_removed": "The ESP Deck entry was removed."
+        }
+      }
+    }
+  }
+}

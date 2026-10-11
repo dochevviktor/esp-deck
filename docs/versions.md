@@ -21,7 +21,8 @@ credentials, C6 pin assignments and device-specific workarounds were not copied.
 | HIDAPI source audit only | 0.15.0, commit `d6b2a974608dec3b76fb1e36c189f22b9cf3650c` |
 | mDNS IDF component | `espressif/mdns` 1.12.0, pinned by ESPHome |
 | Native API/OTA crypto | `esphome/noise-c` 0.1.30, `esphome/libsodium` 1.10021.11, pinned by ESPHome |
-| Home Assistant tested version | 2026.10.1 in the isolated P5 lab, frontend 20260930.3; production HA/device runtime acceptance pending |
+| Home Assistant tested version | 2026.10.1 in the isolated P5/P6 lab, frontend 20260930.3; production HA/device runtime acceptance pending |
+| ESP Deck HA integration | Local version 0.6.0; v1 native action adapter; HA 2026.10.1 minimum; HACS distribution validation pending |
 | Owner's working desktop Python revision | Not yet supplied |
 | Deck firmware | `1.0.191203`, read through desktop HID Feature 4 on 2026-10-10 |
 

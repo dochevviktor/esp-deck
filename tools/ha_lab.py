@@ -158,6 +158,10 @@ def stage():
     tests = LAB / "pytest"
     shutil.copytree(ROOT / "tests/ha", tests / "tests", dirs_exist_ok=True)
     shutil.copytree(ROOT / "examples/home_assistant", tests / "examples", dirs_exist_ok=True)
+    shutil.copytree(ROOT / "custom_components", config / "custom_components", dirs_exist_ok=True,
+                    ignore=shutil.ignore_patterns("__pycache__"))
+    shutil.copytree(ROOT / "custom_components", tests / "custom_components", dirs_exist_ok=True,
+                    ignore=shutil.ignore_patterns("__pycache__"))
 
 
 def ensure_image(key):
@@ -342,7 +346,7 @@ def fresh():
 def main():
     os.umask(0o077)
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("command", choices=("up", "build", "status", "test", "down"))
+    parser.add_argument("command", choices=("up", "build", "status", "test", "test-engine", "down"))
     parser.add_argument("--fresh", action="store_true", help="up only: archive the previous lab and use fresh accounts/data")
     args = parser.parse_args()
     if args.fresh and args.command != "up":
@@ -358,9 +362,9 @@ def main():
             raise RuntimeError("Another lab command is active") from error
         if args.fresh:
             fresh()
-        if args.command == "test":
-            from ha_lab_tests import run_tests
-            run_tests()
+        if args.command in ("test", "test-engine"):
+            from ha_lab_tests import run_tests, run_engine_tests
+            (run_tests if args.command == "test" else run_engine_tests)()
         else:
             globals()[args.command]()
 

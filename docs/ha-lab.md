@@ -1,9 +1,10 @@
-# Independent Home Assistant lab (P5)
+# Independent Home Assistant lab (P5/P6)
 
 The lab runs real HA and a test-only ESPHome `host` deck in rootless Podman.
 It uses fresh synthetic credentials and does not need the owner's HA, ESP,
-Stream Deck or GitHub account. It is a development dependency only. P6's custom
-integration and P7's editor are not installed or implemented by this stage.
+Stream Deck or GitHub account. It is a development dependency only. P6's
+[custom integration](ha-integration.md) is now staged and tested directly;
+P7's editor is not yet implemented.
 
 ## Commands and isolation
 
@@ -12,6 +13,7 @@ Use the existing repository `.venv` and rootless Podman on Linux x86_64:
 ```sh
 .venv/bin/python tools/ha_lab.py up
 .venv/bin/python tools/ha_lab.py status
+.venv/bin/python tools/ha_lab.py test-engine
 .venv/bin/python tools/ha_lab.py test
 .venv/bin/python tools/ha_lab.py down
 ```
@@ -44,6 +46,12 @@ directory to `.build/ha-lab-archive-<timestamp>-<suffix>` before creating a new 
 Archived credentials and binaries stay private and ignored. Source changes to
 the staged configuration/adapter require `down` followed by `up`; the test runner
 copies current HA engine tests before running them.
+It also copies the current custom integration into the independent engine-test
+mount. `test-engine` runs that layer without starting/stopping the live HA/deck.
+The live HA integration is staged by `up`; use `down`/`up` after source changes.
+`test` temporarily disables a managed entry while exercising P4, then disables
+the manual bindings/replay and exercises P6. Saved managed layouts remain private;
+the suite leaves the backend active with demonstration light/scene bindings.
 
 First use needs internet access to download the pinned OCI images, PlatformIO
 native platform/libraries, test packages and Chromium headless browser. The lab
@@ -81,7 +89,7 @@ four unchanged P4 actions. Wrong-key and unencrypted clients are rejected.
 Entity registry renames retain the registry entry ID. A device UI-name change
 does not rename actions: their prefix still follows the ESP node name. Renaming
 the session entity breaks the manually configured P4 helper reference until it
-is updated/restored. P6 should persist registry references and resolve current
+is updated/restored. P6 persists registry references and resolves current
 names. HA can return HTTP 200 and an **empty result** when a script stops with
 an error; require an explicit `accepted: true`, not just transport success.
 
@@ -128,6 +136,15 @@ output and stores hashes/counts without asset URLs. Neither is display readback.
 3. A Chromium smoke test logs in, opens the virtual deck in HA's device UI and
    checks its session diagnostic. HA bindings/state feedback continue after
    the browser closes. This is not a test of the future custom editor.
+
+P6 extends these layers with 41 backend engine tests (43 total, including the
+two P4 tests) and seven real integration scenarios (16 total). They cover the
+config/options flow, admin permissions, private atomic storage/failure/migration,
+draft/applied revisions and backup/import, registry references and repairs,
+coalescing/replay, stale-task cancellation, bounded binding queues, unload,
+actual light state, cache reuse, native failure reporting, HA/virtual-deck restart
+and the integration/options UI. The engine layer is also in the CI workflow;
+no remote CI execution is claimed by local results.
 
 The ordinary unittest suite separately covers ownership-safe lifecycle commands,
 private source/API staging, HTTP limits and redirect rejection. Its existing

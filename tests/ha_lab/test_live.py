@@ -89,7 +89,16 @@ def stable_lab():
         item = lab.inspect_owned("container", lab.PREFIX + "-" + suffix)
         assert item and item["State"]["Running"], "Start the owned lab with tools/ha_lab.py up"
     lab.refresh_token()
+    # P4 and the managed backend are alternative owners. Preserve its saved
+    # layouts while pausing it for the manual-helper regression suite.
+    for entry in lab.request("/api/config/config_entries/entry"):
+        if entry["domain"] == "esp_deck" and entry.get("disabled_by") is None:
+            ws({"type": "config_entries/disable", "entry_id": entry["entry_id"], "disabled_by": "user"})
     lab.pair()
+    manual_bindings = [item["entity_id"] for item in lab.request("/api/states")
+                       if item["entity_id"].startswith("automation.") and item["attributes"].get("id")
+                       in ("stream_deck_key_0_press", "stream_deck_key_0_release")]
+    call("automation.turn_on", {"entity_id": manual_bindings})
     call("automation.turn_off", {"entity_id": REPLAY, "stop_actions": True})
     control(attached=True, masks=[0], delay_ms=0, fail_page=0)
     call("light.turn_off", {"entity_id": "light.example_lamp"})

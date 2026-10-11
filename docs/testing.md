@@ -1,5 +1,78 @@
 # Validation and remaining hardware gates
 
+## Home Assistant integration backend, 2026-10-11 (P6)
+
+Implemented: `custom_components/esp_deck/` version 0.6.0 with config/options and
+repair flows, exact v1 signature discovery, stable registry associations, a
+coalescing backend writer, actual-state entity presets, press/release actions,
+exclusive advanced automation events, and admin-only services/WebSocket APIs.
+Versioned draft/applied layouts use private atomic storage, optimistic revisions,
+a retained previous applied layout, migration and portable export/import.
+Storage errors/corruption do not activate new layouts. The adapter uses HA's
+existing ESPHome connection through services, with no credential access, extra
+native client or duplicate physical device. [Usage and migration](ha-integration.md).
+
+Compiled: all **seven firmware configurations** with temporary synthetic secrets,
+plus the unchanged test-only ESPHome host target. Firmware/protocol/USB code and
+dependency pins were not changed. No validation image was uploaded.
+
+Unit-tested: **54 Python unittest cases**, including **seven native C++
+executables** and all pinned protocol/font/render/PNG fixture checks. The lab
+staging/lifecycle tests also pass with integration staging enabled.
+
+HA-engine-tested: **43 pytest cases** in the pinned HA image with mocked native
+transport (41 P6 cases plus the two P4 cases). Coverage includes bounded layouts,
+explicit clears, presets, storage migrations/future rejection, actual atomic-write
+failures, corruption preservation, concurrent edit conflicts, backup/import,
+registry renames/missing/disabled identities, setup/handoff, source re-enabling,
+coalescing/no-op sync, current-state feedback, restart/session revisions,
+failed-job retries, competing writers, counter exhaustion, release pairing,
+contexts, stale native completions, unload during I/O, transaction draining,
+binding overflow, malformed native responses, redacted diagnostics and every
+admin service/WS permission boundary. HA's upstream HTTP application deprecation
+warning remains; no project test is skipped.
+
+HA-container/browser-tested: **16 scenarios** using HA 2026.10.1/frontend
+20260930.3 and the real encrypted virtual-deck API. Nine retain P4 regression
+coverage; seven add direct custom-integration installation/setup, light/preset
+bindings with no browser, draft/apply/export/import, label-cache reuse, no-op
+sync, session/target renames, actionable asset failures retaining pixels,
+unload/reload and layout persistence, HA restart/outage input suppression,
+virtual reboot/replay, the real options API, and opening the configuration menu
+in Chromium. P4 and P6 are explicitly handed control for their own tests; they
+are not allowed to run competing replay/binding paths.
+
+Real-source review/testing found two integration details worth retaining: HA
+`Store` logs some write failures rather than raising them, so the storage adapter
+detects failure before acknowledging an edit; HA HTTP startup precedes config-entry
+loading, so restart tests wait for the entry. The browser test clicks the custom
+button host to include HA's slotted icon in pointer hit-testing.
+
+The [sanitized P6 acceptance record](../tests/ha_lab/acceptance-p6-2026-10-11.json)
+records image/test identities. Raw logs, JUnit, screenshots, tokens and host
+executables stay under ignored `.build/ha-lab/`. Existing lab credentials/data
+were retained. The lab is left running with the managed integration enabled and
+synthetic light/scene presets. A pinned HA engine CI job was added; it has not
+been run on remote CI. HACS installation, Hassfest, release branding/metadata,
+the P7 visual editor and P8 pages/origin provisioning remain later gates.
+
+Hardware-verified: **none for P6**. No physical flash, OTA, USB or ESP asset fetch
+was performed. Example 04 remains installed. `rendered` still means scheduler
+desired pixels, not physical readback. Electrical, first-click, repeated-recovery,
+soak and P3/P9 physical-runtime gates remain pending.
+
+Commands run:
+
+```sh
+.venv/bin/python -m unittest discover -s tests -v
+.venv/bin/python tools/check_firmware.py --compile
+.venv/bin/python tools/ha_lab.py down
+.venv/bin/python tools/ha_lab.py up
+.venv/bin/python tools/ha_lab.py test-engine
+.venv/bin/python tools/ha_lab.py test
+git diff --check
+```
+
 ## Independent HA lab, 2026-10-11 (P5)
 
 Implemented: reproducible `up/status/test/down` tooling, private synthetic HA

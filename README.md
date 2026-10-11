@@ -16,12 +16,14 @@ origin restrictions and TLS verification. HA controls (P4): generic visual/clear
 refresh/status API responses, boot-session diagnostic, physical key events and
 HA-owned layout replay; no firmware binding to a particular HA entity.
 P5 adds a private rootless HA lab and encrypted ESPHome host virtual deck.
+P6 adds a locally installable [HA backend](docs/ha-integration.md) with guided
+setup/presets, saved layouts, bindings, synchronization, admin APIs and repair.
 Compiled: all seven configurations on ESPHome 2026.9.0 / ESP-IDF 5.5.5, plus the
 test-only ESPHome host executable.
 Unit-tested: upstream byte fixtures, scheduler/input behavior, simulated USB
 transfers, schema validation and captured desktop descriptors; 54 Python cases
 including seven native executables and HA helper/replay templates.
-HA-tested: two real-HA engine tests with mocked native actions and nine real
+HA-tested: 43 real-HA engine tests with mocked native actions and 16 real
 HA 2026.10.1/native-API/browser scenarios, including a clean lab startup.
 Hardware-verified: desktop descriptors, ESP chip/flash identity, 8 MB PSRAM
 initialization, Wi-Fi, encrypted API and encrypted OTA. The S3 enumerates the
@@ -38,18 +40,19 @@ qualification and HA acceptance remain pending. See
 The original [handover](STREAM_DECK_ESPHOME_CODEX_HANDOVER.md) is preserved.
 Start with the [hardware checklist](docs/hardware.md) before connecting anything.
 
-The [Home Assistant runtime control plan](docs/implementation-plan.md) has P0–P5
+The [Home Assistant runtime control plan](docs/implementation-plan.md) has P0–P6
 software implemented and tested: [the contract](docs/runtime-visuals.md), owned
 images, [rendering](docs/rendering.md), and [URL loading/cache](docs/asset-loading.md).
 Example 05 adds [HA runtime controls and layout replay](docs/home-assistant.md).
 Example 03 remains a fixed-entity demo; example 04 is the installed bench baseline.
-P5's [isolated Podman HA lab](docs/ha-lab.md) is ready. Next is P6's HACS integration
-backend. The extended plan adds a visual editor, 72×72 image upload pipeline
-and bounded pages/layers in P6–P8;
-these are planned, not implemented. Physical qualification remains P9, and P3's
+P5's [isolated Podman HA lab](docs/ha-lab.md) and P6's
+[integration backend](docs/ha-integration.md) are ready for P7's visual editor and
+72×72 image upload pipeline. Bounded pages/layers follow in P8;
+the editor/uploads/pages are planned, not implemented. Physical qualification
+and HACS distribution validation remain P9, and P3's
 actual ESP asset-reachability check is still pending. See the
 [HA/HACS architecture decision](docs/decisions/home-assistant-ux.md).
-No firmware was uploaded for P0–P5.
+No firmware was uploaded for P0–P6.
 
 ## Develop and test without a board
 
@@ -86,6 +89,7 @@ Test the real HA interface without a board, with rootless Podman:
 
 ```sh
 .venv/bin/python tools/ha_lab.py up
+.venv/bin/python tools/ha_lab.py test-engine
 .venv/bin/python tools/ha_lab.py test
 .venv/bin/python tools/ha_lab.py status
 .venv/bin/python tools/ha_lab.py down
@@ -124,6 +128,10 @@ change-driven, with a full redraw on attachment; periodic display polling is not
 needed for this behaviour.
 
 For runtime bindings and visuals use [example 05's HA setup guide](docs/home-assistant.md).
+The [P6 integration](docs/ha-integration.md) provides guided backend setup and
+presets as an alternative to the manual P4 helpers below; its handoff stops
+selected competing automations. Install its directory in HA's custom_components
+and select the existing ESPHome deck. It runs with the browser closed.
 Its HA scripts own the layout and query revisions before each update; firmware
 starts blank and preserves the last good tiles offline. Labels reuse cached
 artwork. The sample HA automations bind press/release events and update key 0

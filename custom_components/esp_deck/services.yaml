@@ -1,0 +1,82 @@
+get_layout:
+  name: Get layout
+  description: Read saved draft/applied layouts and their edit revisions. Administrator only.
+  fields:
+    entry_id: &entry
+      name: ESP Deck entry
+      required: true
+      selector:
+        config_entry:
+          integration: esp_deck
+status:
+  name: Get status
+  description: Read connection, render and binding status. Rendered is not display readback.
+  fields:
+    entry_id: *entry
+sync:
+  name: Synchronize
+  description: Reconcile current HA state and explicitly retry failed tiles. Unchanged successful tiles are skipped.
+  fields:
+    entry_id: *entry
+save_layout:
+  name: Save draft
+  description: Validate and atomically save a 15-key layout. Does not apply it. Administrator only.
+  fields:
+    entry_id: *entry
+    expected_revision: &revision
+      name: Current draft revision
+      required: true
+      selector:
+        number:
+          min: 0
+          max: 9007199254740991
+          mode: box
+    layout:
+      name: Layout
+      required: true
+      selector:
+        object:
+apply_layout:
+  name: Apply draft
+  description: Activate the saved draft and reconcile it with the ESP. Completion is asynchronous; query status.
+  fields:
+    entry_id: *entry
+    expected_revision: *revision
+export_layout:
+  name: Export layout
+  description: Export a portable layout with current entity names. Treat artwork URLs and action data as private.
+  fields:
+    entry_id: *entry
+    which:
+      name: Layout version
+      default: draft
+      selector:
+        select:
+          options: [draft, applied, backup]
+import_layout:
+  name: Import draft
+  description: Validate an exported document and save it as a new draft. Apply separately.
+  fields:
+    entry_id: *entry
+    expected_revision: *revision
+    document:
+      name: Export document
+      required: true
+      selector:
+        object:
+preset:
+  name: Build entity preset
+  description: Return one key configuration for a light, switch, input boolean, script or scene. Does not save or execute it.
+  fields:
+    entry_id: *entry
+    entity_id:
+      name: Entity
+      required: true
+      selector:
+        entity:
+          domain: [light, switch, input_boolean, script, scene]
+    label:
+      name: Label
+      required: true
+      selector:
+        text:

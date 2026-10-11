@@ -9,6 +9,12 @@ compiled and tested against HA 2026.10.1, including real encrypted native-API
 sessions and a browser smoke test. This records the decision's execution;
 the integration/editor/upload/pages design below remains P6–P9 work.
 
+P6 follow-up, 2026-10-11: the [HA backend](../ha-integration.md) is now implemented
+and locally installed/tested against that lab, with guided setup/presets, atomic
+layouts, bindings, registry references, synchronization and authenticated APIs.
+The editor/uploads/pages and HACS distribution checks remain P7–P9 work. The
+design discussion below is preserved as the research baseline.
+
 ## Decision: one integration with a bundled editor
 
 Build `custom_components/esp_deck/` as a HACS-distributed custom integration with
