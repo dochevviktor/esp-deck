@@ -28,7 +28,7 @@ credentials, C6 pin assignments and device-specific workarounds were not copied.
 | Hassfest validator | `ghcr.io/home-assistant/hassfest@sha256:4b1adfb1e0a37710af0390708eb8000230b80b2193ccffbeed0a901fa9765181` |
 | HACS local schema validator | `ghcr.io/hacs/action@sha256:dc92fdad2f6ffbe74bffb7269d781ea8e064f52d9bb486cdf3925d74e7ab6ebf`, upstream source `3f3080cbf909b8f51488e227be73f62902b4ef6c`; not an installed HACS UI |
 | Upgrade baseline | Actual integration 0.8.0 code at `279e58bce7303ea4e7c2cb07cf85cd4c2c9394e6`; schema versions retained in 0.9.0 |
-| Current physical firmware | Example 05, compiled `2026-10-11 23:05:52 +0200`, with bounded HTTP provisioning and Redraw/applied-revision fixes; [deployment/evidence](hardware-lab.md) |
+| Current physical firmware | Example 05, compiled `2026-10-11 23:50:23 +0200`, with unconditional full USB startup, bounded HTTP provisioning and Redraw/applied-revision fixes; diagnostics off; [deployment/evidence](hardware-lab.md) |
 | Owner's working desktop Python revision | Not yet supplied |
 | Deck firmware | `1.0.191203`, read through desktop HID Feature 4 on 2026-10-10 |
 

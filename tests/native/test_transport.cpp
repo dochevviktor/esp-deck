@@ -35,10 +35,11 @@ void reset(bool interrupt_out) {
   descriptor = {0x0fd9, 0x0060};
   interface_number = 3;
   output_mps = 64;
-  config = {9,2,25,0,1,1,0,0x80,50, 9,4,3,0,1,3,0,0,0, 7,5,0x85,3,64,0,1};
+  config = {9,2,34,0,1,1,0,0x80,50, 9,4,3,0,1,3,0,0,0,
+            9,0x21,0x11,1,0,1,0x22,0x0b,1, 7,5,0x85,3,64,0,1};
   if (interrupt_out) {
     config.insert(config.end(), {7,5,6,3,64,0,1});
-    config[2] = 32; config[13] = 2;
+    config[2] = uint8_t(config.size()); config[13] = 2;
   }
 }
 usb_transfer_t *transfer(bool input) {
@@ -56,16 +57,27 @@ void cancel_all() {
   while (!pending.empty()) complete(*pending.begin(), 0, USB_TRANSFER_STATUS_NO_DEVICE);
 }
 void attach(USBTransport &transport, uint32_t now) {
+  const auto previous_writes = writes.size();
   transport.loop(now);
-  auto *t = transfer(false);
-  assert(t && t->bEndpointAddress == 0 && t->num_bytes == 8);
-  const uint8_t setup[] = {0x21, 0x0a, 0, 0, interface_number, 0, 0, 0};
-  assert(std::equal(std::begin(setup), std::end(setup), t->data_buffer));
-  assert(!transport.attached());
-  complete(t);
-  transport.loop(now);
+  const uint8_t setup[4][8] = {
+    {0x80, 8, 0, 0, 0, 0, 1, 0},
+    {0x21, 0x0a, 0, 0, interface_number, 0, 0, 0},
+    {0x81, 6, 0, 0x22, interface_number, 0, 0x0b, 1},
+    {0xa1, 1, 4, 3, interface_number, 0, 17, 0},
+  };
+  for (const auto &request : setup) {
+    auto *t = transfer(false);
+    assert(t && t->bEndpointAddress == 0);
+    assert(std::equal(std::begin(request), std::end(request), t->data_buffer));
+    assert(!transport.attached());
+    Job job{JobKind::RESET, transport.generation(), 1};
+    assert(!transport.send(job, now) && !transport.take_completion(job));
+    complete(t, 8 + request[6] + 256 * request[7]);
+    transport.loop(now);
+  }
   assert(transport.attached());
-  writes.pop_back();  // Test report writes separately from standard HID startup.
+  assert(writes.size() == previous_writes + 4);
+  writes.resize(previous_writes);  // Separate the control sequence from report writes.
 }
 void finish(USBTransport &transport, uint32_t now) {
   transport.shutdown();
@@ -405,14 +417,15 @@ void test_physical_disconnect_does_not_power_off_port() {
   }
 }
 
-void test_control_diagnostics() {
-  for (bool stalled : {false, true}) {
-    fake::reset(true);
-    // Add the actual report-descriptor length to our non-default interface.
-    fake::config.insert(fake::config.begin() + 18, {9, 0x21, 0x11, 1, 0, 1, 0x22, 0x0b, 1});
-    fake::config[2] = uint8_t(fake::config.size());
+void test_startup_independent_of_diagnostics() {
+  // Startup must be identical with verbose capture disabled (the runtime
+  // default) and enabled (the originally working bench). Exercise both routes
+  // and every completed STALL/short reply without introducing reset loops.
+  for (bool diagnostics : {false, true}) for (bool interrupt_out : {false, true})
+      for (int bad_index = -1; bad_index < 4; ++bad_index) for (bool stalled : {false, true}) {
+    fake::reset(interrupt_out);
     USBTransport transport;
-    transport.set_usb_diagnostics(true);
+    transport.set_usb_diagnostics(diagnostics);
     assert(transport.setup()); transport.loop(0);
     assert(!transport.attached());
     Job job{JobKind::RESET, transport.generation(), 1};
@@ -428,24 +441,31 @@ void test_control_diagnostics() {
       assert(t && std::equal(std::begin(expected[index]), std::end(expected[index]), t->data_buffer));
       const int requested = expected[index][6] + 256 * expected[index][7];
       std::fill(t->data_buffer + 8, t->data_buffer + 8 + requested, 0x5a);
-      fake::complete(t, stalled && index == 1 ? 8 : requested + 8,
-                     stalled && index == 1 ? USB_TRANSFER_STATUS_STALL : USB_TRANSFER_STATUS_COMPLETED);
+      const bool bad = int(index) == bad_index;
+      fake::complete(t, bad && !stalled ? requested + 7 : requested + 8,
+                     bad && stalled ? USB_TRANSFER_STATUS_STALL : USB_TRANSFER_STATUS_COMPLETED);
       transport.loop(uint32_t(index + 2));
       assert(!transport.take_completion(job));  // Probe replies are not report completions.
     }
-    assert(transport.attached() && transport.errors() == unsigned(stalled));
+    assert(transport.attached() && transport.errors() == unsigned(bad_index >= 0));
     assert(fake::writes.size() == 4 && fake::port_off_calls == 0);
     assert(transport.send(job, 6));
     fake::finish(transport, 7);
   }
 }
 
-void test_diagnostic_deadline_and_disconnect() {
-  for (bool detach : {false, true}) {
+void test_startup_deadline_and_disconnect() {
+  for (bool diagnostics : {false, true}) for (size_t pending_index = 0; pending_index < 4; ++pending_index)
+      for (bool detach : {false, true}) {
     fake::reset(true);
     USBTransport transport;
-    transport.set_usb_diagnostics(true);
+    transport.set_usb_diagnostics(diagnostics);
     assert(transport.setup()); transport.loop(0);
+    for (size_t i = 0; i < pending_index; ++i) {
+      auto *t = fake::transfer(false);
+      fake::complete(t, 8 + t->data_buffer[6] + 256 * t->data_buffer[7]);
+      transport.loop(0);
+    }
     assert(fake::pending.size() == 2 && !transport.attached());
     fake::hold_cancellation = true;
     if (detach) {
@@ -469,6 +489,6 @@ int main() {
   test_observed_full_speed_descriptor_rejection();
   test_normalized_original_descriptor_transport();
   test_physical_disconnect_does_not_power_off_port();
-  test_control_diagnostics(); test_diagnostic_deadline_and_disconnect();
+  test_startup_independent_of_diagnostics(); test_startup_deadline_and_disconnect();
   std::cout << "Production USB transport passed fake-IDF transfer and lifetime tests (no hardware)\n";
 }

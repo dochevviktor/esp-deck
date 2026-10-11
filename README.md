@@ -34,6 +34,10 @@ The active physical HA is now the owner's retargeted **18123** instance. Its
 association was repaired and the Redraw/applied-state bug fixed and deployed;
 the extra 18124 instance is stopped. Saved image pages remain alongside separate
 Hardware test pages. See [current recovery and validation](docs/testing.md).
+The subsequent logo/unknown-key failure exposed a startup difference hidden
+behind the diagnostics option. The full bench startup now runs unconditionally;
+real key input returned on the diagnostic test and on the deployed quiet runtime.
+Final visual confirmation and repeated-start qualification remain open.
 Compiled: all seven configurations on ESPHome 2026.9.0 / ESP-IDF 5.5.5, plus the
 test-only ESPHome host executable.
 Unit-tested: upstream byte fixtures, scheduler/input behavior, simulated USB

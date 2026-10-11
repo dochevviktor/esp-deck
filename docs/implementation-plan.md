@@ -1,5 +1,18 @@
 # Home Assistant runtime control implementation plan
 
+USB startup follow-up, 2026-10-11: the owner confirmed the 23:05:52 image still
+showed only the logo, unknown keys and no brightness response. Restoring example
+04's full startup on runtime firmware returned real key reports, all 15 key
+states and four HA light actions. The driver now runs that sequence regardless
+of diagnostics; logging no longer changes initialization. The fixed quiet
+23:50:23 build is deployed; 72 sanitizer host tests and all seven synthetic
+builds pass. Real key reports and brightness USB completions also arrive on that
+quiet build; visual confirmation and cold/repeated recovery remain open. The
+owner's concurrent HA edits are preserved; newly added artwork hits the known
+`origin_not_allowed`/device-reachable-address gate. See the
+[current physical record](hardware-lab.md); no flash erase or USB packet-size
+experiment was used.
+
 Latest recovery, 2026-10-11: the owner moved HA 18123 to the real ESP and confirmed
 working brightness, labels, light control and page shifting before the reported
 freeze. Its stale ESP Deck association is repaired and the extra 18124 HA is

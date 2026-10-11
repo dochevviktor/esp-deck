@@ -1,5 +1,14 @@
 # Wiring and hardware acceptance
 
+USB startup follow-up, 2026-10-11: the owner confirmed that the earlier recovery
+still left logo/unknown-key/no-brightness symptoms. Restoring the full bench
+startup recovered real input and HA light actions. The sequence is now
+unconditional, with a fixed 23:50:23 runtime image deployed and diagnostics off.
+Real key reports and brightness-command completions also arrive on the quiet
+build. Visual confirmation and cold/repeated-start qualification remain open.
+No flash erase, packet-size experiment or VBUS switching occurred.
+[Current evidence](hardware-lab.md).
+
 Latest recovery, 2026-10-11: the owner confirms working runtime text, brightness,
 light toggling and page shifting before Apply froze the setup. HA device mapping
 and a reproduced firmware Redraw/applied-revision bug are repaired. The new
@@ -385,8 +394,10 @@ The revised decoder accepts both the reference's 16-byte form and this captured
 17-byte form, enforcing ID 1 and a zero trailer for the latter. ESPHome defaults
 its input ID filter to 1. Native tests exercise the captured packet, every logical
 key, press/release through the production transport, bad states, nonzero trailers
-and rejection of A0/A1. SET_IDLE is now part of every driver connection; the
-extra three read-only queries remain optional. Receiving raw input is verified;
+and rejection of A0/A1. At this checkpoint SET_IDLE became part of every driver
+connection and the extra three read-only queries remained optional. The later
+[runtime startup correction](hardware-lab.md) makes the full sequence unconditional.
+Receiving raw input is verified;
 action delivery, all physical positions and visual output are separate gates.
 
 The decoder-corrected example 04 was compiled at `2026-10-10 21:59:20 +0200` and

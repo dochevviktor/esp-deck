@@ -1,5 +1,38 @@
 # Validation and remaining hardware gates
 
+## USB startup correction, 2026-10-11
+
+Implemented: every driver attachment now uses the complete working bench
+sequence (GET_CONFIGURATION, SET_IDLE, HID descriptor, firmware feature 4).
+Diagnostics controls logging only. The runtime previously skipped three queries
+when that option was off; restoring them brought back captured key input after
+the owner's logo/unknown-key failure. The particular required query or timing
+effect is not yet isolated. USB report framing, packet sizes, power rules and
+HA layouts are unchanged. [Physical evidence and artifact hashes](hardware-lab.md).
+
+Compiled: all seven synthetic configurations and private example 05. The final
+private build (`23:50:23 +0200`) has 115,131 B static RAM, 1,094,031 B application
+flash and a 1,094,144-byte OTA image; it is deployed with diagnostics off.
+
+Unit-tested: **72 host tests pass with ASan/UBSan**. The expanded production
+transport test first failed on the former default startup and now checks all
+four requests with diagnostics on/off, both output routes, short/STALL replies,
+and pending timeout/physical detach at every startup step. Cancellation retains
+buffers until retirement and never claims to switch external VBUS.
+
+Hardware-observed: the diagnostic runtime returned all three known-good control
+replies, captured 17-byte key input, populated all 15 HA key states and delivered
+four physical light-binding actions. The final quiet build uploaded, reconnected
+and initially reached 15 USB-applied text tiles, then captured physical key-4
+press/releases, all 15 known key states and six completed brightness requests.
+Visual/brightness confirmation is still requested. The owner's concurrent layout
+edits were preserved; their later fifth-key artwork reports `origin_not_allowed`
+(14 other text tiles succeed), the separate unresolved artwork-address gate.
+The owner's subsequent revision 23 is ready with 15 successful current tiles and
+two additional physical light-binding actions on the final quiet build.
+No new browser regression, synthetic HA run, cold-start/
+repeated-recovery, artwork-network or electrical/soak pass is claimed.
+
 ## Apply/redraw recovery, 2026-10-11
 
 The owner confirmed that physical key events, brightness response, displayed text,
@@ -840,9 +873,10 @@ validation builds, and rejection of an incomplete deployment command.
   exercise discovered non-default endpoint/interface values, idle absence, wrong
   models, malformed input, short output, STALL, software deadline, retained
   buffers while cancellation is delayed, and reattachment afterward.
-  Physical detach must not request root-port power-off again. Standard SET_IDLE
-  and optional EP0 probes have exact setup bytes, MPS-rounded capacity, no scheduler interleaving, bounded
-  capture and safe STALL/timeout/detach handling; their completions are not images.
+  Physical detach must not request root-port power-off again. The complete EP0
+  startup sequence is identical with diagnostics on/off: exact setup bytes,
+  MPS-rounded capacity, no scheduler interleaving, bounded capture and safe
+  short/STALL/timeout/detach handling at each step. Its completions are not images.
 - All example schemas pass; invalid keys, duplicate key/number bindings, malformed
   BMPs, initial-state triggers, other MCUs, Arduino and competing USB/logging
   ownership are rejected. Firmware compilation checks the real IDF signatures.

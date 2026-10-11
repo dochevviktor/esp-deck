@@ -1,6 +1,79 @@
 # Physical runtime lab (P9)
 
-## Apply/redraw recovery — current setup
+## USB startup recovery — current firmware
+
+The owner reported that the 23:05:52 runtime image still left the deck on its
+logo, with unknown keys and no visible brightness response. Read-only checks
+confirmed zero captured input, all 15 binary key states missing, and 124 host
+report completions despite USB ready. The earlier Redraw correction fixed
+applied-revision bookkeeping, **not this physical failure**. Runtime images/text
+are RAM-only; no flash/NVS erase was performed.
+
+The next controlled build changed only example 05's `usb_diagnostics` to true,
+matching example 04's startup. Compiled `2026-10-11 23:43:04 +0200`, its
+1,094,160-byte OTA image has SHA-256
+`3bebf78a49a4cacdc1363c9cb3ed934a7f41d1cd3c242b4f2a4cdd01bfeedc35`.
+Encrypted, identity-checked OTA completed in 65.07 seconds. GET_CONFIGURATION,
+the 267-byte HID report descriptor and firmware feature 4 all returned exact
+lengths and byte-for-byte matches to the preserved bench replies; SET_IDLE
+completed with its expected eight setup bytes. A real 17-byte key report arrived,
+all 15 HA binary key states became known, and HA subsequently counted four
+physical light-binding actions. USB errors and input overflows remained zero in
+the captures. These establish live input/control communication; they are not
+display or brightness readback.
+
+The driver previously ran only SET_IDLE when diagnostics were disabled. The fix
+makes the **whole four-request bench startup unconditional on every attachment**;
+`usb_diagnostics` now controls reply logging only. It preserves request order,
+8191-byte report framing, IN-64/OUT-512, UART0, external unswitched VBUS, and all
+HA/runtime behavior. Which individual query or timing difference mattered has
+not been isolated; the full working sequence is deliberately retained.
+
+The fixed example 05 is installed with verbose diagnostics **off**:
+
+- Compiled `2026-10-11 23:50:23 +0200`; OTA **1,094,144 bytes**.
+- SHA-256 `1fc89983e9a496e7340ac5022a19417dd2e6f476af0e9fa44e41146791d6d1c7`.
+- Encrypted OTA with identity/hash checks and connection-local MSS 536 completed
+  in **58.99 seconds**. No synthetic image, bootloader or partition changes.
+- All seven synthetic firmware configurations compile; **72 host tests pass
+  with ASan/UBSan**. The expanded production-transport regression failed against
+  the previous driver and passes after the fix, including diagnostics on/off,
+  both output routes, and short/STALL/timeout/detach at every startup step.
+- HA reconnected and all 15 text tiles initially reported USB-applied. The quiet
+  build then captured three key-4 down observations and releases, with all 15
+  key states known, zero USB errors/overflows and queue high-water one. Six
+  brightness reports completed during the owner's slider tests (last requested
+  value 36%). Physical display/brightness confirmation remains requested; host
+  completions are not readback. No cold-start, repeated-recovery or soak pass is
+  inferred from this one OTA/warm-start sample.
+
+The owner made concurrent editor changes during testing. The agent's proposed
+temporary-label edit was refused **before writing** when it detected the changed
+label. The final upload preserved the latest draft/applied layout at revision 16
+exactly. The agent's earlier unchanged-layout Apply was a no-op, not a fresh
+image-transfer test. The prior runtime and diagnostic OTA/ELF artifacts and layout
+snapshots are private under `.build/backups/usb-startup-VvGnBbrQ/`; the original
+example-04 rollback artifact remains unchanged. HA 18123 remains the sole
+physical controller; there is no new HA instance or layout replacement.
+
+The owner subsequently applied revision 18 with artwork on the fifth key. That
+tile reports `origin_not_allowed`, while the other 14 text tiles are rendered and
+USB-applied. The saved library address `http://ha:8123` is container-only, not a
+reachable/provisioned ESP artwork origin. The old fifth-key tile is retained;
+this failed image replacement must not be counted as an applied new image just
+because its previous revision still has matching applied/rendered counters.
+No artwork was removed and origin/TLS checks were not bypassed.
+
+At handoff the owner's subsequent revision 23 reports **ready**, all 15 current
+tiles are accepted/rendered/USB-applied without error, and all 15 binary key states
+remain known. HA's binding count reached six: two additional physical light
+actions after the final diagnostics-off upload. The revision-18 artwork error
+above is historical, not the latest status; live artwork delivery remains a
+separate qualification gate.
+
+[Sanitized startup comparison and final-build capture](../tests/fixtures/s3_0060/startup_recovery_2026-10-11.json).
+
+## Earlier Apply/redraw recovery — current HA setup
 
 The owner confirmed that physical keys, brightness, rendered labels, the light
 toggle and page switching worked before Apply. They had retargeted the original
@@ -21,7 +94,7 @@ separate; redraw still gates input until a fresh complete two-report image, even
 when another redraw arrives during either page. Reconnect and same-pixel rebinding
 are covered too. USB packet sizes, startup and power handling are unchanged.
 
-The corrected private example-05 build is installed:
+The earlier corrected private example-05 build was installed:
 
 - Compiled `2026-10-11 23:05:52 +0200`.
 - OTA size **1,094,160 bytes**, SHA-256

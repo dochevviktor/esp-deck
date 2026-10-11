@@ -135,16 +135,28 @@ press/release logs with complete two-page image transfers. Both the single-trans
 512-byte path and the four-batch 64-byte path are covered by native tests; the
 64-byte path has not been hardware-retested with the new HID initialization.
 
-The optional `usb_diagnostics: true` bench setting makes three read-only EP0
-queries before scheduler initialization: GET_CONFIGURATION, GET_DESCRIPTOR for
-the discovered HID report-descriptor length (bounded to 320 bytes), and
-GET_REPORT(Feature 4) for firmware. Every driver now sends SET_IDLE(0, all report
-IDs); in the diagnostic sequence it precedes fetching the HID descriptor, matching
+Every attachment now performs the complete bench-proven EP0 sequence before
+scheduler initialization: GET_CONFIGURATION, SET_IDLE(0, all report IDs),
+GET_DESCRIPTOR for the discovered HID report-descriptor length (bounded to 320
+bytes), and GET_REPORT(Feature 4) for firmware. The optional
+`usb_diagnostics: true` setting controls verbose reply logging only; it must not
+change device initialization. SET_IDLE precedes fetching the descriptor, matching
 the initialization in
 [Linux usbhid v6.12](https://github.com/torvalds/linux/blob/v6.12/drivers/hid/usbhid/hid-core.c).
 This standard request selects report-on-change behaviour; it is not a device
 reset. Key packets were first captured after this startup change; physical input
 actions and basic rendering were subsequently confirmed after fixing the decoder.
+The 2026-10-11 runtime investigation found a functional difference hidden behind
+that logging option: runtime builds previously sent only SET_IDLE, while the
+working bench sent all four requests. Enabling the bench sequence on the otherwise
+unchanged runtime firmware restored captured 17-byte key input and populated all
+15 HA key states. The three read replies matched the earlier bench fixtures.
+The fix preserves the whole known-working sequence in both modes; the individual
+query or timing responsible has not been isolated. See [current physical
+evidence](../hardware-lab.md). Native regression coverage requires identical
+requests with diagnostics on/off, both output routes, and safe handling of
+STALL/short replies, timeout and physical detach at each startup step.
+
 No serial feature is read. Buffers
 round up IN capacity to EP0 MPS without changing wLength. Replies/status/actual
 lengths are retained for late API configuration dumps and never counted as

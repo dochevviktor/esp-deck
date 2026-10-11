@@ -67,12 +67,13 @@ state survives USB reconnects; an MCU reboot uses YAML's `initial_brightness`
 
 ## Configuration and actions
 
-The numbered examples are validated configurations. Every driver sends standard
-HID SET_IDLE(0, all report IDs) before scheduler initialization. The optional
-`usb_diagnostics: true` setting (example 04) runs bounded read-only EP0 queries
-for configuration, HID report descriptor and firmware feature 4 around that
-initialization request. Results are
-retained in API log dumps; they are not key states or display readback.
+The numbered examples are validated configurations. Every driver performs
+GET_CONFIGURATION, HID SET_IDLE(0, all report IDs), the bounded HID report
+descriptor read and firmware feature-4 read before scheduler initialization.
+The same sequence runs on every attachment, independently of the optional
+`usb_diagnostics: true` setting (example 04). That option only logs the retained
+control replies, including in late API configuration dumps; they are not key
+states or display readback. See the [startup decision](decisions/usb-transport.md).
 The hub supports:
 
 - `id`, `initial_brightness`, optional `input_report_id`.

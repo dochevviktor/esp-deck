@@ -135,9 +135,10 @@ void USBTransport::discover_(uint32_t now) {
     first_input_hex_[0] = '\0';
     gone_ = completion_ready_ = false;
     control_mps_ = info.bMaxPacketSize0;
-    // Every driver sends standard HID SET_IDLE before reporting attachment.
-    // The bench option additionally captures the three read-only queries.
-    probe_index_ = usb_diagnostics_ ? 0 : 1;
+    // Keep the complete known-working Original startup in every build. Skipping
+    // the read-only queries left runtime firmware silent until this sequence
+    // was restored. Diagnostics controls logging, never device initialization.
+    probe_index_ = 0;
     for (auto &probe : probes_) probe = ProbeResult{};
     input_->device_handle = device_;
     input_->bEndpointAddress = found.in_endpoint;
@@ -211,7 +212,7 @@ void USBTransport::dump_status() const {
 }
 
 void USBTransport::start_probe_(uint32_t now) {
-  // Standard HID initialization plus optional EP0 evidence, once per attachment.
+  // Complete Original startup, once per attachment, independent of logging.
   // Linux usbhid sends SET_IDLE(0, all reports) before reading the HID descriptor.
   // Never query the serial-number feature (ID 3) or reset the device firmware.
   auto &probe = probes_[probe_index_];
@@ -253,12 +254,10 @@ void USBTransport::handle_probe_(uint32_t now) {
   }
   if (output_->status != USB_TRANSFER_STATUS_COMPLETED ||
       probe.actual != int(probe.requested + protocol::SETUP_SIZE)) errors_++;
-  dump_probe_(probe_index_);
+  if (usb_diagnostics_) dump_probe_(probe_index_);
   // USBH retires and clears a stalled EP0. A diagnostic STALL/short reply is
   // evidence, not a reason for an endless reset loop. Timeouts still recover.
-  if (!usb_diagnostics_) {
-    probe_index_ = PROBE_COUNT;
-  } else if (++probe_index_ < PROBE_COUNT) {
+  if (++probe_index_ < PROBE_COUNT) {
     start_probe_(now);
   }
 }

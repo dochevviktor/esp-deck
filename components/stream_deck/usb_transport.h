@@ -17,6 +17,7 @@ class USBTransport {
   uint32_t generation() const { return generation_; }
   void set_input_epoch(const uint32_t *epoch) { input_epoch_ = epoch; }
   void set_input_report_id(int id) { input_report_id_ = id; }
+  // Verbose retained control replies only; startup requests are unconditional.
   void set_usb_diagnostics(bool enabled) { usb_diagnostics_ = enabled; }
   bool send(const Job &job, uint32_t now);
   bool take_completion(Job &job);

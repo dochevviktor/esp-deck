@@ -1,0 +1,83 @@
+{
+  "date": "2026-10-11",
+  "base_commit": "547e70c",
+  "working_tree_changes": true,
+  "before": {
+    "firmware_compilation_time": "2026-10-11 23:05:52 +0200",
+    "owner_report": "Logo only, unknown key states and no visible brightness response after earlier recovery",
+    "usb_ready": true,
+    "usb_generation": 1,
+    "completed_reports": 124,
+    "usb_errors": 0,
+    "input_queue_high_water": 0,
+    "known_binary_key_states": 0
+  },
+  "diagnostic_comparison": {
+    "difference": "Only enabled usb_diagnostics in example 05, restoring example 04's full startup sequence",
+    "compilation_time": "2026-10-11 23:43:04 +0200",
+    "ota_bytes": 1094160,
+    "ota_sha256": "3bebf78a49a4cacdc1363c9cb3ed934a7f41d1cd3c242b4f2a4cdd01bfeedc35",
+    "encrypted_upload_seconds": 65.07,
+    "control_reference": "control_probes.json",
+    "control_replies": {
+      "get_configuration": {"status": 0, "requested": 1, "actual_including_setup": 9, "matches_reference_bytes": true},
+      "set_idle": {"status": 0, "requested": 0, "actual_including_setup": 8},
+      "hid_report_descriptor": {"status": 0, "requested": 267, "actual_including_setup": 275, "matches_reference_bytes": true},
+      "firmware_feature_4": {"status": 0, "requested": 17, "actual_including_setup": 25, "matches_reference_bytes": true}
+    },
+    "first_input_hex": "01 01 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00",
+    "known_binary_key_states": 15,
+    "ha_light_binding_actions": 4,
+    "usb_errors": 0,
+    "input_overflows": 0
+  },
+  "fix": {
+    "change": "Run all four startup requests unconditionally; diagnostics controls logging only",
+    "sequence": ["GET_CONFIGURATION", "SET_IDLE", "HID report descriptor", "firmware feature 4"],
+    "specific_required_query_or_timing_isolated": false,
+    "usb_packet_sizes_report_framing_and_power_rules_changed": false,
+    "flash_or_nvs_erased": false,
+    "regression_failed_before_fix": true,
+    "regression_coverage": ["diagnostics on/off", "both output routes", "exact startup requests", "no report interleaving", "short and STALL replies at every step", "pending timeout and physical detach at every step", "reconnect"]
+  },
+  "final_deployment": {
+    "example": "05_home_assistant_runtime",
+    "usb_diagnostics": false,
+    "compilation_time": "2026-10-11 23:50:23 +0200",
+    "ota_bytes": 1094144,
+    "ota_sha256": "1fc89983e9a496e7340ac5022a19417dd2e6f476af0e9fa44e41146791d6d1c7",
+    "encrypted_upload_seconds": 58.99,
+    "identity_and_artifact_hash_checked": true,
+    "connection_local_tcp_mss": 536,
+    "first_input_hex": "01 01 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00",
+    "known_binary_key_states": 15,
+    "key_4_down_observations_in_capture": 3,
+    "brightness_report_completions_in_capture": 6,
+    "last_requested_brightness_percent": 36,
+    "usb_errors": 0,
+    "input_overflows": 0,
+    "input_queue_high_water": 1,
+    "initial_usb_applied_tiles": 15,
+    "latest_ha_layout_revision": 23,
+    "latest_ha_state": "ready",
+    "latest_successful_current_tiles": 15,
+    "additional_ha_light_binding_actions_after_final_upload": 2,
+    "physical_visual_brightness_confirmation": "requested; no display readback"
+  },
+  "layout_preservation": {
+    "before_final_upload_revision": 16,
+    "equal_after_final_upload": true,
+    "agent_temporary_edit": "refused before writing because the owner had changed the label",
+    "unchanged_layout_apply": "no-op, not fresh USB-transfer evidence",
+    "later_owner_revision": 18,
+    "later_owner_artwork_error": "origin_not_allowed on key 4; other 14 tiles rendered/applied",
+    "artwork_route": "container-only HA address is not a device-reachable provisioned origin; not bypassed",
+    "backups": "private prior/runtime-diagnostic OTA and ELF images plus layout snapshots retained"
+  },
+  "software_validation": {
+    "host_tests_with_asan_ubsan": 72,
+    "synthetic_firmware_configurations_compiled": 7,
+    "new_synthetic_ha_or_browser_regression": false
+  },
+  "remaining": ["physical display/brightness confirmation", "cold and repeated warm starts", "repeated USB recovery", "device-reachable artwork origin", "electrical qualification", "soak"]
+}
