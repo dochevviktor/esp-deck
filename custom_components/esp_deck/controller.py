@@ -16,6 +16,8 @@ from homeassistant.util.dt import utcnow
 
 from .adapter import Adapter, AdapterError, resolve_reference
 from .const import DOMAIN, EVENT_KEY, KEY_COUNT, MAX_REVISION, SIGNAL_STATUS
+from .artwork import DATA_KEY
+from .model import LayoutError
 
 
 class DeckController:
@@ -165,13 +167,14 @@ class DeckController:
                 try:
                     await self._synchronize(force)
                     self._issue()
-                except AdapterError as err:
-                    self.error = err.code
+                except (AdapterError, LayoutError) as err:
+                    code = err.code if isinstance(err, AdapterError) else str(err)
+                    self.error = code
                     if self.connected:
                         self._invalidate_input()
                     self.connected = False
                     self.sent.clear()
-                    self._issue(err.code)
+                    self._issue(code)
                 self._publish()
         finally:
             self.worker = None
@@ -188,6 +191,9 @@ class DeckController:
                 variant = "unavailable"
                 self.binding_error = "entity_missing_or_disabled"
             result.update(rule[variant])
+        if library := self.hass.data.get(DATA_KEY):
+            return library.resolve(self.entry.entry_id, result)
+        result.pop("asset_id", None)
         return result
 
     async def _synchronize(self, force):

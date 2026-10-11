@@ -222,6 +222,7 @@ def test_browser_integration_and_options_preset(backend):
         # and correctly receives pointer events at the center of the control.
         page.locator("ha-button").filter(has=page.get_by_role("button", name="Configure", exact=True)).click(timeout=30000)
         page.get_by_text("Set an entity preset", exact=True).wait_for(timeout=30000)
+        page.get_by_role("link", name="Open the visual editor", exact=True).wait_for(timeout=10000)
         page.screenshot(path=str(lab.LAB / "p6-browser.png"), full_page=True)
         browser.close()
     call("light.turn_off", {"entity_id": "light.example_lamp"})

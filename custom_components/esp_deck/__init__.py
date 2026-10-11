@@ -10,17 +10,21 @@ from .const import DOMAIN, MIN_HA_VERSION
 from .controller import DeckController
 from .model import LayoutError, empty_layout, entity_preset, validate_layout
 from .storage import LayoutRepository
+from .artwork import DATA_KEY
 
 
 async def async_setup(hass, config):
     if AwesomeVersion(HA_VERSION) < AwesomeVersion(MIN_HA_VERSION):
         raise ConfigEntryError(f"ESP Deck requires Home Assistant {MIN_HA_VERSION} or newer")
     register(hass)
+    from .panel import setup_panel
+    await setup_panel(hass)
     return True
 
 
 async def async_setup_entry(hass, entry):
     repository = LayoutRepository(hass, entry.entry_id)
+    await hass.data[DATA_KEY].ensure(entry.entry_id)
     try:
         await repository.load()
     except (LayoutError, KeyError, TypeError, ValueError) as err:
@@ -50,4 +54,6 @@ async def async_unload_entry(hass, entry):
 
 async def async_remove_entry(hass, entry):
     await LayoutRepository(hass, entry.entry_id).store.async_remove()
+    if library := hass.data.get(DATA_KEY):
+        await library.remove_entry(entry.entry_id)
     ir.async_delete_issue(hass, DOMAIN, f"{entry.entry_id}_connection")

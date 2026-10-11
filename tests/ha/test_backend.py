@@ -149,7 +149,7 @@ def test_preset_actual_state_clear_and_partial_style():
     assert entity_preset("scene.lab", "Scene")["press"]["action"] == "scene.turn_on"
     layout = empty_layout()
     layout["keys"][0]["state"] = {"entity": "light.lab", "on": {"image_url": ""}}
-    assert validate_layout(layout)["keys"][0]["state"]["on"] == {"image_url": "", "image_revision": ""}
+    assert validate_layout(layout)["keys"][0]["state"]["on"] == {"image_url": "", "image_revision": "", "asset_id": ""}
 
 
 @pytest.mark.asyncio
@@ -544,6 +544,12 @@ async def test_admin_boundary_export_import_and_redacted_diagnostics(deck):
             data.update(document=deck.repo.export(), expected_revision=0)
         elif service == "preset":
             data.update(entity_id="light.lab", label="Lab")
+        elif service == "artwork_variant":
+            data.update(source_id="a" * 64, transform={})
+        elif service == "artwork_configure":
+            data.update(origin="http://ha:8123")
+        elif service == "artwork_delete":
+            data.update(asset_id="a" * 64)
         with pytest.raises(Unauthorized):
             await deck.hass.services.async_call("esp_deck", service, data,
                 blocking=True, return_response=True, context=Context(user_id=user.id))

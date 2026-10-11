@@ -1,10 +1,11 @@
-# ESP Deck Home Assistant backend (P6)
+# ESP Deck Home Assistant integration (P6/P7)
 
 `custom_components/esp_deck/` is a locally installable integration for HA
 **2026.10.1 or newer**, developed against 2026.10.1. Earlier HA versions are not
 supported/tested. It owns saved layouts, entity feedback, press/release bindings
-and synchronization while the browser is closed. The optional editor, artwork
-upload endpoint and pages/layers are P7/P8 work. HACS installation, release
+and synchronization while the browser is closed. P7's bundled
+[visual editor and artwork library](visual-editor.md) provide everyday editing
+without YAML or revision/URL plumbing. Pages/layers are P8 work. HACS installation, release
 metadata/branding, Hassfest and distribution validation remain P9 gates; a GitHub
 account is not needed to install/test this backend locally.
 
@@ -32,8 +33,9 @@ a light, switch, input boolean, script or scene for key 0. Toggle presets use
 actual on/off/unavailable state for background feedback. Script/scene presets
 invoke `turn_on`. No HA entity ID is compiled into the ESP.
 
-Configure → **Set an entity preset** can replace any key in the saved draft,
-with an option to apply the draft. The full visual editor is still P7. A preset
+Open **ESP Deck** in the sidebar for the 5×3 editor, or use Configure →
+**Set an entity preset** to replace any key in the saved draft,
+with an option to apply the draft. A preset
 replaces that key's binding, appearance and state rule; Apply activates the
 whole draft. Saving configuration or previewing a preset never executes its
 bound action.
@@ -89,7 +91,8 @@ One key, before normalization, can look like this:
 firmware. Existing URLs must use the device's compiled allowed origins and meet
 the [v1 PNG/URL limits](asset-loading.md). An origin mismatch is reported by the
 native API; this backend does not change the allowlist or perform the ESP fetch.
-The origin wizard and restricted artwork route are later work.
+The origin-provisioning wizard remains P8. P7's restricted artwork route works
+with an already allowed HA origin and defaults to HA's configured internal URL.
 
 The layout is `{"version":1,"keys":[...15 key objects...]}`. Visual fields are
 those in the [runtime contract](runtime-visuals.md): image URL/revision, text,
@@ -97,6 +100,10 @@ font 12/16/20, three `#RRGGBB` colors and `contain`/`crop`. Label bounds are
 96 UTF-8 bytes/48 scalars. URLs are at most 512 ASCII bytes, without credentials,
 query or fragment. Empty image/text explicitly clears it. An image change in a
 state patch must include both URL and revision. Unknown fields are rejected.
+P7 also accepts a hash-only `asset_id` for normalized library artwork. It is
+resolved to the private device URL/revision only by the backend, never exposed in
+exports. Image patches clear the alternative URL or library reference explicitly;
+labels/styles still preserve the image. See [artwork access](visual-editor.md).
 
 Action bindings use a literal `action`, optional JSON `data`, and optional
 `target.entity_id` (one entity or at most 16). Put entity targets in `target`,
@@ -163,6 +170,12 @@ system context. Services require response data:
 | `esp_deck.preset` | `entity_id`, `label`; returns a key, without saving/firing |
 | `esp_deck.sync` | None; explicit reconciliation/retry of failed tiles |
 | `esp_deck.status` | None; connection/render/binding state |
+| `esp_deck.artwork_list` | None; private library metadata and origin |
+| `esp_deck.artwork_variant` | `source_id`, `transform` (fit, zoom, x, y) |
+| `esp_deck.artwork_configure` | `origin`; does not provision firmware |
+| `esp_deck.artwork_revoke` | None; rotate capability and resynchronize |
+| `esp_deck.artwork_collect` | None; remove unreferenced, unretained files |
+| `esp_deck.artwork_delete` | `asset_id`; refuse referenced/retained files |
 
 The authenticated WebSocket equivalent is:
 
@@ -174,6 +187,9 @@ The authenticated WebSocket equivalent is:
 Use the same operation names/parameters as the table, without the `esp_deck.`
 prefix. The HA config-entry selector supplies `entry_id` in Developer Tools.
 Neither interface exposes or stores ESPHome credentials.
+The admin-only `esp_deck/entries` WebSocket command lists editor decks.
+Authenticated admin HTTP upload/preview and restricted device GET routes are
+documented in [the P7 guide](visual-editor.md).
 
 ## Synchronization, status and repair
 

@@ -8,6 +8,52 @@ get_layout:
       selector:
         config_entry:
           integration: esp_deck
+artwork_list:
+  name: List artwork
+  description: List this deck's normalized artwork and HA origin. Administrator only; no device credentials are returned.
+  fields:
+    entry_id: *entry
+artwork_variant:
+  name: Create artwork crop
+  description: Normalize an existing private source with bounded fit, zoom and offsets. Administrator only.
+  fields:
+    entry_id: *entry
+    source_id:
+      required: true
+      selector:
+        text:
+    transform:
+      required: true
+      selector:
+        object:
+artwork_configure:
+  name: Set artwork address
+  description: Save the HA origin reachable by the deck. Does not provision the firmware allowlist. Administrator only.
+  fields:
+    entry_id: *entry
+    origin:
+      required: true
+      selector:
+        text:
+artwork_revoke:
+  name: Revoke artwork download links
+  description: Revoke the previous device capability and resynchronize new links. Administrator only.
+  fields:
+    entry_id: *entry
+artwork_collect:
+  name: Remove unused artwork
+  description: Delete unreferenced artwork and orphaned sources after the retention grace period. Administrator only.
+  fields:
+    entry_id: *entry
+artwork_delete:
+  name: Delete artwork
+  description: Delete one normalized variant only when it is not referenced or retained. Administrator only.
+  fields:
+    entry_id: *entry
+    asset_id:
+      required: true
+      selector:
+        text:
 status:
   name: Get status
   description: Read connection, render and binding status. Rendered is not display readback.

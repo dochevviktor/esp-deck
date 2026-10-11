@@ -90,6 +90,7 @@ bool HostFetcher::poll(assets::FetchResult &result) {
     }
   }
   result_.bytes = size_; result = result_;
+  if (result_.error == visual::Error::NONE) { received_bytes += size_; last_download_bytes = size_; }
   output_ = nullptr;
   return true;
 }
@@ -159,6 +160,8 @@ void VirtualDeck::snapshot_() {
     root["edges"] = edges_;
     root["input_overflows"] = input_queue_.overflows();
     root["downloads"] = pipeline_.downloads();
+    root["download_bytes"] = fetcher_.received_bytes;
+    root["last_download_bytes"] = fetcher_.last_download_bytes;
     root["cache_hits"] = pipeline_.cache_hits();
     root["failures"] = pipeline_.failures();
     root["graphics_bytes"] = memory_.used_bytes();

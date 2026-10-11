@@ -29,6 +29,7 @@ class HostFetcher final : public assets::Fetcher {
   bool start(std::string_view url, uint8_t *output, size_t capacity, uint64_t token) override;
   bool poll(assets::FetchResult &result) override;
   void cancel() override;
+  size_t received_bytes{0}, last_download_bytes{0};
  private:
   pid_t child_{-1};
   int pipe_{-1};

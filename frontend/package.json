@@ -1,0 +1,13 @@
+{
+  "name": "esp-deck-editor",
+  "private": true,
+  "version": "0.7.0",
+  "type": "module",
+  "engines": {"node": ">=22"},
+  "scripts": {
+    "build": "node build.mjs",
+    "check": "node build.mjs --check",
+    "test": "node --test tests/*.test.mjs"
+  },
+  "devDependencies": {"esbuild": "0.25.12"}
+}

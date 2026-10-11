@@ -6,9 +6,10 @@ the ESP32 composes images and text locally and handles USB. Once this capability
 is installed, changing a binding, image or supported text/style must not require
 another firmware build or upload.
 
-Status, 2026-10-11: P0–P6 software implemented and tested (54 Python unittest cases,
-including seven native C++ executables; 43 real-HA engine tests with mocked
-native actions; 16 real-container/native-API/browser scenarios).
+Status, 2026-10-11: P0–P7 software implemented and tested (59 Python unittest cases,
+including eight native C++ executables; four frontend tests including eleven
+pixel-exact rendering fixtures; 50 real-HA engine tests with mocked native
+actions; 19 real-container/native-API/browser scenarios).
 All seven firmware configurations compile with
 synthetic secrets. The [asset loader](asset-loading.md) adds bounded asynchronous
 HTTP(S), strict PNG decoding and retained background caching to the
@@ -19,6 +20,9 @@ and a replay fix found by real HA testing. P3's live ESP asset-reachability chec
 and physical HA/device acceptance remain pending.
 P6 adds the [HA integration backend](ha-integration.md): guided setup/presets,
 atomic draft/applied layouts, bindings, admin APIs, repair and synchronization.
+P7 adds the bundled [visual editor and artwork library](visual-editor.md):
+5×3 editing, bounded PNG/JPEG crop/normalization, hash references, restricted
+revocable device reads and firmware-matched previews.
 No firmware was deployed or newly hardware-verified; example 04 remains the
 installed bench baseline.
 
@@ -28,8 +32,8 @@ an independent Podman HA lab; P6–P8 deliver the product experience; P9 retains
 the real-device and release gates from the original P5. The owner's production
 HA is not a prerequisite for software development/testing. This planning update
 was research/documentation at the time. P5 has since implemented and exercised
-the HA lab; P6's integration backend is locally installed/tested. The editor,
-uploads, advanced firmware and HACS distribution gates remain P7–P9 work.
+the HA lab; P6's integration backend and P7's editor/uploads are locally
+installed/tested. Advanced firmware and HACS distribution gates remain P8–P9 work.
 Read [the research and architecture decision](decisions/home-assistant-ux.md).
 
 ## Resume in a fresh chat
@@ -39,8 +43,9 @@ Read [the research and architecture decision](decisions/home-assistant-ux.md).
    [USB decision](decisions/usb-transport.md), and current
    [hardware evidence](hardware.md) and [test status](testing.md).
 2. Inspect the worktree and current sources; preserve local edits and secrets.
-3. Continue with P7 against the [P6 backend](ha-integration.md), isolated HA lab
-   and test-only virtual deck, using
+3. Continue with P8 against the [integration backend](ha-integration.md),
+   [P7 editor/artwork pipeline](visual-editor.md), isolated HA lab and test-only
+   virtual deck, using
    [the architecture decision](decisions/home-assistant-ux.md),
    [the runtime contract](runtime-visuals.md), [P3's loader](asset-loading.md)
    and [P4's HA guide](home-assistant.md). Podman 5.8.4/rootless is available on
@@ -51,8 +56,9 @@ Read [the research and architecture decision](decisions/home-assistant-ux.md).
    require example 05; they are not on the installed device yet. Do not hardcode
    HA entities into firmware, reset visual state on API logger connections, or
    repeat USB packet-size experiments for this stage.
-5. Build P7 on P6's authenticated APIs and existing v1 firmware. P8 adds label
-   positioning, origin provisioning and safe page/layer switching. Before a
+5. Preserve P7's v1 compatibility, hash-only saved artwork references and
+   zero-download label updates. P8 adds capabilities, label positioning, origin
+   provisioning and safe page/layer switching. Before a
    requested real-device upload in P9, verify device identity, preserve the bench
    artifacts and establish the chosen HA asset address and deployment readiness.
 
@@ -438,45 +444,59 @@ feedback, cache reuse, renames, failure reporting, HA/ESP restart, unload/reload
 and the integration/options UI. The combined suites have 43 engine tests and
 16 real-container/native-API/browser scenarios. All seven synthetic firmware
 configurations compile; none was deployed. Distribution metadata/HACS/Hassfest
-remain P9 gates and the visual editor remains P7.
+remain P9 gates. The visual editor was subsequently implemented in P7 below.
 
 ### P7 Deliver the visual editor and efficient artwork library
 
-Planned files: frontend source/build lock, a compiled module shipped inside
-`custom_components/esp_deck/`, upload/asset views and browser/image tests.
+Implemented files: `frontend/` source/esbuild lock, a compiled module under
+`custom_components/esp_deck/frontend/`, `artwork.py`, `panel.py`, model/API
+extensions and browser/image tests. See [the editor guide](visual-editor.md).
 
-- [ ] Register a bundled sidebar/configuration panel. Show the actual 5×3 key
+- [x] Register a bundled sidebar/configuration panel. Show the actual 5×3 key
   arrangement with select/move/swap/copy/clear, undo and keyboard/touch alternatives.
   Separate binding, appearance and state rules; common actions need no YAML.
-- [ ] Support the current font sizes, colors, outline, image fit and on/off/
+- [x] Support the current font sizes, colors, outline, image fit and on/off/
   unavailable presets. Keep optional advanced HA scripts/automations discoverable.
   Show draft versus applied state, save/apply progress and retry/repair. Selecting
   a tile or previewing it must not fire the bound action.
-- [ ] Accept authenticated PNG/JPEG uploads into HA. Enforce encoded-byte and
+- [x] Accept authenticated PNG/JPEG uploads into HA. Enforce encoded-byte and
   decoded-pixel limits before expensive processing; reject malformed/animated/
   unsupported content. Process EXIF/crop/zoom/offset, strip metadata and normalize
   off the HA event loop into non-interlaced 72×72 PNGs, initially capped at 32 KiB.
-- [ ] Keep source/library disk usage and conversion concurrency bounded. Store
+- [x] Keep source/library disk usage and conversion concurrency bounded. Store
   immutable variants by content hash and use that hash as `image_revision`.
   Preserve alpha and keep dynamic labels in the ESP renderer. Label-only changes
   must not generate/download another raster, and native orientation is applied once.
-- [ ] Implement the restricted, revocable asset-path capability described in
+- [x] Implement the restricted, revocable asset-path capability described in
   the architecture decision, compatible with the current no-header/no-query URL
   contract. Authenticate editing/uploads; restrict device reads to referenced
   normalized files. Cover credential redaction, path traversal, cross-device
   access, revocation, in-flight retention and reference-aware garbage collection.
-- [ ] Verify every normalized fixture with the production PNG decoder. Reuse
+- [x] Verify every normalized fixture with the production PNG decoder. Reuse
   bundled glyph metrics/render fixtures for previews; don't equate browser font
   rendering with ESP pixels without comparison tests. Test large photos, alpha,
   bad EXIF, limits, concurrent edits and refresh at the same source filename.
-- [ ] Provide a thin optional dashboard card only if it improves normal use;
+- [x] Evaluate a thin optional dashboard card only if it improves normal use;
   it must share backend configuration and work without owning synchronization.
+  No card was needed: the bundled panel and existing HA status entity cover this
+  stage without another configuration surface.
 
 Acceptance: from a fresh lab UI, pick a key, bind a light/script, upload and crop
 an image, change its label, move the key and apply, with no URL/counter editing.
 Only bounded 72×72 artwork is fetched by the virtual deck; relabeling performs
 zero additional asset GETs. State-driven operation continues after the editor
 closes. A normalized source reduces network/decoder work, not fixed USB report size.
+
+Software acceptance: desktop/mobile Chromium exercises preset binding,
+upload/crop/apply/relabel, same-filename content replacement, moving keys,
+keyboard/touch/undo, concurrent edit rejection and closed-browser operation in
+the isolated HA/virtual-deck lab. Label-only edits cause zero device GETs.
+Ten normalized image cases decode through the production C++ PNG decoder;
+all eleven native renderer fixtures match the browser preview algorithm exactly.
+The full suite now has 59 host, four frontend, 50 HA-engine and 19 live scenarios.
+All seven synthetic firmware configurations compile. No device deployment or
+new hardware verification occurred. v1 origin setup remains explicit; P8 owns
+provisioning/capabilities/positioning/pages, and P9 owns distribution/hardware gates.
 
 ### P8 Add capabilities, positioning and safe pages/layers
 

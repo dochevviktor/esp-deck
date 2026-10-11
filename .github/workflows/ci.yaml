@@ -40,6 +40,19 @@ jobs:
             ghcr.io/home-assistant/home-assistant:2026.10.1@sha256:130241f28d01fa80dfa3b44f7d89781c188d8642ecab9024f079f19f9f82baa0 \
             -c 'python -m venv --system-site-packages /tests/venv && /tests/venv/bin/pip install --no-deps -r /tests/tests/requirements.txt && cd /tests && /tests/venv/bin/python -m pytest -q /tests/tests'
 
+  editor:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '24.13.0'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci --prefix frontend --ignore-scripts --no-audit --no-fund
+      - run: npm run check --prefix frontend
+      - run: npm test --prefix frontend
+
   firmware:
     needs: tests
     runs-on: ubuntu-24.04

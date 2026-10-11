@@ -11,7 +11,7 @@
       },
       "handoff": {
         "title": "Hand over layout and bindings",
-        "description": "ESP Deck will own all 15 visuals. Confirm that you have stopped other visual writers and duplicate key automations. The selected automations will be turned off (including running actions); the three shipped P4 helper scripts will be stopped. Their YAML is preserved. Optional: bind key 0 to an entity. Image URLs must already match the firmware's allowed origin; the artwork wizard comes later.",
+        "description": "ESP Deck will own all 15 visuals. Confirm that you have stopped other visual writers and duplicate key automations. The selected automations will be turned off (including running actions); the three shipped P4 helper scripts will be stopped. Their YAML is preserved. Optional: bind key 0 to an entity. Open ESP Deck in the sidebar to edit keys and upload artwork. The HA artwork address must already match the firmware's allowed origin; device origin provisioning comes later.",
         "data": {
           "exclusive_control": "I have stopped competing visual writers and duplicate bindings",
           "disable_automations": "Manual automations to turn off",
@@ -57,6 +57,7 @@
     "step": {
       "init": {
         "title": "Configure ESP Deck",
+        "description": "[Open the visual editor](/esp-deck) to edit keys, bindings and artwork. Advanced preset and entity-mapping tools remain below.",
         "menu_options": {
           "binding": "Set an entity preset",
           "repair": "Repair entity mapping"
@@ -64,7 +65,7 @@
       },
       "binding": {
         "title": "Set an entity preset",
-        "description": "Replace one key in the draft with a light/switch toggle or script/scene action. On/off/unavailable feedback follows actual HA state. Applying activates the whole saved draft. The visual editor is a later stage.",
+        "description": "Replace one key in the draft with a light/switch toggle or script/scene action. On/off/unavailable feedback follows actual HA state. Applying activates the whole saved draft. Use the ESP Deck sidebar for the visual editor.",
         "data": {
           "key": "Key (0–14, front view, left to right)",
           "entity_id": "Entity",

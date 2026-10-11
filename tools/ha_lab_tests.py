@@ -56,6 +56,7 @@ def run_tests():
     try:
         logged([str(runner / "bin/python"), "-m", "pytest", "-v", "-x", str(lab.FIXTURES / "test_live.py"),
                 str(lab.FIXTURES / "test_backend.py"),
+                str(lab.FIXTURES / "test_editor.py"),
                 "--junitxml=" + str(lab.LAB / "live.xml")], lab.LAB / "live-tests.log", env=environment)
     finally:
         # Raw logs stay private. Tests/report contain only synthetic payloads.

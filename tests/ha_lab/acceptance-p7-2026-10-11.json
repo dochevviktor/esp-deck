@@ -1,0 +1,70 @@
+{
+  "stage": "P7",
+  "base_commit": "ecb29f6df1ec53d9ec6875a618e0d484bf63b843",
+  "integration_version": "0.7.0",
+  "tested_at_utc": "2026-10-11T15:43:49Z",
+  "images": {
+    "home_assistant": {
+      "tag": "2026.10.1",
+      "image": "ghcr.io/home-assistant/home-assistant:2026.10.1@sha256:130241f28d01fa80dfa3b44f7d89781c188d8642ecab9024f079f19f9f82baa0"
+    },
+    "esphome_host": {
+      "tag": "2026.9.0",
+      "image": "ghcr.io/esphome/esphome:2026.9.0@sha256:f6509fcf917a732fd80058567b237d5b9286b9dc6c8dde1b655fbb69ebd600ad"
+    }
+  },
+  "ha_packages": {
+    "python": "3.14.6 (main, Jun 16 2026, 10:51:48) [GCC 15.2.0]",
+    "homeassistant": "2026.10.1",
+    "home-assistant-frontend": "20260930.3",
+    "aioesphomeapi": "46.6.0",
+    "aiohttp": "3.14.4",
+    "Pillow": "12.3.0"
+  },
+  "deck_packages": {
+    "python": "3.14.6 (main, Jun 11 2026, 01:06:03) [GCC 14.2.0]",
+    "esphome": "2026.9.0",
+    "aioesphomeapi": "46.3.0",
+    "platformio": "6.1.19"
+  },
+  "deck_compiler": "14.2.0",
+  "virtual_binary_sha256": "83173b2c6c97b684c47710c62fae61cd4643f8f95bd19eeb9850ba88af72b501",
+  "integration_tree_sha256": "3c0770d845c162a32d231ccf96967f6b234b848ddf0bed517b2a2cff20283475",
+  "integration_tree_hash_method": "rg --files custom_components/esp_deck | sort | xargs sha256sum | sha256sum",
+  "frontend": {
+    "node": "24.13.0",
+    "npm": "11.6.2",
+    "esbuild": "0.25.12",
+    "bundle_sha256": "47a4774c64e1b5401ee7fa35e2516a981ef1fe5b410a1825d447f08357204f9a",
+    "tests": 4,
+    "native_renderer_pixel_fixtures": 11
+  },
+  "host_unittest": {
+    "passed": 59,
+    "native_executables": 8,
+    "normalized_production_decoder_cases": 10
+  },
+  "firmware": {
+    "synthetic_compilations_passed": 7,
+    "deployments": 0
+  },
+  "ha_engine_mock_native": {
+    "tests": 50,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "real_ha_native_api_browser": {
+    "tests": 19,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "fresh_synthetic_lab": "passed; previous private lab archived",
+  "direct_integration_installation": "passed",
+  "source_matches_installed_integration": true,
+  "hardware_verified": false,
+  "hacs_installed": false,
+  "remote_ci_run": false,
+  "notes": "No credentials, source artwork, raw logs or binaries are included. Label-only edits added zero device downloads/bytes. Same-filename replacement changed content identity. Configure/repair remains available alongside the bundled editor. P8 capabilities/origin provisioning/positioning/pages and P9 distribution/hardware gates remain pending."
+}

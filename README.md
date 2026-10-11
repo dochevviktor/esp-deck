@@ -2,7 +2,7 @@
 
 ESPHome firmware for the **original 15-key Elgato Stream Deck (0FD9:0060)** on a
 **Seeed XIAO ESP32-S3 Plus**. The external component reads keys, controls brightness
-and sends firmware-resident BMP images over native USB. Home Assistant uses the
+and sends locally rendered images over native USB. Home Assistant uses the
 encrypted ESPHome API; encrypted OTA is configured.
 
 Implemented: protocol, asynchronous USB transport, reconnect/recovery, all 15 key
@@ -18,12 +18,15 @@ HA-owned layout replay; no firmware binding to a particular HA entity.
 P5 adds a private rootless HA lab and encrypted ESPHome host virtual deck.
 P6 adds a locally installable [HA backend](docs/ha-integration.md) with guided
 setup/presets, saved layouts, bindings, synchronization, admin APIs and repair.
+P7 adds the bundled [5×3 visual editor and artwork library](docs/visual-editor.md):
+PNG/JPEG upload/crop, pixel-tested previews, state rules and revocable asset delivery.
 Compiled: all seven configurations on ESPHome 2026.9.0 / ESP-IDF 5.5.5, plus the
 test-only ESPHome host executable.
 Unit-tested: upstream byte fixtures, scheduler/input behavior, simulated USB
-transfers, schema validation and captured desktop descriptors; 54 Python cases
-including seven native executables and HA helper/replay templates.
-HA-tested: 43 real-HA engine tests with mocked native actions and 16 real
+transfers, schema validation and captured desktop descriptors; 59 Python cases
+including eight native executables and HA helper/replay templates, plus four
+frontend tests (including all eleven renderer snapshots).
+HA-tested: 50 real-HA engine tests with mocked native actions and 19 real
 HA 2026.10.1/native-API/browser scenarios, including a clean lab startup.
 Hardware-verified: desktop descriptors, ESP chip/flash identity, 8 MB PSRAM
 initialization, Wi-Fi, encrypted API and encrypted OTA. The S3 enumerates the
@@ -40,19 +43,20 @@ qualification and HA acceptance remain pending. See
 The original [handover](STREAM_DECK_ESPHOME_CODEX_HANDOVER.md) is preserved.
 Start with the [hardware checklist](docs/hardware.md) before connecting anything.
 
-The [Home Assistant runtime control plan](docs/implementation-plan.md) has P0–P6
+The [Home Assistant runtime control plan](docs/implementation-plan.md) has P0–P7
 software implemented and tested: [the contract](docs/runtime-visuals.md), owned
 images, [rendering](docs/rendering.md), and [URL loading/cache](docs/asset-loading.md).
 Example 05 adds [HA runtime controls and layout replay](docs/home-assistant.md).
 Example 03 remains a fixed-entity demo; example 04 is the installed bench baseline.
-P5's [isolated Podman HA lab](docs/ha-lab.md) and P6's
-[integration backend](docs/ha-integration.md) are ready for P7's visual editor and
-72×72 image upload pipeline. Bounded pages/layers follow in P8;
-the editor/uploads/pages are planned, not implemented. Physical qualification
+P5's [isolated Podman HA lab](docs/ha-lab.md), P6's
+[integration backend](docs/ha-integration.md) and P7's
+[editor and 72×72 artwork pipeline](docs/visual-editor.md) run independently of
+physical hardware. Capability/origin provisioning and bounded pages/layers follow
+in P8. Physical qualification
 and HACS distribution validation remain P9, and P3's
 actual ESP asset-reachability check is still pending. See the
 [HA/HACS architecture decision](docs/decisions/home-assistant-ux.md).
-No firmware was uploaded for P0–P6.
+No firmware was uploaded for P0–P7.
 
 ## Develop and test without a board
 
@@ -67,6 +71,9 @@ python3 -m venv .venv
 .venv/bin/python tools/generate_png_fixtures.py --check
 .venv/bin/python tools/check_firmware.py
 .venv/bin/python tools/check_firmware.py --compile
+npm ci --prefix frontend --ignore-scripts --no-audit --no-fund
+npm run check --prefix frontend
+npm test --prefix frontend
 ```
 
 The checker defaults to isolated copies with synthetic Wi-Fi/API secrets. It
@@ -128,11 +135,13 @@ change-driven, with a full redraw on attachment; periodic display polling is not
 needed for this behaviour.
 
 For runtime bindings and visuals use [example 05's HA setup guide](docs/home-assistant.md).
-The [P6 integration](docs/ha-integration.md) provides guided backend setup and
-presets as an alternative to the manual P4 helpers below; its handoff stops
+The [P6/P7 integration](docs/ha-integration.md) provides guided setup and a
+[visual editor](docs/visual-editor.md) as an alternative to the manual P4 helpers;
+its handoff stops
 selected competing automations. Install its directory in HA's custom_components
 and select the existing ESPHome deck. It runs with the browser closed.
-Its HA scripts own the layout and query revisions before each update; firmware
+The integration (or the independent P4 scripts) owns the layout and queries
+revisions before each update; firmware
 starts blank and preserves the last good tiles offline. Labels reuse cached
 artwork. The sample HA automations bind press/release events and update key 0
 from actual lamp state. Rebinding or changing supported visuals within the

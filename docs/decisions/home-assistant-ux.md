@@ -15,6 +15,13 @@ layouts, bindings, registry references, synchronization and authenticated APIs.
 The editor/uploads/pages and HACS distribution checks remain P7–P9 work. The
 design discussion below is preserved as the research baseline.
 
+P7 follow-up, 2026-10-11: the bundled [visual editor and artwork library](../visual-editor.md)
+implement this panel/upload/access design against v1 firmware. Drafts and exports
+store content hashes; device URLs are resolved privately. The isolated lab now
+exercises editor/crop/cache/concurrency and desktop/mobile flows. The optional
+card was unnecessary for this stage. Capability/origin provisioning, positioning,
+pages/layers and distribution remain P8/P9 work.
+
 ## Decision: one integration with a bundled editor
 
 Build `custom_components/esp_deck/` as a HACS-distributed custom integration with

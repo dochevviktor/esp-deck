@@ -1,6 +1,7 @@
 # Isolated, synthetic P5 configuration. No discovery of LAN devices.
 homeassistant:
   name: ESP Deck Lab
+  internal_url: http://ha:8123
   latitude: 0
   longitude: 0
   elevation: 0

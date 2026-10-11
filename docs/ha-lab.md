@@ -1,10 +1,10 @@
-# Independent Home Assistant lab (P5/P6)
+# Independent Home Assistant lab (P5–P7)
 
 The lab runs real HA and a test-only ESPHome `host` deck in rootless Podman.
 It uses fresh synthetic credentials and does not need the owner's HA, ESP,
 Stream Deck or GitHub account. It is a development dependency only. P6's
-[custom integration](ha-integration.md) is now staged and tested directly;
-P7's editor is not yet implemented.
+[custom integration](ha-integration.md) and P7's bundled
+[editor/artwork pipeline](visual-editor.md) are staged and tested directly.
 
 ## Commands and isolation
 
@@ -24,6 +24,9 @@ The UI is [http://127.0.0.1:18123](http://127.0.0.1:18123). Username/password an
 generated API/auth keys are in private `.build/ha-lab/credentials.json`; they are
 never printed. HA can fetch synthetic artwork at `http://ha:8123/local/streamdeck`.
 That container address is for the lab, not an origin to put in physical firmware.
+After integration setup, open [the editor](http://127.0.0.1:18123/esp-deck).
+HA's lab-only internal URL is `http://ha:8123`, matching the virtual deck's
+allowlist; no address or revision editing is required for the browser scenarios.
 
 The only published port is `127.0.0.1:18123`. HA and the deck have a dedicated
 rootless network, with no host networking, USB devices, privileged mode or D-Bus
@@ -146,6 +149,17 @@ actual light state, cache reuse, native failure reporting, HA/virtual-deck resta
 and the integration/options UI. The engine layer is also in the CI workflow;
 no remote CI execution is claimed by local results.
 
+P7 extends the totals to **50 HA-engine tests** and **19 live scenarios**.
+The engine tests cover artwork permissions, path capabilities/revocation,
+cross-deck access, quotas, cancellation, atomic failures, concurrent saves and
+reference-aware retention/GC. Chromium covers preset binding, upload/crop,
+relabeling with unchanged device download counts/bytes, content replacement at
+the same filename, moving keys, keyboard/touch/undo, conflicting drafts and
+closed-browser actions. The virtual fetcher now records bytes as well as counts;
+it does not record URLs or tokens. Desktop/mobile screenshots and the full logs
+remain private in `.build/ha-lab/`. Browser preview pixel comparisons run
+separately with `npm test --prefix frontend` against eleven native fixtures.
+
 The ordinary unittest suite separately covers ownership-safe lifecycle commands,
 private source/API staging, HTTP limits and redirect rejection. Its existing
 native executables remain the independent byte/renderer/USB oracle. The lab
@@ -161,6 +175,10 @@ See [current acceptance evidence](testing.md) for results and counts.
 The sanitized [P5 acceptance record](../tests/ha_lab/acceptance-2026-10-11.json)
 retains image identities, the tested host-executable hash and test counts without
 credentials, raw logs or binaries.
+
+The [P7 acceptance record](../tests/ha_lab/acceptance-p7-2026-10-11.json) adds the
+frontend/integration artifact identities and the 50-engine/19-live acceptance
+counts. The integration installed in the running lab matches the source tree.
 
 No electrical, USB/DMA, physical display, actual ESP HTTP/TLS or OTA acceptance
 comes from P5. Example 04 remains the installed bench firmware. The P3 live

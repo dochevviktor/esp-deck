@@ -1,5 +1,79 @@
 # Validation and remaining hardware gates
 
+## Visual editor and artwork library, 2026-10-11 (P7)
+
+Implemented: ESP Deck 0.7.0's bundled admin panel, 5×3 select/move/swap/copy/clear
+and undo, entity/action presets, appearance/state rules, draft/apply/conflict
+feedback, touch/keyboard controls and retry/repair navigation. Bounded PNG/JPEG
+uploads normalize off HA's event loop to immutable 72×72 RGBA PNGs. Stored hashes
+resolve to revocable per-deck device paths; editing/preview routes remain admin
+authenticated. Private source/variant quotas, atomic writes, cancellation drain,
+reference/backup retention, garbage collection and log redaction are implemented.
+[Usage, limits and architecture](visual-editor.md).
+
+Compiled: **seven ESP32 firmware configurations** using temporary synthetic
+secrets, the test-only ESPHome host deck, and the bundled frontend with Node
+24.13.0 / esbuild 0.25.12. The production firmware/protocol/USB code and dependency
+pins did not change. The virtual fetcher adds sanitized byte counters only.
+`npm run check --prefix frontend` verifies the shipped bundle is reproducible.
+
+Unit-tested: **59 Python unittest cases**, including **eight native C++
+executables**, plus **four frontend tests**. Ten normalized alpha, EXIF, palette,
+greyscale, large-photo and crop outputs match the production PNG decoder's RGBA
+bytes. Invalid/animated/truncated images, malformed EXIF, metadata stripping,
+limits and unchanged filenames are covered. Browser preview code matches all
+**eleven native renderer BMP fixtures pixel for pixel**; its PNG reader preserves
+RGBA without browser premultiplication. All existing upstream/font/render/PNG
+fixture checks pass. No new sanitizer result is claimed for this session.
+
+HA-engine-tested: **50 pytest cases** using HA 2026.10.1 with mocked native
+actions. Seven added cases cover authentication/authorization, references versus
+unsaved uploads, cross-deck access, traversal/query rejection, capability
+revocation/redaction/rate limits, source refresh/deduplication, quota/storage
+failure, cancellation, concurrent edits, reference/backup GC and in-flight bytes.
+Removing an entry also removes its empty owned artwork directory.
+
+HA-container/browser-tested: **19 scenarios**, against real HA 2026.10.1 /
+frontend 20260930.3 and the encrypted virtual deck. A fresh synthetic lab was
+created with `up --fresh`; the earlier private lab was archived, not erased.
+The full P4/P6 regression suite passes. Three P7 scenarios exercise the editor
+from the UI: light/scene binding, upload/crop/apply, relabel, replacement at the
+same source filename, moving keys, keyboard/touch/clear/undo, conflicting drafts,
+unauthenticated/bad/oversized uploads and operation after the browser closes.
+The virtual deck fetches at most 32 KiB for each normalized artwork image;
+label-only changes add **zero downloads and zero downloaded bytes**. A background
+color change can fetch again under v1's existing composed-background cache rule.
+
+The full regression caught HA's custom configuration-panel association hiding
+the existing options/repair control. The integration keeps the normal Configure
+menu, adds a link to the sidebar editor there, and browser-tests both paths.
+No manual frontend resource registration is used. Desktop/mobile screenshots,
+raw logs, tokens, layouts and binaries stay private under `.build/ha-lab/`.
+Sanitized [P7 acceptance metadata](../tests/ha_lab/acceptance-p7-2026-10-11.json)
+records the versions, source/artifact identities and test counts.
+
+Hardware-verified: **none newly for P7**. No device was flashed or contacted;
+example 04 remains the installed bench baseline. Actual ESP fetch/TLS, physical
+display/input timing, electrical, first-click, repeated-recovery and soak gates
+remain pending. Origin provisioning/positioning/pages are P8; HACS/Hassfest,
+distribution and physical qualification remain P9. No remote CI run is claimed.
+
+Commands run:
+
+```sh
+npm ci --prefix frontend --ignore-scripts --no-audit --no-fund
+npm run build --prefix frontend
+npm run check --prefix frontend
+npm test --prefix frontend
+.venv/bin/python -m unittest discover -s tests -v
+.venv/bin/python tools/check_firmware.py --compile
+.venv/bin/python tools/ha_lab.py up --fresh
+.venv/bin/python tools/ha_lab.py down
+.venv/bin/python tools/ha_lab.py up
+.venv/bin/python tools/ha_lab.py test
+git diff --check
+```
+
 ## Home Assistant integration backend, 2026-10-11 (P6)
 
 Implemented: `custom_components/esp_deck/` version 0.6.0 with config/options and

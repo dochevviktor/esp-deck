@@ -66,8 +66,17 @@ def entity_ref(value):
 
 
 def visual(value, *, partial=False):
-    mapping(value, DEFAULT_VISUAL)
-    result = dict(value) if partial else {**DEFAULT_VISUAL, **value}
+    mapping(value, (*DEFAULT_VISUAL, "asset_id"))
+    result = dict(value) if partial else {**DEFAULT_VISUAL, "asset_id": "", **value}
+    if "asset_id" in result:
+        if not isinstance(result["asset_id"], str) or (result["asset_id"] and not re.fullmatch(r"[a-f0-9]{64}", result["asset_id"])):
+            raise LayoutError("invalid_artwork_id")
+        if result["asset_id"]:
+            if result.get("image_url") or result.get("image_revision"):
+                raise LayoutError("ambiguous_image")
+            result.update(image_url="", image_revision="")
+    if "image_url" in value and not value.get("asset_id"):
+        result["asset_id"] = ""
     for field, item in result.items():
         if field == "font":
             if type(item) is not int or item not in (12, 16, 20):
@@ -94,6 +103,8 @@ def visual(value, *, partial=False):
                 raise LayoutError("invalid_image")
             result["image_revision"] = ""
         else:
+            if "/api/esp_deck/artwork/" in url:
+                raise LayoutError("use_artwork_reference")
             if not re.fullmatch(r"[A-Za-z0-9._:-]{1,64}", revision):
                 raise LayoutError("invalid_image")
             if (len(url) > 512 or not url.isascii() or any(ord(c) <= 32 or ord(c) == 127 for c in url)
