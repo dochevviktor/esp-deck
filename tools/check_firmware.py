@@ -10,7 +10,7 @@ import sys
 import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
-EXAMPLES = ("01_usb_probe", "02_keys_brightness", "03_images_home_assistant", "04_hardware_test", "renderer_probe")
+EXAMPLES = ("01_usb_probe", "02_keys_brightness", "03_images_home_assistant", "04_hardware_test", "renderer_probe", "asset_loader_probe")
 
 
 def stage(folder, device_secrets=None):
@@ -59,6 +59,13 @@ def check(folder, name, compile_firmware=False, extra=None, deployment=False):
             raise RuntimeError("Generated USB control-transfer limit does not match the transport decision")
         if "CONFIG_ESP_CONSOLE_SECONDARY_USB_SERIAL_JTAG=y" in actual.read_text():
             raise RuntimeError("The secondary USB console must be disabled for native USB host operation")
+        if name == "asset_loader_probe":
+            for setting in ("CONFIG_ESP_HTTP_CLIENT_ENABLE_CUSTOM_TRANSPORT=y", "CONFIG_ESP_HTTP_CLIENT_ENABLE_HTTPS=y",
+                            "CONFIG_MBEDTLS_CERTIFICATE_BUNDLE=y", "CONFIG_MBEDTLS_HAVE_TIME_DATE=y"):
+                if setting not in actual.read_text():
+                    raise RuntimeError("Asset transport/TLS setting missing: " + setting)
+            if "CONFIG_ESP_TLS_INSECURE=y" in actual.read_text():
+                raise RuntimeError("Asset HTTPS must validate peer certificates")
         if name != "01_usb_probe":
             if "CONFIG_USB_HOST_HW_BUFFER_BIAS_PERIODIC_OUT=y" not in actual.read_text():
                 raise RuntimeError("The Original 512-byte output endpoint requires the periodic-OUT FIFO bias")
@@ -68,6 +75,10 @@ def check(folder, name, compile_firmware=False, extra=None, deployment=False):
             transport = next(command for command in commands if Path(command["file"]).name == "usb_transport.cpp")
             if "/components/usb/include" not in transport["command"]:
                 raise RuntimeError("The application did not receive the USB component's public include directory")
+            if name == "asset_loader_probe":
+                parser = next(command for command in commands if Path(command["file"]).name == "http_parser.c")
+                if "-DHTTP_MAX_HEADER_SIZE=8192" not in parser["command"]:
+                    raise RuntimeError("The HTTP parser must bound headers and chunked trailers to 8 KiB")
     print(f"{name}: {'compiled' if compile_firmware else 'configuration valid'}", flush=True)
     return result.stdout
 

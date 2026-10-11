@@ -3,6 +3,7 @@
 #include "protocol.h"
 
 namespace esphome::stream_deck {
+namespace assets { class Buffer; class Pool; }
 
 // All references and allocation accounting belong to the main loop. Workers
 // must hand results back to that loop before copying/releasing an ImageRef.
@@ -14,6 +15,7 @@ class ImageAllocator {
   ImageAllocator(const ImageAllocator &) = delete;
   ImageAllocator &operator=(const ImageAllocator &) = delete;
   size_t used_bytes() const { return used_; }
+  size_t peak_bytes() const { return peak_; }
   size_t limit_bytes() const { return limit_; }
 
  protected:
@@ -24,9 +26,11 @@ class ImageAllocator {
 
  private:
   friend class ImageRef;
+  friend class assets::Buffer;
+  friend class assets::Pool;
   void *allocate(size_t size);
   void deallocate(void *memory, size_t size);
-  size_t limit_, used_{0};
+  size_t limit_, used_{0}, peak_{0};
 };
 
 // Immutable native BMP version. Copies retain storage; static assets require

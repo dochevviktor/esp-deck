@@ -2,6 +2,7 @@
 
 #include "scheduler.h"
 #include "usb_transport.h"
+#include "asset_runtime.h"
 #include "esphome/core/automation.h"
 #include "esphome/core/component.h"
 #include "esphome/components/binary_sensor/binary_sensor.h"
@@ -15,7 +16,7 @@ class StreamDeck : public Component {
   void setup() override;
   void loop() override;
   void dump_config() override;
-  void on_shutdown() override { transport_.shutdown(); }
+  void on_shutdown() override;
   float get_setup_priority() const override { return setup_priority::HARDWARE; }
   void set_key_sensor(uint8_t key, binary_sensor::BinarySensor *sensor) { keys_[key] = sensor; }
   void set_connected_sensor(binary_sensor::BinarySensor *sensor) { connected_sensor_ = sensor; }
@@ -33,6 +34,16 @@ class StreamDeck : public Component {
   void redraw() { scheduler_.redraw(); }
   Trigger<uint8_t> *get_press_trigger() { return &press_trigger_; }
   Trigger<uint8_t> *get_release_trigger() { return &release_trigger_; }
+#ifdef USE_STREAM_DECK_ASSETS
+  void add_asset_origin(const std::string &origin) { asset_policy_.add(origin); }
+  void set_asset_ca(const char *certificate) { asset_ca_ = certificate; }
+  const char *visual_session() const { return assets_ ? assets_->session_text : ""; }
+  visual::Submission submit_visual(const visual::Command &command) {
+    if (!assets_) return {false, visual::Error::OUT_OF_MEMORY};
+    return assets_->pipeline.submit(command);
+  }
+  const visual::Status *visual_status(int key) const { return assets_ ? assets_->store.status(key) : nullptr; }
+#endif
 
  protected:
   void disconnect_();
@@ -48,6 +59,14 @@ class StreamDeck : public Component {
   Trigger<uint8_t> press_trigger_, release_trigger_;
   uint32_t generation_{0}, last_diagnostics_{0}, last_errors_{0}, last_malformed_{0}, last_overflows_{0};
   bool attached_{false}, ready_{false};
+#ifdef USE_STREAM_DECK_ASSETS
+  assets::OriginPolicy asset_policy_;
+  assets::PsramMemory asset_memory_;
+  assets::Buffer asset_storage_;
+  assets::Runtime *assets_{nullptr};
+  const char *asset_ca_{nullptr};
+  HighFrequencyLoopRequester asset_loop_;
+#endif
 };
 
 class DeckBrightness : public number::Number, public Component {

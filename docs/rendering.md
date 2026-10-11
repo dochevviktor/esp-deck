@@ -2,8 +2,9 @@
 
 `components/stream_deck/renderer.*` composes one 72×72 tile from decoded pixels
 and the visual contract's style/text. It produces an immutable `ImageRef` for
-the existing two-page scheduler. It does not fetch URLs or decode PNGs; those
-are P3 work. No Home Assistant runtime action is exposed yet.
+the existing two-page scheduler. P3's [asset pipeline](asset-loading.md) now
+provides URL fetching, strict PNG decoding and retained backgrounds around this
+renderer. No Home Assistant runtime action is exposed yet.
 
 ## Rendering and ownership
 
@@ -139,6 +140,10 @@ upload those images. No P2 hardware upload or display/timing/memory verification
 has been performed; the separate electrical and USB release gates remain open.
 
 ## P3 adapter audit to carry forward
+
+P3 has now implemented [the bounded loader](asset-loading.md). The observations
+below explain why it uses an allocation-free inflater with a strict PNG frontend
+instead of calling the stock wrapper directly.
 
 The pinned `RuntimeImage` provides `set_external_buffer`, which can avoid its
 own pixel allocation. Decode at the bounded source dimensions before invoking

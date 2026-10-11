@@ -26,7 +26,10 @@ bool color(std::string_view value, uint32_t &out) {
   out = uint32_t(parsed);
   return true;
 }
+}  // namespace
+
 bool valid_url(std::string_view url) {
+  if (url.empty() || url.size() > MAX_URL_BYTES) return false;
   // V1 deliberately has no URL credentials, signed queries, fragments, IPv6
   // literals or redirects. P3 additionally requires an exact allowed origin.
   size_t start;
@@ -67,8 +70,6 @@ bool valid_url(std::string_view url) {
   }
   return true;
 }
-}  // namespace
-
 Error decode_label(std::string_view text, std::array<uint32_t, MAX_LABEL_CODEPOINTS> &points, size_t &count) {
   count = 0;
   if (text.size() > MAX_LABEL_BYTES) return Error::LIMIT_EXCEEDED;
@@ -175,6 +176,9 @@ Submission Store::submit(const Command &cmd) {
 const Status *Store::status(int key) const {
   return protocol::wire_key(key) < 0 ? nullptr : &slots_[key].status;
 }
+const State *Store::desired(int key) const {
+  return protocol::wire_key(key) < 0 ? nullptr : &slots_[key].desired;
+}
 bool Store::next(RenderJob &job) {
   if (active_) return false;
   for (size_t n = 0; n < protocol::KEY_COUNT; n++) {
@@ -241,6 +245,12 @@ const char *error_name(Error error) {
     case Error::DECODE_FAILED: return "decode_failed";
     case Error::RENDER_FAILED: return "render_failed";
     case Error::OUT_OF_MEMORY: return "out_of_memory";
+    case Error::ORIGIN_NOT_ALLOWED: return "origin_not_allowed";
+    case Error::FETCH_TIMEOUT: return "fetch_timeout";
+    case Error::HTTP_STATUS: return "http_status";
+    case Error::UNSUPPORTED_ENCODING: return "unsupported_encoding";
+    case Error::UNSUPPORTED_PNG: return "unsupported_png";
+    case Error::CLOCK_NOT_READY: return "clock_not_ready";
   }
   return "unknown";
 }

@@ -1,0 +1,53 @@
+#pragma once
+#include <cstddef>
+#include <cstdint>
+using esp_err_t = int;
+constexpr esp_err_t ESP_OK = 0, ESP_FAIL = -1;
+struct FakeTransport; struct FakeClient;
+using esp_transport_handle_t = FakeTransport *;
+using esp_http_client_handle_t = FakeClient *;
+using connect_func = int (*)(esp_transport_handle_t, const char *, int, int);
+using io_read_func = int (*)(esp_transport_handle_t, char *, int, int);
+using io_func = int (*)(esp_transport_handle_t, const char *, int, int);
+using trans_func = int (*)(esp_transport_handle_t);
+using poll_func = int (*)(esp_transport_handle_t, int);
+enum { HTTP_EVENT_ON_HEADER = 1, HTTP_METHOD_GET = 0, HTTP_AUTH_TYPE_NONE = 0 };
+enum { HTTP_TRANSPORT_OVER_TCP = 0, HTTP_TRANSPORT_OVER_SSL = 1 };
+struct esp_http_client_event_t { int event_id; void *user_data; char *header_key; char *header_value; };
+struct esp_http_client_config_t {
+  const char *url{}, *user_agent{}, *cert_pem{};
+  int method{}, auth_type{}, timeout_ms{}, max_authorization_retries{}, buffer_size{}, buffer_size_tx{};
+  int port{}, transport_type{};
+  bool disable_auto_redirect{}, skip_cert_common_name_check{};
+  esp_err_t (*event_handler)(esp_http_client_event_t *){};
+  void *user_data{};
+  esp_transport_handle_t transport{};
+  esp_err_t (*crt_bundle_attach)(void *){};
+};
+int64_t esp_timer_get_time();
+esp_err_t esp_crt_bundle_attach(void *);
+esp_transport_handle_t esp_transport_init();
+esp_transport_handle_t esp_transport_tcp_init();
+esp_transport_handle_t esp_transport_ssl_init();
+int esp_transport_destroy(esp_transport_handle_t);
+int esp_transport_connect(esp_transport_handle_t, const char *, int, int);
+int esp_transport_read(esp_transport_handle_t, char *, int, int);
+int esp_transport_write(esp_transport_handle_t, const char *, int, int);
+int esp_transport_close(esp_transport_handle_t);
+int esp_transport_poll_read(esp_transport_handle_t, int);
+int esp_transport_poll_write(esp_transport_handle_t, int);
+void *esp_transport_get_context_data(esp_transport_handle_t);
+int esp_transport_set_context_data(esp_transport_handle_t, void *);
+int esp_transport_set_default_port(esp_transport_handle_t, int);
+int esp_transport_set_func(esp_transport_handle_t, connect_func, io_read_func, io_func, trans_func, poll_func, poll_func, trans_func);
+void esp_transport_ssl_set_cert_data(esp_transport_handle_t, const char *, int);
+void esp_transport_ssl_crt_bundle_attach(esp_transport_handle_t, esp_err_t (*)(void *));
+esp_http_client_handle_t esp_http_client_init(const esp_http_client_config_t *);
+esp_err_t esp_http_client_set_header(esp_http_client_handle_t, const char *, const char *);
+esp_err_t esp_http_client_open(esp_http_client_handle_t, int);
+int64_t esp_http_client_fetch_headers(esp_http_client_handle_t);
+int esp_http_client_get_status_code(esp_http_client_handle_t);
+esp_err_t esp_http_client_set_timeout_ms(esp_http_client_handle_t, int);
+int esp_http_client_read(esp_http_client_handle_t, char *, int);
+bool esp_http_client_is_complete_data_received(esp_http_client_handle_t);
+int esp_http_client_cleanup(esp_http_client_handle_t);

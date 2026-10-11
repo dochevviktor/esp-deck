@@ -16,6 +16,8 @@ credentials, C6 pin assignments and device-specific workarounds were not copied.
 | Pillow / BMP fixtures | 12.3.0 |
 | Runtime label font | DejaVu Sans 2.37, TTF SHA-256 `7da195a74c55bef988d0d48f9508bd5d849425c1770dba5d7bfc6ce9ed848954`; bundled with release license |
 | Glyph rasterizer | ESPHome 2026.9.0 `glyph_to_glyphinfo`, freetype-py 2.5.1 / bundled FreeType 2.13.2 (existing locked Python dependency) |
+| PNG inflate/CRC engine | miniz 1.15 from ESPHome's pngle 1.1.0 dependency, source `b1c68193f1d3f8642b3e0e095d457a828038e6fb`; vendored hashes/portable-load patch in `components/stream_deck/third_party/manifest.json` |
+| Asset HTTP/TLS | Existing IDF 5.5.5 HTTP client and TCP/TLS transports; certificate chain/hostname/date checks, bounded custom transport, one worker |
 | HIDAPI source audit only | 0.15.0, commit `d6b2a974608dec3b76fb1e36c189f22b9cf3650c` |
 | mDNS IDF component | `espressif/mdns` 1.12.0, pinned by ESPHome |
 | Native API/OTA crypto | `esphome/noise-c` 0.1.30, `esphome/libsodium` 1.10021.11, pinned by ESPHome |

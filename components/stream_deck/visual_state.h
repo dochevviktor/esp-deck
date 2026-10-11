@@ -27,9 +27,12 @@ enum class Error : uint8_t {
   NONE, INVALID_KEY, WRONG_SESSION, INVALID_REVISION, STALE_REVISION, REVISION_CONFLICT,
   INVALID_FIELDS, LIMIT_EXCEEDED, INVALID_URL, INVALID_IMAGE_REVISION, INVALID_TEXT,
   INVALID_FONT, INVALID_COLOR, INVALID_FIT, FETCH_FAILED, DECODE_FAILED, RENDER_FAILED, OUT_OF_MEMORY,
+  ORIGIN_NOT_ALLOWED, FETCH_TIMEOUT, HTTP_STATUS, UNSUPPORTED_ENCODING, UNSUPPORTED_PNG,
+  CLOCK_NOT_READY,
 };
 const char *error_name(Error error);
 const char *phase_name(Phase phase);
+bool valid_url(std::string_view url);
 // Shared strict UTF-8 boundary for validation and rendering. Output/count are
 // usable only on success; there are never more than MAX_LABEL_CODEPOINTS.
 Error decode_label(std::string_view text, std::array<uint32_t, MAX_LABEL_CODEPOINTS> &points, size_t &count);
@@ -103,6 +106,7 @@ class Store {
   Store &operator=(const Store &) = delete;
   Submission submit(const Command &command);
   const Status *status(int key) const;
+  const State *desired(int key) const;
   bool next(RenderJob &job);
   bool finish(const RenderJob &job, const ImageRef &image);
   bool fail(const RenderJob &job, Error error);

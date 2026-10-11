@@ -1,0 +1,76 @@
+# P3 loader probe. Configure a reachable, non-sensitive PNG before a requested
+# deployment. This is not the P4 HA runtime API and is not currently deployed.
+substitutions:
+  asset_origin: http://homeassistant.local:8123
+  asset_url: http://homeassistant.local:8123/local/streamdeck/desk.png
+
+packages:
+  base: !include packages/base.yaml
+  deck: !include packages/deck.yaml
+
+# HTTPS validates certificate dates as well as trust/hostname. HTTP can start
+# without HA time. An installation can use another ESPHome time source instead.
+time:
+  - platform: homeassistant
+    id: asset_clock
+
+stream_deck:
+  asset_loading:
+    allowed_origins: ["${asset_origin}"]
+  on_key_press:
+    - logger.log:
+        format: "Physical press during asset load: key %u"
+        args: [key]
+  on_key_release:
+    - logger.log:
+        format: "Physical release during asset load: key %u"
+        args: [key]
+
+esphome:
+  on_boot:
+    priority: -100
+    then:
+      - wait_until:
+          wifi.connected:
+      - wait_until:
+          lambda: |-
+            return std::string("${asset_url}").rfind("https://", 0) != 0 || id(asset_clock).now().is_valid();
+      - lambda: |-
+          using namespace esphome::stream_deck;
+          visual::Command command;
+          command.session = id(deck).visual_session();
+          command.key = 0;
+          command.revision = 1;
+          command.fields = visual::IMAGE | visual::TEXT;
+          command.image_url = "${asset_url}";
+          command.image_revision = "probe-v1";
+          command.text = "Desk";
+          const auto result = id(deck).submit_visual(command);
+          ESP_LOGI("asset_probe", "Initial request accepted=%u, error=%s",
+                   result.accepted, visual::error_name(result.error));
+
+interval:
+  - interval: 1s
+    then:
+      - lambda: |-
+          using namespace esphome::stream_deck;
+          static uint32_t last_revision = 0;
+          static visual::Phase last_phase = visual::Phase::IDLE;
+          static bool relabelled = false;
+          const auto *status = id(deck).visual_status(0);
+          if (!status) return;
+          if (status->revision != last_revision || status->phase != last_phase) {
+            ESP_LOGI("asset_probe", "Revision=%u rendered=%u phase=%s error=%s",
+                     unsigned(status->revision), unsigned(status->rendered_revision),
+                     visual::phase_name(status->phase), visual::error_name(status->error));
+            last_revision = status->revision;
+            last_phase = status->phase;
+          }
+          if (!relabelled && status->phase == visual::Phase::RENDERED) {
+            visual::Command command;
+            command.session = id(deck).visual_session();
+            command.key = 0; command.revision = 2; command.fields = visual::TEXT;
+            command.text = "Cached";
+            id(deck).submit_visual(command);
+            relabelled = true;
+          }

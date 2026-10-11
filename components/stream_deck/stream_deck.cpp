@@ -3,6 +3,11 @@
 #include "esphome/core/hal.h"
 #include "esphome/core/log.h"
 #include "esp_heap_caps.h"
+#ifdef USE_STREAM_DECK_ASSETS
+#include "esp_random.h"
+#include "esp_log.h"
+#include <new>
+#endif
 
 namespace esphome::stream_deck {
 static const char *const TAG = "stream_deck";
@@ -13,6 +18,24 @@ void StreamDeck::setup() {
     status_set_error(LOG_STR("USB host installation failed; check memory and ownership"));
     mark_failed();
   }
+#ifdef USE_STREAM_DECK_ASSETS
+  // IDF's verbose HTTP logs include raw header values/paths. Report only our
+  // bounded status codes and counters; credentials/signed URLs are unsupported.
+  esp_log_level_set("HTTP_CLIENT", ESP_LOG_NONE);
+  if (asset_storage_.allocate(asset_memory_, sizeof(assets::Runtime))) {
+    const uint64_t session = uint64_t(esp_random()) << 32 | esp_random();
+    assets_ = new (asset_storage_.data()) assets::Runtime(session, scheduler_, asset_memory_, asset_policy_);
+    assets_->fetcher.set_ca_certificate(asset_ca_);
+  } else ESP_LOGE(TAG, "Asset service PSRAM allocation failed; USB/API remain independent");
+#endif
+}
+
+void StreamDeck::on_shutdown() {
+#ifdef USE_STREAM_DECK_ASSETS
+  if (assets_) assets_->pipeline.stop();
+  asset_loop_.stop();
+#endif
+  transport_.shutdown();
 }
 
 void StreamDeck::dump_config() {
@@ -22,6 +45,10 @@ void StreamDeck::dump_config() {
   ESP_LOGCONFIG(TAG, "  USB protocol/hardware qualification pending; see docs/testing.md");
   ESP_LOGCONFIG(TAG, "  Stream initialization completed: %s", ready_ ? "yes" : "no");
   transport_.dump_status();
+#ifdef USE_STREAM_DECK_ASSETS
+  ESP_LOGCONFIG(TAG, "  Asset loader: PNG, configured origins only, validated TLS, no redirects/retries");
+  ESP_LOGCONFIG(TAG, "  Visual boot session: %s", visual_session());
+#endif
   LOG_BINARY_SENSOR("  ", "USB ready", connected_sensor_);
 }
 
@@ -58,6 +85,13 @@ void StreamDeck::publish_input_(const InputReport &report) {
 }
 
 void StreamDeck::publish_diagnostics_() {
+#ifdef USE_STREAM_DECK_ASSETS
+  if (assets_)
+    ESP_LOGD(TAG, "Assets: downloads=%u cache hits=%u failures=%u HTTP=%d graphics=%u peak=%u bytes",
+             unsigned(assets_->pipeline.downloads()), unsigned(assets_->pipeline.cache_hits()),
+             unsigned(assets_->pipeline.failures()), assets_->pipeline.last_http_status(),
+             unsigned(asset_memory_.used_bytes()), unsigned(asset_memory_.peak_bytes()));
+#endif
   const auto errors = transport_.errors();
   const auto malformed = transport_.malformed_inputs();
   const auto overflows = transport_.overflows();
@@ -104,5 +138,12 @@ void StreamDeck::loop() {
     last_diagnostics_ = now;
     publish_diagnostics_();
   }
+#ifdef USE_STREAM_DECK_ASSETS
+  if (assets_) {
+    assets_->pipeline.loop(now);
+    if (assets_->pipeline.needs_cpu()) asset_loop_.start();
+    else asset_loop_.stop();
+  }
+#endif
 }
 }  // namespace esphome::stream_deck

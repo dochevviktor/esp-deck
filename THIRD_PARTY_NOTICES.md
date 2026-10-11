@@ -61,6 +61,15 @@ the ESPHome rasterizer or bundle FreeType into firmware. The portable renderer,
 glyph lookup, layout and outline composition are project code. Rendering BMP
 snapshots contain these licensed glyphs and project-owned test artwork.
 
+The P3 PNG inflater/CRC engine is **miniz 1.15**, by Rich Geldreich, from the
+pngle 1.1.0 dependency pinned by ESPHome. It is dedicated to the public domain
+under the Unlicense statement retained at the end of
+`components/stream_deck/third_party/miniz.inc`. Source revision
+`b1c68193f1d3f8642b3e0e095d457a828038e6fb`, upstream/local hashes and the bytewise-
+load patch are recorded in that directory's `manifest.json`. No pngle frontend
+code is copied. The bounded PNG frontend and IDF HTTP adapter are project code;
+the bridge disables allocator APIs and namespaces the inflater's C symbols.
+
 The Stream Deck USB compatibility recipe compiles ESP-IDF 5.5.5's USB component
 from the installed pinned SDK and generates one patched `usbh.c` under the
 ignored build directory. That generated copy retains Espressif's copyright and

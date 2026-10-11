@@ -47,6 +47,20 @@ class ConfigTests(unittest.TestCase):
         contract["then"] = [{"lambda": "(void) session; (void) key; (void) revision; (void) fields;"}]
         self.run_config(self.base() + "\n" + yaml.safe_dump({"api": {"actions": [contract]}}))
 
+    def test_asset_origin_bounds_and_credentials(self):
+        for origin in ("http://user:secret@ha.local:8123", "http://ha.local:8123/path", "https://ha.local?key=secret",
+                       "ftp://ha.local", "https://ha.local:0", "https://ha.local:65536", "http://-bad.local"):
+            self.run_config(self.base().replace("stream_deck:\n", "stream_deck:\n  asset_loading:\n    allowed_origins: [" + repr(origin) + "]\n", 1),
+                            False, "asset origin" if "-bad" in origin or ":0" in origin or ":65536" in origin else "origin only")
+        self.run_config(self.base().replace("stream_deck:\n", "stream_deck:\n  asset_loading:\n    allowed_origins: []\n", 1), False)
+        self.run_config(self.base().replace("stream_deck:\n", "stream_deck:\n  asset_loading:\n    allowed_origins: [http://a, http://b, http://c, http://d, http://e]\n", 1), False)
+
+    def test_asset_private_key_is_not_a_ca(self):
+        path = self.folder / "assets/bad-ca.pem"
+        path.write_text("-----BEGIN CERTIFICATE-----\nTEST\n-----BEGIN PRIVATE KEY-----\nTEST\n")
+        self.run_config(self.base().replace("stream_deck:\n", "stream_deck:\n  asset_loading:\n    allowed_origins: [https://ha.local]\n"
+                        "    ca_certificate: ../assets/bad-ca.pem\n", 1), False, "without private keys")
+
     def test_duplicate_keys(self):
         self.run_config(self.base() + "\nbinary_sensor:\n  - platform: stream_deck\n    name: Duplicate\n    key: 0\n",
                         False, "Duplicate stream_deck key")

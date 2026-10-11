@@ -6,14 +6,14 @@ the ESP32 composes images and text locally and handles USB. Once this capability
 is installed, changing a binding, image or supported text/style must not require
 another firmware build or upload.
 
-Status, 2026-10-11: P0–P2 implemented and unit-tested (31 Python cases including
-four native C++ suites). All four numbered examples plus `renderer_probe` compile
-with synthetic secrets. The [runtime contract](runtime-visuals.md) and
-[bounded renderer](rendering.md) cover revisions, immutable image ownership,
-aspect/alpha composition, outlined labels, bundled fonts and native BMP output.
-P3–P5 remain pending: PNG decoding/downloads/cache and HA runtime actions are not
-yet connected. No new firmware was deployed or hardware-verified; example 04
-remains the installed bench baseline.
+Status, 2026-10-11: P0–P3 software implemented and unit-tested (37 Python cases,
+including six native C++ executables). All six configurations compile with
+synthetic secrets. The [asset loader](asset-loading.md) adds bounded asynchronous
+HTTP(S), strict PNG decoding and retained background caching to the
+[runtime contract](runtime-visuals.md) and [renderer](rendering.md).
+P3's live asset-reachability check and P4/P5 remain pending. HA runtime API actions
+are not exposed yet. No firmware was deployed or newly hardware-verified;
+example 04 remains the installed bench baseline.
 
 ## Resume in a fresh chat
 
@@ -22,12 +22,12 @@ remains the installed bench baseline.
    [USB decision](decisions/usb-transport.md), and current
    [hardware evidence](hardware.md) and [test status](testing.md).
 2. Inspect the worktree and current sources; preserve local edits and secrets.
-3. Continue with P3 and [the finalized contract](runtime-visuals.md). Use the
-   tested P2 renderer/PSRAM adapters; read [the decoder audit](rendering.md#p3-adapter-audit-to-carry-forward)
-   before connecting a PNG loader. Bound encoded bytes, source dimensions and
-   decoder allocations, verify real format completion, and retain per-key
-   backgrounds so label changes do not fetch again. Keep worker cancellation
-   and completion behind `visual::Store` and `ImageRef`.
+3. Continue with P4 using [the finalized contract](runtime-visuals.md) and
+   [P3's loader](asset-loading.md). `StreamDeck::submit_visual`, `visual_session`
+   and `visual_status` are the typed bridge for native API actions. Expose them
+   with the tested fixed argument/presence representation, then add HA layout
+   replay and the generic example 05. Do not register another loader/renderer or
+   reset visual state when an API logger connects/disconnects.
 4. Keep example 04 as the known-working bench configuration. Add a separate
    generic HA example; do not begin by choosing a light entity to hardcode into
    the ESP firmware or repeating USB packet-size experiments.
@@ -202,8 +202,8 @@ Pillow rendering without testing it.
 
 Implemented in `renderer.*`, `render_font.*`, `render_memory.*` and
 `render_esphome.h`. The font generator calls the pinned ESPHome rasterizer;
-the image adapter accepts completed Image/RuntimeImage pixels. PNG decoding is
-P3 work. Eleven native-renderer snapshots and independent upstream/analytical
+the image adapter accepts completed Image/RuntimeImage pixels. P3 now supplies
+PNG decoding. Eleven native-renderer snapshots and independent upstream/analytical
 checks cover P2. The separate `renderer_probe` compiles the complete local path
 and is in the build/CI matrix. A clean-build USB dependency omission discovered
 by this probe is corrected in the build-local IDF recipe; it does not change
@@ -214,21 +214,35 @@ USB framing or the installed firmware.
 Primary files: a bounded asset-loader adapter around the pinned runtime-image /
 HTTP facilities, component configuration and loader tests.
 
-- [ ] Fetch asynchronously or in bounded work slices. Keep input, Wi-Fi, native
+- [x] Fetch asynchronously or in bounded work slices. Keep input, Wi-Fi, native
   API and OTA responsive while loading and rendering.
-- [ ] Cache reusable decoded backgrounds independently from rendered labels.
+- [x] Cache reusable decoded backgrounds independently from rendered labels.
   Unchanged asset revisions hit the cache; changing only text never re-downloads.
-- [ ] Bound compressed data and decoded source dimensions, not just the 72 × 72
+- [x] Bound compressed data and decoded source dimensions, not just the 72 × 72
   destination. Reject malformed/truncated/oversized images and release all resources.
-- [ ] Limit redirects/timeouts/retries, validate TLS where used, and define the
+- [x] Limit redirects/timeouts/retries, validate TLS where used, and define the
   allowed HTTP/HTTPS sources. Redact credentials or signed query strings in logs.
   Do not embed a long-lived HA administrator token in firmware.
 - [ ] Ensure the ESP can reach the selected URL. HA `/local/` files are appropriate
   only for non-sensitive assets; authenticated media URLs need deliberate support.
+  The configurable probe and origin/TLS/time rules are documented, but the owner's
+  actual PNG URL and live device test are still pending; no P3 firmware was flashed.
 
 Acceptance: fake-loader tests cover cache hits, replacement revisions, failed
 fetches, out-of-order completion, cancellation and bounded memory. Failures keep
 the previous tile and expose an actionable status without reboot loops.
+
+P3 software acceptance is covered by native PNG/pipeline tests, production HTTP
+transaction tests with fake IDF, schema tests, and `asset_loader_probe` compilation.
+The loader uses one HTTP worker and bounded main-loop decode/render steps. Its
+sixteen background slots retain all current key backgrounds; labels reuse them
+without a fetch. Graphics allocations share a 2 MiB PSRAM root budget. PNG
+CRC/order/zlib completion/decoded size are checked before pixels can commit.
+The existing ESPHome wrapper was unsuitable for these strict limits, so a bounded
+frontend uses its pinned pngle dependency's allocation-free miniz engine. HTTPS
+enforces trust/hostname/dates and requires a valid clock; no redirects or retries.
+See [asset-loading.md](asset-loading.md) for exact limits, source provenance,
+DNS cancellation-drain behavior and remaining device checks.
 
 Fifteen plain RGB24 canvases occupy 233,280 bytes, about 228 KiB. This is only a
 base estimate: decoded backgrounds, completed BMPs, active versions, decoder and
@@ -314,6 +328,7 @@ Hardware-independent validation uses synthetic secrets:
 .venv/bin/python tools/generate_reference_fixtures.py --check
 .venv/bin/python tools/generate_render_fonts.py --check
 .venv/bin/python tools/generate_render_fixtures.py --check
+.venv/bin/python tools/generate_png_fixtures.py --check
 .venv/bin/python tools/check_firmware.py --compile
 git diff --check
 ```

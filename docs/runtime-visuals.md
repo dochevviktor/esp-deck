@@ -3,9 +3,10 @@
 P0 defines and host-tests this contract; P1 implements owned native images and
 the scheduler boundary. P2 adds the [bounded local renderer](rendering.md),
 bundled fonts and PSRAM adapters, exercised by `renderer_probe`. The four numbered
-examples still use static artwork. **No runtime API action or downloader is
-exposed yet.** P3/P4 will connect those adapters; these payloads are not commands
-the installed bench firmware can run.
+examples still use static artwork. P3 connects [bounded URL loading and caching](asset-loading.md),
+available through typed C++ calls and the separate loader probe. **No HA runtime
+API action is exposed yet.** P4 will add that interface; these payloads are not
+commands the installed bench firmware can run.
 
 The portable implementation is `components/stream_deck/visual_state.*`. It has
 no ESPHome, USB, HTTP, JSON or font dependency. `Store` accepts validated patches,
@@ -151,13 +152,15 @@ two-pixel inset, wrap at spaces into at most two lines, and use `...` to indicat
 truncation on the final line (split long words at glyph boundaries). P2 fixtures
 record these pixels; no Pillow-identical font/scaling claim is made.
 
-The first decoder is PNG only; JPEG is not included in v1. HTTP and HTTPS sources
-must use an explicit configured origin allowlist in the P3 adapter. HTTP is for
+The decoder supports bounded non-interlaced PNG; JPEG/APNG/interlaced PNG are
+not included in v1. HTTP and HTTPS sources use an explicit configured origin
+allowlist in the P3 adapter. HTTP is for
 non-sensitive local assets. HTTPS must verify certificates; no insecure fallback.
 The current syntax validator permits ASCII DNS/IPv4 hosts and optional ports
 1..65535, and rejects userinfo, query strings, fragments, malformed percent
-escapes, whitespace, backslashes and IPv6 literals. Origin enforcement, TLS,
-decode and network limits remain P3 adapter work; no fetching happens in P0–P2.
+escapes, whitespace, backslashes and IPv6 literals. P3 enforces origin, byte,
+dimension, chunk, decode and network limits; HTTPS checks trust/hostname/dates
+and refuses an unset clock. See [asset-loading.md](asset-loading.md).
 HA `/local/` files are suitable only for non-sensitive assets. Authenticated
 media and signed URLs require a later deliberate extension.
 
@@ -165,10 +168,10 @@ The asset identity includes exact URL and `image_revision` (1..64 ASCII letters,
 digits or `._:-`). Replacing a file at the same URL requires a different asset
 revision and a higher request revision. Clear operations do not globally evict
 shared assets. Labels reuse the key's retained decoded background, independent
-of label/style rendering. P3 must include fit/background parameters in the cache
-identity when caching a scaled/composited background. Cache eviction drops its
-reference only; it must not free images/backgrounds still needed by a key or
-active worker. An asset revision change is the explicit refresh/invalidate
+of label/style rendering. P3 includes fit/background parameters in the cache
+identity when caching a scaled/composited background. Current key backgrounds
+are pinned; only unpinned entries can be evicted, between jobs. An asset revision
+change is the explicit refresh/invalidate
 operation, so URL reuse never forces an accidental permanent cache hit.
 
 In the future HA runtime configuration, `Store` must be the sole visual writer
@@ -184,9 +187,9 @@ the place for local bulb/arrow actions.
 | Label | 96 UTF-8 bytes / 48 scalar values |
 | Pending work | 15 coalescing keys; one active fetch/decode/render worker |
 | Cached decoded backgrounds | 256 KiB; retain current 72×72 RGB backgrounds for label reuse |
-| Owned native BMPs | 512 KiB including ownership metadata, enforced by `PsramImageAllocator` |
-| Total graphics allocation | 2 MiB, to be enforced across P2/P3 adapters |
-| Fetch timing | 5-second connect, 15-second whole request deadline |
+| Owned native BMPs | 512 KiB including ownership metadata, charged to a bounded pool and the P3 root |
+| Total graphics allocation | 2 MiB PSRAM root covering service/cache/image/decoder/workspace allocations |
+| Fetch timing | 5-second socket/connect bound, 500 ms I/O waits, 15-second acceptance deadline; DNS drain can take longer |
 | Automatic redirects / retries | 0 / 0; a new request revision is an explicit retry |
 
 The renderer processes one row per `step()` and the caller yields between
@@ -194,8 +197,8 @@ steps (initial target: at most 2 ms of local CPU work before yielding, still to
 be measured). Decoder source/workspace allocations
 are bounded before allocation. RGB canvas/BMP/cache data belongs in PSRAM;
 DMA USB transfers keep their existing internal allocations. Network/TLS/internal
-heap overhead is additional and must be measured in P5. The caps are requirements
-for P3 adapters, not evidence that network decoding has been implemented.
+heap overhead is additional and must be measured in P5. P3 enforces these graphics
+caps; network/decode/render coexistence still needs device measurement.
 
 ## Image ownership
 

@@ -18,7 +18,10 @@ struct ImageRef::Storage {
 void *ImageAllocator::allocate(size_t size) {
   if (size > limit_ - used_) return nullptr;
   auto *memory = allocate_(size);
-  if (memory != nullptr) used_ += size;
+  if (memory != nullptr) {
+    used_ += size;
+    if (used_ > peak_) peak_ = used_;
+  }
   return memory;
 }
 void ImageAllocator::deallocate(void *memory, size_t size) {

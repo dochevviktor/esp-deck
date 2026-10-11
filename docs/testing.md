@@ -1,12 +1,63 @@
 # Validation and remaining hardware gates
 
+## URL loading and caching, 2026-10-11 (P3)
+
+Implemented: opt-in HTTP(S) asset loading on one persistent worker, exact origin
+restrictions, validated TLS including certificate dates/clock readiness, strict
+bounded PNG decoding, retained per-key/shared backgrounds, and the typed visual
+bridge to `Store`/renderer/scheduler. Graphics share a 2 MiB PSRAM root with
+separate native-image and cache caps. No input/USB framing or power behavior
+changed. The [loader contract](asset-loading.md) records limits, supported PNG
+formats, timeout/drain behavior, and the pinned inflater's provenance.
+
+Unit-tested: **37 Python cases**, including six native C++ executables. New tests
+cover PNG CRC/chunk order, standard colour types and legal depths, all row
+filters, palette/transparency, exact zlib completion, truncated/malformed data,
+dimension/byte caps and an expansion bomb. The largest RGBA16 input exercises
+the filtered-source allocation bound. Fixtures reproduce and the vendored
+inflater's documented patch reverses to its pinned upstream SHA-256.
+
+Pipeline simulations exercise shared cache hits, explicit content revisions,
+label changes during/after download without refetching, fifteen retained key
+backgrounds plus staging/eviction, allocation failures, old-tile preservation,
+stale tokens, delayed cancellation, and USB reconnect without a new download.
+Production HTTP transaction code runs against fake IDF transports to check
+status/redirect/auth policy, configured TLS trust/hostname settings, unset-clock
+rejection, body/header limits, stalled I/O and clock wrap, cancellation and
+cleanup. These are not a live TLS/HTTP server test or a FreeRTOS timing test.
+
+Compiled: all six examples with synthetic secrets, including the new
+`asset_loader_probe`. The checker inspects the actual generated SDK and compiler
+configuration for custom HTTP transport, HTTPS, CA bundle, certificate-date
+validation, the 8 KiB HTTP header/trailer limit, and the existing USB rules.
+The loader probe is also in CI's build matrix; remote CI has not run here.
+
+Hardware-verified: **none for P3**. No upload or physical asset request was made.
+The actual asset origin/PNG and device reachability check remain pending; the
+probe uses a configurable placeholder. Example 04 remains the last recorded
+hardware baseline. Internal heap/TLS coexistence, step/download/render timings,
+key/API/OTA responsiveness and network/reconnect tests still need a device run.
+The local ASan/UBSan libraries remain unavailable; no sanitizer pass is claimed.
+
+Commands run successfully:
+
+```sh
+.venv/bin/python -m unittest discover -s tests -v
+.venv/bin/python tools/generate_png_fixtures.py --check
+.venv/bin/python tools/generate_reference_fixtures.py --check
+.venv/bin/python tools/generate_render_fonts.py --check
+.venv/bin/python tools/generate_render_fixtures.py --check
+.venv/bin/python tools/check_firmware.py --compile
+git diff --check
+```
+
 ## Local rendering, 2026-10-11 (P2)
 
 Implemented: bounded RGB(A)/BGR(A) source views, aspect-preserving contain/crop,
 premultiplied-alpha bilinear sampling, outlined runtime text with licensed/pinned
 DejaVu Sans 2.37 at 12/16/20 px, exact native BMP encoding, and PSRAM-only
 workspace/image allocation. `render_esphome.h` bridges completed ESPHome images;
-PNG decoding, fetching/cache and HA runtime controls remain P3/P4 work. See
+PNG decoding and fetching/cache were added in P3 above; HA controls remain P4. See
 [rendering](rendering.md) for the precise pixel, lifetime and memory rules.
 
 Unit-tested: **31 Python cases**, including four native C++ executables. The
@@ -124,9 +175,9 @@ confirmed. Firmware remained unchanged.
 
 | Category | Result |
 | --- | --- |
-| Implemented | Codec, scheduler, USB transport/entities/images/recovery, diagnostics, desktop probe, private builds, a source-pinned IDF descriptor hook, standalone visual/input test, P0/P1 runtime contract/owned-image foundations and P2 bounded local rendering/fonts/PSRAM |
-| Unit-tested | 31 Python cases including four native C++ suites, renderer/font fixtures, runtime ownership/visual state, API contract/helper templates, raw/normalized S3 descriptors, 64-/512-byte full-report transport simulation, physical-detach recovery, EP0 requests/lifetime and captured reply consistency, pinned artwork, build-hook guards and private staging |
-| Compiled | All four numbered examples and renderer_probe with synthetic credentials; renderer_probe also passes a fresh build. Examples 01, 02 and 04 were built privately for earlier deployments, ESP-IDF 5.5.5 / ESPHome 2026.9.0 |
+| Implemented | Codec, scheduler, USB transport/entities/images/recovery, diagnostics, desktop probe, private builds, source-pinned IDF descriptor hook, P0/P1 visual contract/owned images, P2 local renderer/fonts/PSRAM, and P3 HTTP(S)/PNG/cache pipeline |
+| Unit-tested | 37 Python cases including six native C++ suites, PNG/pipeline/HTTP guards, renderer/font fixtures, runtime ownership/visual state, API contract/helper templates, captured descriptors, production USB simulations, build-hook guards and private staging |
+| Compiled | All four numbered examples, renderer_probe and asset_loader_probe with synthetic credentials. Earlier private deployments used examples 01, 02 and 04; ESP-IDF 5.5.5 / ESPHome 2026.9.0 |
 | Hardware-verified | Identity/flash, Wi-Fi, encrypted API/OTA, 8 MB PSRAM initialization, EP0 replies, 17-byte input, visible image feedback, press/release coverage for all 15 key indices, and one deck reconnect with full desired-image redraw and resumed input. Detailed mapping/visual/brightness checks, repeated recovery, ESP-only restarts, electrical and HA qualification remain pending |
 | Remote CI | Workflow provided; not executed in this session |
 
@@ -150,21 +201,23 @@ errors and assertions enabled, without sanitizers. `SANITIZE=1` enables ASan/UBS
 on a machine with those runtimes; the CI workflow requests them. This document
 does not claim a local sanitizer run passed.
 
-Latest synthetic builds, 2026-10-11, including P0–P2 and the IN-64 / OUT-512 path:
+Latest synthetic builds, 2026-10-11, including P0–P3 and the IN-64 / OUT-512 path:
 
 | Example | Static RAM estimate | Application flash estimate |
 | --- | ---: | ---: |
 | 01 USB probe | 108,371 B / 341,760 B | 783,987 B / 8,126,464 B |
-| 02 keys/brightness | 110,835 B / 341,760 B | 815,119 B / 8,126,464 B |
-| 03 images/HA | 111,307 B / 341,760 B | 870,855 B / 8,126,464 B |
-| 04 standalone hardware test | 110,995 B / 341,760 B | 847,035 B / 8,126,464 B |
-| Renderer probe | 111,675 B / 341,760 B | 881,807 B / 8,126,464 B |
+| 02 keys/brightness | 110,835 B / 341,760 B | 815,115 B / 8,126,464 B |
+| 03 images/HA | 111,307 B / 341,760 B | 870,851 B / 8,126,464 B |
+| 04 standalone hardware test | 110,995 B / 341,760 B | 847,031 B / 8,126,464 B |
+| Renderer probe | 111,675 B / 341,760 B | 882,015 B / 8,126,464 B |
+| Asset loader probe | 113,635 B / 341,760 B | 1,055,283 B / 8,126,464 B |
 
 These linker estimates exclude runtime USB/task/network allocation and are not
 free-heap measurements. The renderer probe links the rendering path and defers
-its pixel allocations until after PSRAM initialization. P0's visual store/worker
-is not instantiated in these examples; these are not estimates for the future
-complete runtime firmware.
+its pixel allocations until after PSRAM initialization. The loader probe includes
+the visual store and fetch/decode/render pipeline; service/graphics and worker/TLS
+allocations occur at runtime. These are not peak-heap measurements or estimates
+for the complete P4 HA runtime firmware.
 The checker also verifies the actual generated control
 cap (8192 for driver examples), periodic-OUT FIFO bias and disabled secondary USB
 console. Firmware

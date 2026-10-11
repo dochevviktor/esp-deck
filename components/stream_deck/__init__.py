@@ -1,5 +1,6 @@
 """Original 0FD9:0060 only. Owns the native IDF USB host exclusively."""
 import struct
+import re
 from pathlib import Path
 
 from esphome import automation
@@ -23,6 +24,32 @@ SetImageAction = deck_ns.class_("SetImageAction", automation.Action)
 RedrawAction = deck_ns.class_("RedrawAction", automation.Action)
 CONF_DECK_ID = "stream_deck_id"
 KEY = cv.int_range(min=0, max=14)
+
+
+def asset_origin(value):
+    value = cv.string_strict(value)
+    match = re.fullmatch(r"(https?)://([A-Za-z0-9.-]+)(?::([0-9]{1,5}))?", value)
+    if not match or len(value) > 280:
+        raise cv.Invalid("Expected an HTTP/HTTPS origin only, without credentials, path, query or fragment")
+    scheme, host, port = match.groups()
+    if len(host) > 253 or any(not re.fullmatch(r"[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?", label)
+                              for label in host.split(".")) or (port and not 1 <= int(port) <= 65535):
+        raise cv.Invalid("Invalid asset origin host or port")
+    return value
+
+
+def asset_certificate(value):
+    path = cv.file_(value)
+    data = path.read_text()
+    if len(data.encode()) > 16384 or "-----BEGIN CERTIFICATE-----" not in data or "PRIVATE KEY" in data:
+        raise cv.Invalid("Expected a public CA certificate PEM, at most 16 KiB, without private keys")
+    return path
+
+
+ASSET_SCHEMA = cv.Schema({
+    cv.Required("allowed_origins"): cv.All(cv.ensure_list(asset_origin), cv.Length(min=1, max=4)),
+    cv.Optional("ca_certificate"): asset_certificate,
+})
 
 
 def native_bmp(value):
@@ -54,6 +81,7 @@ CONFIG_SCHEMA = cv.All(
         cv.Optional("initial_brightness", default=30): cv.int_range(min=0, max=100),
         cv.Optional("input_report_id", default=0x01): cv.hex_uint8_t,
         cv.Optional("usb_diagnostics", default=False): cv.boolean,
+        cv.Optional("asset_loading"): ASSET_SCHEMA,
         cv.Optional("images", default=[]): cv.ensure_list(IMAGE_SCHEMA),
         cv.Optional("connected"): binary_sensor_component.binary_sensor_schema(
             device_class="connectivity", entity_category="diagnostic"),
@@ -100,8 +128,20 @@ async def usb_sdkconfig():
     esp32.add_idf_sdkconfig_option("CONFIG_USB_HOST_HW_BUFFER_BIAS_PERIODIC_OUT", True)
 
 
+@coroutine_with_priority(CoroPriority.FINAL - 10)
+async def asset_sdkconfig():
+    for name in ("CONFIG_ESP_HTTP_CLIENT_ENABLE_HTTPS", "CONFIG_ESP_HTTP_CLIENT_ENABLE_CUSTOM_TRANSPORT",
+                 "CONFIG_MBEDTLS_CERTIFICATE_BUNDLE", "CONFIG_MBEDTLS_CERTIFICATE_BUNDLE_DEFAULT_FULL",
+                 "CONFIG_MBEDTLS_HAVE_TIME", "CONFIG_MBEDTLS_HAVE_TIME_DATE"):
+        esp32.add_idf_sdkconfig_option(name, True)
+    for name in ("CONFIG_ESP_TLS_INSECURE", "CONFIG_ESP_TLS_SKIP_SERVER_CERT_VERIFY"):
+        esp32.add_idf_sdkconfig_option(name, False)
+
+
 async def to_code(config):
     esp32.include_builtin_idf_component("usb")
+    esp32.add_extra_build_file("src/esphome/components/stream_deck/third_party/miniz.inc",
+                              Path(__file__).parent / "third_party/miniz.inc")
     # A project component named usb overrides the built-in component. Copy only
     # our build recipe/helper; its CMake reads the pinned SDK without editing it.
     for name in ("CMakeLists.txt", "Kconfig", "prepare.py", "stream_deck_quirk.h", "link_application.cmake"):
@@ -111,6 +151,18 @@ async def to_code(config):
     CORE.add_job(usb_sdkconfig)
     var = cg.new_Pvariable(config[CONF_ID])
     await cg.register_component(var, config)
+    if "asset_loading" in config:
+        cg.add_define("USE_STREAM_DECK_ASSETS")
+        # The shared IDF HTTP parser also sees chunked trailers. Bound it as
+        # well as the transport's initial-header/wire counters.
+        cg.add_build_flag("-DHTTP_MAX_HEADER_SIZE=8192")
+        for component in ("esp_http_client", "esp-tls", "tcp_transport"):
+            esp32.include_builtin_idf_component(component)
+        CORE.add_job(asset_sdkconfig)
+        for origin in config["asset_loading"]["allowed_origins"]:
+            cg.add(var.add_asset_origin(origin))
+        if "ca_certificate" in config["asset_loading"]:
+            cg.add(var.set_asset_ca(config["asset_loading"]["ca_certificate"].read_text()))
     cg.add(var.set_brightness(config["initial_brightness"]))
     cg.add(var.set_usb_diagnostics(config["usb_diagnostics"]))
     if "input_report_id" in config:

@@ -7,9 +7,16 @@ import unittest
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tools"))
 from render_test_build import build_renderer
+from asset_test_build import build_assets, build_http
 
 
 class NativeTests(unittest.TestCase):
+    def test_assets(self):
+        subprocess.run([str(build_assets())], cwd=ROOT, check=True)
+
+    def test_asset_http(self):
+        subprocess.run([str(build_http())], cwd=ROOT, check=True)
+
     def test_renderer(self):
         subprocess.run([str(build_renderer())], cwd=ROOT, check=True)
 
