@@ -1,12 +1,18 @@
 from pathlib import Path
 import os
 import subprocess
+import sys
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "tools"))
+from render_test_build import build_renderer
 
 
 class NativeTests(unittest.TestCase):
+    def test_renderer(self):
+        subprocess.run([str(build_renderer())], cwd=ROOT, check=True)
+
     def test_native(self):
         build = ROOT / ".build"
         build.mkdir(exist_ok=True)

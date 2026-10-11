@@ -6,13 +6,14 @@ the ESP32 composes images and text locally and handles USB. Once this capability
 is installed, changing a binding, image or supported text/style must not require
 another firmware build or upload.
 
-Status, 2026-10-11: P0/P1 implemented and unit-tested (28 Python cases including
-native C++ suites); all four existing examples compile with synthetic secrets.
-The [runtime contract](runtime-visuals.md) fixes payload/presence rules, limits,
-revisions, status and lifecycle. Owned images now survive replacement and delayed
-USB cancellation. P2–P5 remain pending: runtime rendering, downloads and HA API
-actions are not yet exposed. No new firmware was deployed or hardware-verified;
-the existing static-image bench firmware remains installed.
+Status, 2026-10-11: P0–P2 implemented and unit-tested (31 Python cases including
+four native C++ suites). All four numbered examples plus `renderer_probe` compile
+with synthetic secrets. The [runtime contract](runtime-visuals.md) and
+[bounded renderer](rendering.md) cover revisions, immutable image ownership,
+aspect/alpha composition, outlined labels, bundled fonts and native BMP output.
+P3–P5 remain pending: PNG decoding/downloads/cache and HA runtime actions are not
+yet connected. No new firmware was deployed or hardware-verified; example 04
+remains the installed bench baseline.
 
 ## Resume in a fresh chat
 
@@ -21,10 +22,12 @@ the existing static-image bench firmware remains installed.
    [USB decision](decisions/usb-transport.md), and current
    [hardware evidence](hardware.md) and [test status](testing.md).
 2. Inspect the worktree and current sources; preserve local edits and secrets.
-3. Continue with P2 and [the finalized contract](runtime-visuals.md): add the
-   bounded canvas/font/native-BMP renderer and deterministic fixtures. Use
-   `ImageRef` and `visual::Store` from P0/P1 at the scheduler boundary. Add the
-   PSRAM allocator adapter; do not attach a downloader until rendering is tested.
+3. Continue with P3 and [the finalized contract](runtime-visuals.md). Use the
+   tested P2 renderer/PSRAM adapters; read [the decoder audit](rendering.md#p3-adapter-audit-to-carry-forward)
+   before connecting a PNG loader. Bound encoded bytes, source dimensions and
+   decoder allocations, verify real format completion, and retain per-key
+   backgrounds so label changes do not fetch again. Keep worker cancellation
+   and completion behind `visual::Store` and `ImageRef`.
 4. Keep example 04 as the known-working bench configuration. Add a separate
    generic HA example; do not begin by choosing a light entity to hardcode into
    the ESP firmware or repeating USB packet-size experiments.
@@ -180,15 +183,15 @@ failure, no use-after-free and unchanged static golden output.
 Primary files: new renderer/canvas modules, ESPHome font/decoder adapters,
 `tools/`, rendering fixtures and attribution records.
 
-- [ ] Compose a 72 × 72 RGB canvas with an explicit background and alpha handling.
+- [x] Compose a 72 × 72 RGB canvas with an explicit background and alpha handling.
   Preserve aspect ratio with documented contain/crop behaviour; do not assume a
   fixed-size decoder automatically matches the reference helper's scaling.
-- [ ] Render runtime labels using bundled glyphs, a black outline and configurable
+- [x] Render runtime labels using bundled glyphs, a black outline and configurable
   fill. Define alignment, wrapping/truncation, size choices, UTF-8 handling and
   unsupported-character behaviour. Pin font assets and preserve their licences.
-- [ ] Convert the composed canvas into the exact native BMP layout, applying
+- [x] Convert the composed canvas into the exact native BMP layout, applying
   orientation once. Do not flip already-native assets again.
-- [ ] Reuse the pinned ESPHome runtime-image/font facilities where suitable; do
+- [x] Reuse the pinned ESPHome runtime-image/font facilities where suitable; do
   not port desktop Pillow or introduce LVGL merely to draw these small tiles.
 
 Acceptance: fixtures cover transparency, asymmetric colours/orientation, outlined
@@ -196,6 +199,15 @@ text, long/empty/unsupported labels and invalid images. Native BMP headers and
 page encoding still match the pinned upstream contract. Embedded font/scaling
 pixels need their own deterministic fixtures; do not claim pixel-identical
 Pillow rendering without testing it.
+
+Implemented in `renderer.*`, `render_font.*`, `render_memory.*` and
+`render_esphome.h`. The font generator calls the pinned ESPHome rasterizer;
+the image adapter accepts completed Image/RuntimeImage pixels. PNG decoding is
+P3 work. Eleven native-renderer snapshots and independent upstream/analytical
+checks cover P2. The separate `renderer_probe` compiles the complete local path
+and is in the build/CI matrix. A clean-build USB dependency omission discovered
+by this probe is corrected in the build-local IDF recipe; it does not change
+USB framing or the installed firmware.
 
 ### P3 Add URL loading and caching
 
@@ -287,8 +299,8 @@ waive those gates. A source label or successful image transfer is not power-path
 qualification.
 
 P0 settled glyph coverage/size choices, byte/dimension limits and native API
-presence semantics in [the contract](runtime-visuals.md). P2 still needs the
-actual licensed/pinned font assets. Before hardware integration, establish HA
+presence semantics in [the contract](runtime-visuals.md). P2 bundles DejaVu Sans
+2.37 with its license and deterministic glyph assets. Before hardware integration, establish HA
 server/version and allowed asset origin/access. These do not block rendering
 development. Additional codecs, fonts, upload transports and an HA editor remain
 follow-on work.
@@ -300,6 +312,8 @@ Hardware-independent validation uses synthetic secrets:
 ```sh
 .venv/bin/python -m unittest discover -s tests -v
 .venv/bin/python tools/generate_reference_fixtures.py --check
+.venv/bin/python tools/generate_render_fonts.py --check
+.venv/bin/python tools/generate_render_fixtures.py --check
 .venv/bin/python tools/check_firmware.py --compile
 git diff --check
 ```

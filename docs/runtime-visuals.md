@@ -1,9 +1,10 @@
 # Runtime visual contract v1
 
 P0 defines and host-tests this contract; P1 implements owned native images and
-the scheduler boundary. The four existing firmware examples still use static
-artwork. **No runtime API action, downloader, font or renderer is exposed yet.**
-P2–P4 will connect those adapters to this contract; these payloads are not commands
+the scheduler boundary. P2 adds the [bounded local renderer](rendering.md),
+bundled fonts and PSRAM adapters, exercised by `renderer_probe`. The four numbered
+examples still use static artwork. **No runtime API action or downloader is
+exposed yet.** P3/P4 will connect those adapters; these payloads are not commands
 the installed bench firmware can run.
 
 The portable implementation is `components/stream_deck/visual_state.*`. It has
@@ -137,17 +138,18 @@ through both pages; later requests cannot mix old page 1 with new page 2.
 Defaults: black background, white label, black one-pixel outline, font size 16,
 aspect-preserving centered `contain`. `crop` fills and crops centrally. Rendering
 composites alpha over the configured opaque background, then draws the label.
-The renderer will use a small licensed bundled font in sizes 12/16/20 with ASCII
-U+0020..007E and Latin-1 U+00A0..00FF glyphs. P2 must select/pin the actual font
-asset and license before committing rendering fixtures; no font is bundled yet.
+The renderer uses bundled DejaVu Sans 2.37 in sizes 12/16/20 with ASCII
+U+0020..007E and Latin-1 U+00A0..00FF glyphs, at 4-bit coverage. Source, license
+and rasterizer pins are in `assets/fonts/manifest.json`; see [rendering](rendering.md)
+for the exact scaling, alpha, layout and outline rules.
 
 Labels use valid UTF-8, at most 96 bytes and 48 Unicode scalar values. LF is the
 only permitted control character. Unsupported scalars become `?` during P2
 rendering; malformed UTF-8, overlong encodings, surrogates, NUL and other controls
-are rejected now. Labels will be centered horizontally at the bottom with a
+are rejected. Labels are centered horizontally at the bottom with a
 two-pixel inset, wrap at spaces into at most two lines, and use `...` to indicate
 truncation on the final line (split long words at glyph boundaries). P2 fixtures
-must establish these pixels; no Pillow-identical font/scaling claim is made.
+record these pixels; no Pillow-identical font/scaling claim is made.
 
 The first decoder is PNG only; JPEG is not included in v1. HTTP and HTTPS sources
 must use an explicit configured origin allowlist in the P3 adapter. HTTP is for
@@ -155,7 +157,7 @@ non-sensitive local assets. HTTPS must verify certificates; no insecure fallback
 The current syntax validator permits ASCII DNS/IPv4 hosts and optional ports
 1..65535, and rejects userinfo, query strings, fragments, malformed percent
 escapes, whitespace, backslashes and IPv6 literals. Origin enforcement, TLS,
-decode and network limits remain adapter work; no fetching happens in P0/P1.
+decode and network limits remain P3 adapter work; no fetching happens in P0–P2.
 HA `/local/` files are suitable only for non-sensitive assets. Authenticated
 media and signed URLs require a later deliberate extension.
 
@@ -182,17 +184,18 @@ the place for local bulb/arrow actions.
 | Label | 96 UTF-8 bytes / 48 scalar values |
 | Pending work | 15 coalescing keys; one active fetch/decode/render worker |
 | Cached decoded backgrounds | 256 KiB; retain current 72×72 RGB backgrounds for label reuse |
-| Owned native BMPs | 512 KiB including ownership metadata; P2 configures the injected allocator with this cap |
+| Owned native BMPs | 512 KiB including ownership metadata, enforced by `PsramImageAllocator` |
 | Total graphics allocation | 2 MiB, to be enforced across P2/P3 adapters |
 | Fetch timing | 5-second connect, 15-second whole request deadline |
 | Automatic redirects / retries | 0 / 0; a new request revision is an explicit retry |
 
-Work slices must yield to input/API/OTA (initial target: at most 2 ms of local
-CPU work before yielding, to be measured). Decoder source/workspace allocations
+The renderer processes one row per `step()` and the caller yields between
+steps (initial target: at most 2 ms of local CPU work before yielding, still to
+be measured). Decoder source/workspace allocations
 are bounded before allocation. RGB canvas/BMP/cache data belongs in PSRAM;
 DMA USB transfers keep their existing internal allocations. Network/TLS/internal
 heap overhead is additional and must be measured in P5. The caps are requirements
-for future adapters, not evidence that network decoding has been implemented.
+for P3 adapters, not evidence that network decoding has been implemented.
 
 ## Image ownership
 
@@ -205,7 +208,7 @@ when supplied pixels/version values match. Scheduler change detection compares
 retained identities and explicit redraw revisions, not mutable byte pointers.
 
 The allocator is injected, accounts for metadata and pixels, and must outlive
-all its handles. P2 will supply the PSRAM adapter. Host tests inject allocation
+all its handles. P2 supplies the PSRAM adapter without internal-heap fallback. Host tests inject allocation
 failure and bounded storage. Reference operations belong to the main loop;
 the counter is deliberately not atomic. A future worker on another task must
 transfer ownership/results to that loop explicitly.

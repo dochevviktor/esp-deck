@@ -45,6 +45,22 @@ as dependencies, not copied into this repository. The small fake-IDF test header
 are project-owned test doubles, not an alternative SDK. Demo artwork is generated
 by `tools/generate_demo_assets.py` using Pillow primitives and its bundled font.
 
+Runtime label glyphs are derived from **DejaVu Sans 2.37**, copyright 2003
+Bitstream, Inc., with DejaVu changes in the public domain and other upstream
+attributions retained in [the unmodified release license](assets/fonts/LICENSE-DejaVu.txt).
+Bitstream Vera is a trademark of Bitstream, Inc. The original TTF is bundled in
+`assets/fonts/DejaVuSans.ttf`; source/archive/license hashes are pinned in
+`assets/fonts/manifest.json`. `render_font_data.cpp` contains the generated
+12/16/20 px ASCII/Latin-1 glyph subset. Preserve this notice and the font license
+when distributing those assets or firmware containing them. No font is sold
+separately or represented as project-owned artwork.
+
+`tools/generate_render_fonts.py` calls ESPHome 2026.9.0's installed
+`glyph_to_glyphinfo` with freetype-py 2.5.1 / FreeType 2.13.2; it does not copy
+the ESPHome rasterizer or bundle FreeType into firmware. The portable renderer,
+glyph lookup, layout and outline composition are project code. Rendering BMP
+snapshots contain these licensed glyphs and project-owned test artwork.
+
 The Stream Deck USB compatibility recipe compiles ESP-IDF 5.5.5's USB component
 from the installed pinned SDK and generates one patched `usbh.c` under the
 ignored build directory. That generated copy retains Espressif's copyright and

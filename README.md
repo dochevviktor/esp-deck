@@ -9,10 +9,12 @@ Implemented: protocol, asynchronous USB transport, reconnect/recovery, all 15 ke
 entities, brightness, diagnostics, images and a state-driven HA lamp example.
 Runtime foundations: validated visual patches/revisions and immutable owned image
 versions retained safely through both USB pages and cancellation (P0/P1).
-Compiled: all four examples on ESPHome 2026.9.0 / ESP-IDF 5.5.5.
+Local rendering (P2): aspect-preserving scaling, alpha composition, outlined
+runtime labels with bundled fonts, native BMP encoding and PSRAM allocation.
+Compiled: all four numbered examples plus `renderer_probe`, on ESPHome 2026.9.0 / ESP-IDF 5.5.5.
 Unit-tested: upstream byte fixtures, scheduler/input behavior, simulated USB
-transfers, schema validation and captured desktop descriptors; 28 Python cases
-including the new native ownership/visual-state suite and HA helper templates.
+transfers, schema validation and captured desktop descriptors; 31 Python cases
+including native ownership/visual-state/rendering suites and HA helper templates.
 Hardware-verified: desktop descriptors, ESP chip/flash identity, 8 MB PSRAM
 initialization, Wi-Fi, encrypted API and encrypted OTA. The S3 enumerates the
 deck at full speed. With the IN-64 / OUT-512 descriptor workaround, HID SET_IDLE
@@ -28,13 +30,12 @@ qualification and HA acceptance remain pending. See
 The original [handover](STREAM_DECK_ESPHOME_CODEX_HANDOVER.md) is preserved.
 Start with the [hardware checklist](docs/hardware.md) before connecting anything.
 
-The [Home Assistant runtime control plan](docs/implementation-plan.md) has P0/P1
-implemented and tested: [the runtime contract](docs/runtime-visuals.md), bounded
-visual state, stale-request rejection and owned-image scheduling. Next is P2,
-local image/text rendering, followed by URL loading and native API integration.
-Runtime labels/URLs are **not yet available in firmware**. HA will own bindings
-and visual configuration. Example 03 remains a fixed-entity demo; example 04 is
-the installed bench baseline. No firmware was uploaded for the P0/P1 work.
+The [Home Assistant runtime control plan](docs/implementation-plan.md) has P0–P2
+implemented and tested: [the runtime contract](docs/runtime-visuals.md), owned-image
+scheduling and [local rendering](docs/rendering.md). Next is P3, bounded PNG/URL
+loading and caching, followed by HA native API integration. **HA runtime visual
+controls are not yet available.** Example 03 remains a fixed-entity demo; example
+04 is the installed bench baseline. No firmware was uploaded for P0–P2.
 
 ## Develop and test without a board
 
@@ -44,6 +45,8 @@ From this repository, with Python 3.14, Git and a C++17 compiler:
 python3 -m venv .venv
 .venv/bin/python -m pip install -r requirements-lock.txt
 .venv/bin/python -m unittest discover -s tests -v
+.venv/bin/python tools/generate_render_fonts.py --check
+.venv/bin/python tools/generate_render_fixtures.py --check
 .venv/bin/python tools/check_firmware.py
 .venv/bin/python tools/check_firmware.py --compile
 ```
@@ -81,6 +84,7 @@ API and encrypted OTA. No real credentials are committed.
 | `examples/02_keys_brightness.yaml` | All keys, brightness and diagnostics; blanks the displays |
 | `examples/03_images_home_assistant.yaml` | Key 0 toggles `light.example_lamp`; actual HA feedback selects ON/OFF/? |
 | `examples/04_hardware_test.yaml` | Standalone RGB/arrow patterns on keys 0/7/14; received presses show ON, releases restore the pattern; no HA actions |
+| `examples/renderer_probe.yaml` | P2 local renderer: three font sizes, outlined text/artwork and truncation on keys 0/1/2/7/14; no runtime API or downloads; not hardware-tested |
 
 In example 04, the other keys intentionally start blank. Releasing any key sets
 its desired image to the arrow pattern, so testing every key leaves all keys

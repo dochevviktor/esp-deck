@@ -10,7 +10,7 @@ import sys
 import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
-EXAMPLES = ("01_usb_probe", "02_keys_brightness", "03_images_home_assistant", "04_hardware_test")
+EXAMPLES = ("01_usb_probe", "02_keys_brightness", "03_images_home_assistant", "04_hardware_test", "renderer_probe")
 
 
 def stage(folder, device_secrets=None):
@@ -65,6 +65,9 @@ def check(folder, name, compile_firmware=False, extra=None, deployment=False):
             commands = json.loads((build / "build" / "compile_commands.json").read_text())
             if not any(Path(command["file"]).name == "usbh_stream_deck.c" for command in commands):
                 raise RuntimeError("The build did not compile the pinned Stream Deck USB compatibility source")
+            transport = next(command for command in commands if Path(command["file"]).name == "usb_transport.cpp")
+            if "/components/usb/include" not in transport["command"]:
+                raise RuntimeError("The application did not receive the USB component's public include directory")
     print(f"{name}: {'compiled' if compile_firmware else 'configuration valid'}", flush=True)
     return result.stdout
 

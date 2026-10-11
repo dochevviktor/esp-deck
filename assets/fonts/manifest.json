@@ -1,0 +1,37 @@
+{
+  "family": "DejaVu Sans",
+  "release": "2.37",
+  "source_sha256": "7da195a74c55bef988d0d48f9508bd5d849425c1770dba5d7bfc6ce9ed848954",
+  "license_sha256": "7a083b136e64d064794c3419751e5c7dd10d2f64c108fe5ba161eae5e5958a93",
+  "source_url": "https://github.com/dejavu-fonts/dejavu-fonts/releases/download/version_2_37/dejavu-fonts-ttf-2.37.tar.bz2",
+  "archive_sha256": "fa9ca4d13871dd122f61258a80d01751d603b4d3ee14095d65453b4e846e17d7",
+  "esphome": "2026.9.0",
+  "freetype_py": "2.5.1",
+  "freetype": "2.13.2",
+  "bpp": 4,
+  "coverage": [
+    "U+0020..U+007E",
+    "U+00A0..U+00FF"
+  ],
+  "fonts": {
+    "12": {
+      "glyphs": 191,
+      "bitmap_bytes": 5543,
+      "bitmap_sha256": "1cba79d2534c3307eb6d44b081b5b6719928f3622eb6aa1671de7bffca44ad7b",
+      "line_height": 15
+    },
+    "16": {
+      "glyphs": 191,
+      "bitmap_bytes": 9417,
+      "bitmap_sha256": "d3e3e3872053b792ec209039e4b2c612a3ae00401e69da8d70c755cf7b192dcd",
+      "line_height": 19
+    },
+    "20": {
+      "glyphs": 191,
+      "bitmap_bytes": 14497,
+      "bitmap_sha256": "f8a54a7c6665bee622b92b40f01a284ea7b1b36c38faa9fbae6e0426b2840f47",
+      "line_height": 24
+    }
+  },
+  "generated_sha256": "d65e5b0e2e680c908c4d50bd6fbb048d8f032fb785630668fe93344909262c14"
+}

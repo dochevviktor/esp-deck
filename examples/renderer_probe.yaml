@@ -1,0 +1,79 @@
+# P2 renderer validation/optional bench probe, separate from known-working 04.
+# Firmware fonts and source pixels are fixed here; no runtime API or URL loader.
+# Never upload a synthetic build. No upload is part of the P2 validation.
+packages:
+  base: !include packages/base.yaml
+  deck: !include packages/deck.yaml
+
+# Load the image facility without claiming another physical display/USB bus.
+display: []
+image:
+  - platform: file
+    id: render_source
+    file: ../assets/source/transport_test.png
+    type: RGB
+    transparency: alpha_channel
+
+stream_deck:
+  on_key_press:
+    - logger.log:
+        format: "Physical press during renderer probe: key %u"
+        args: [key]
+  on_key_release:
+    - logger.log:
+        format: "Physical release during renderer probe: key %u"
+        args: [key]
+
+interval:
+  - interval: 5ms
+    then:
+      - lambda: |-
+          using namespace esphome::stream_deck;
+          using namespace esphome::stream_deck::rendering;
+          static PsramImageAllocator images;
+          static PsramWorkspace memory;
+          static unsigned tile = 0;
+          static bool failed = false;
+          if (failed || tile == 5) return;
+          if (!memory.acquire()) {
+            ESP_LOGE("renderer_probe", "PSRAM workspace unavailable");
+            failed = true;
+            return;
+          }
+          static Renderer renderer(*memory.get());
+          if (!renderer.busy()) {
+            visual::State state;
+            state.background_color = 0x102030;
+            PixelView source;
+            if (tile < 3) {
+              state.font = tile == 0 ? 12 : tile == 1 ? 16 : 20;
+              state.text.assign("Caf\xc3\xa9");
+            } else if (tile == 3) {
+              state.text.assign("Desk");
+              state.text_color = 0xffdc40;
+              if (!from_esphome_image(*id(render_source), source)) {
+                ESP_LOGE("renderer_probe", "Source image layout rejected");
+                failed = true;
+                return;
+              }
+            } else {
+              state.text.assign("Supercalifragilistic desk controller display");
+            }
+            if (!renderer.begin(state, source)) {
+              ESP_LOGE("renderer_probe", "Render rejected: %s", visual::error_name(renderer.error()));
+              failed = true;
+              return;
+            }
+          }
+          // A single bounded row per invocation; main-loop input/API can run.
+          if (renderer.step() != Phase::DONE) return;
+          auto image = renderer.copy_image(tile + 1, images);
+          const int keys[] = {0, 1, 2, 7, 14};
+          if (!image || !id(deck).set_image(keys[tile], image)) {
+            ESP_LOGE("renderer_probe", "Native image allocation/queue failed");
+            failed = true;
+            return;
+          }
+          ESP_LOGI("renderer_probe", "Rendered key %d; native pool %u bytes; not display readback",
+                   keys[tile], unsigned(images.used_bytes()));
+          tile++;

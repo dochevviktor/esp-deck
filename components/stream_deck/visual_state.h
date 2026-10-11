@@ -30,6 +30,9 @@ enum class Error : uint8_t {
 };
 const char *error_name(Error error);
 const char *phase_name(Phase phase);
+// Shared strict UTF-8 boundary for validation and rendering. Output/count are
+// usable only on success; there are never more than MAX_LABEL_CODEPOINTS.
+Error decode_label(std::string_view text, std::array<uint32_t, MAX_LABEL_CODEPOINTS> &points, size_t &count);
 
 template<size_t Capacity> class Text {
  public:

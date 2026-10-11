@@ -1,14 +1,61 @@
 # Validation and remaining hardware gates
 
+## Local rendering, 2026-10-11 (P2)
+
+Implemented: bounded RGB(A)/BGR(A) source views, aspect-preserving contain/crop,
+premultiplied-alpha bilinear sampling, outlined runtime text with licensed/pinned
+DejaVu Sans 2.37 at 12/16/20 px, exact native BMP encoding, and PSRAM-only
+workspace/image allocation. `render_esphome.h` bridges completed ESPHome images;
+PNG decoding, fetching/cache and HA runtime controls remain P3/P4 work. See
+[rendering](rendering.md) for the precise pixel, lifetime and memory rules.
+
+Unit-tested: **31 Python cases**, including four native C++ executables. The
+renderer suite checks source bounds and invalid styles/UTF-8, partial-work
+cancellation, source/workspace lifetime, PSRAM allocation failure/capability
+flags/budget reclamation, stale render rejection, alpha correctness, aspect
+scaling, font coverage, outlined text, wrapping/truncation and unsupported glyphs.
+The resulting asymmetric BMP and both key-0 image pages match the existing
+upstream fixtures exactly. Eleven additional native-renderer regression snapshots
+have been visually inspected through `.build/render-preview.png`; these are not
+independent Pillow font/scaling fixtures. Font generation reproduces using the
+bundled source and pinned ESPHome/FreeType versions.
+
+Compiled: the four numbered examples plus the new `renderer_probe`, with
+synthetic secrets. A second renderer-probe build in a fresh temporary build
+directory also passed. That clean build matters: the initial probe exposed
+ESPHome's omission of the build-local USB override from discovered built-ins.
+The override now explicitly links its public IDF USB target into the application
+after target creation. The checker verifies the application receives USB's
+include path as well as compiling the pinned patched source. No installed SDK
+file, packet framing or USB startup sequence changed. CI now includes both
+example 04 and the renderer probe; remote CI itself has not run in this session.
+
+Hardware-verified: **none for P2**. No firmware was uploaded. Example 04 remains
+the last recorded hardware baseline; new fonts, PSRAM rendering load, step
+timings and display appearance await device testing. Local ASan/UBSan runtime
+libraries remain unavailable, so native assertions/counting allocators establish
+only the exercised paths, not a sanitizer pass.
+
+Commands run successfully:
+
+```sh
+.venv/bin/python -m unittest discover -s tests -v
+.venv/bin/python tools/generate_reference_fixtures.py --check
+.venv/bin/python tools/generate_render_fonts.py --check
+.venv/bin/python tools/generate_render_fixtures.py --check
+.venv/bin/python tools/check_firmware.py --compile
+git diff --check
+```
+
 ## Runtime foundations, 2026-10-11
 
 P0/P1 are implemented: the [runtime contract](runtime-visuals.md), bounded owned
 visual state, request/session validation, coalescing and atomic render commit,
 plus immutable native-image ownership through the scheduler and transport.
-The complete host suite passes **28 Python cases**, including three native C++
-executables. All four numbered examples compile with synthetic secrets. P2–P5
-remain pending: no URL fetching, font rendering or runtime API action is exposed
-by those examples, and no runtime feature has been hardware-tested.
+At that checkpoint the host suite passed **28 Python cases**, including three
+native C++ executables. All four numbered examples compiled with
+synthetic secrets. P2 was completed subsequently as recorded above; the numbered
+examples continue to expose no URL fetching, font rendering or runtime API action.
 
 New tests exercise image/text/combined/clear patches; strict UTF-8, URL, colour,
 font and size validation; stale/conflicting/duplicate revisions; session mismatch;
@@ -77,9 +124,9 @@ confirmed. Firmware remained unchanged.
 
 | Category | Result |
 | --- | --- |
-| Implemented | Codec, scheduler, USB transport/entities/images/recovery, diagnostics, desktop probe, private builds, a source-pinned IDF descriptor hook, standalone visual/input test and P0/P1 runtime contract/owned-image foundations |
-| Unit-tested | 28 Python cases including three native C++ suites, runtime ownership/visual state, API contract/helper templates, raw/normalized S3 descriptors, 64-/512-byte full-report transport simulation, physical-detach recovery, EP0 requests/lifetime and captured reply consistency, pinned artwork, build-hook guards and private staging |
-| Compiled | All four numbered examples with synthetic credentials; examples 01, 02 and 04 also built privately for deployment, ESP-IDF 5.5.5 / ESPHome 2026.9.0 |
+| Implemented | Codec, scheduler, USB transport/entities/images/recovery, diagnostics, desktop probe, private builds, a source-pinned IDF descriptor hook, standalone visual/input test, P0/P1 runtime contract/owned-image foundations and P2 bounded local rendering/fonts/PSRAM |
+| Unit-tested | 31 Python cases including four native C++ suites, renderer/font fixtures, runtime ownership/visual state, API contract/helper templates, raw/normalized S3 descriptors, 64-/512-byte full-report transport simulation, physical-detach recovery, EP0 requests/lifetime and captured reply consistency, pinned artwork, build-hook guards and private staging |
+| Compiled | All four numbered examples and renderer_probe with synthetic credentials; renderer_probe also passes a fresh build. Examples 01, 02 and 04 were built privately for earlier deployments, ESP-IDF 5.5.5 / ESPHome 2026.9.0 |
 | Hardware-verified | Identity/flash, Wi-Fi, encrypted API/OTA, 8 MB PSRAM initialization, EP0 replies, 17-byte input, visible image feedback, press/release coverage for all 15 key indices, and one deck reconnect with full desired-image redraw and resumed input. Detailed mapping/visual/brightness checks, repeated recovery, ESP-only restarts, electrical and HA qualification remain pending |
 | Remote CI | Workflow provided; not executed in this session |
 
@@ -103,7 +150,7 @@ errors and assertions enabled, without sanitizers. `SANITIZE=1` enables ASan/UBS
 on a machine with those runtimes; the CI workflow requests them. This document
 does not claim a local sanitizer run passed.
 
-Latest synthetic builds, 2026-10-11, including P0/P1 and the IN-64 / OUT-512 path:
+Latest synthetic builds, 2026-10-11, including P0–P2 and the IN-64 / OUT-512 path:
 
 | Example | Static RAM estimate | Application flash estimate |
 | --- | ---: | ---: |
@@ -111,10 +158,13 @@ Latest synthetic builds, 2026-10-11, including P0/P1 and the IN-64 / OUT-512 pat
 | 02 keys/brightness | 110,835 B / 341,760 B | 815,119 B / 8,126,464 B |
 | 03 images/HA | 111,307 B / 341,760 B | 870,855 B / 8,126,464 B |
 | 04 standalone hardware test | 110,995 B / 341,760 B | 847,035 B / 8,126,464 B |
+| Renderer probe | 111,675 B / 341,760 B | 881,807 B / 8,126,464 B |
 
 These linker estimates exclude runtime USB/task/network allocation and are not
-free-heap measurements. P0's visual store/worker is not instantiated in the static
-examples; these are not estimates for the future complete runtime firmware.
+free-heap measurements. The renderer probe links the rendering path and defers
+its pixel allocations until after PSRAM initialization. P0's visual store/worker
+is not instantiated in these examples; these are not estimates for the future
+complete runtime firmware.
 The checker also verifies the actual generated control
 cap (8192 for driver examples), periodic-OUT FIFO bias and disabled secondary USB
 console. Firmware

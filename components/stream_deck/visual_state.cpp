@@ -67,8 +67,11 @@ bool valid_url(std::string_view url) {
   }
   return true;
 }
-Error valid_text(std::string_view text) {
-  size_t count = 0;
+}  // namespace
+
+Error decode_label(std::string_view text, std::array<uint32_t, MAX_LABEL_CODEPOINTS> &points, size_t &count) {
+  count = 0;
+  if (text.size() > MAX_LABEL_BYTES) return Error::LIMIT_EXCEEDED;
   for (size_t offset = 0; offset < text.size();) {
     const auto first = uint8_t(text[offset++]);
     uint32_t point;
@@ -87,11 +90,11 @@ Error valid_text(std::string_view text) {
     }
     if (point < minimum || point > 0x10ffff || (point >= 0xd800 && point <= 0xdfff) ||
         (point < 0x20 && point != '\n') || (point >= 0x7f && point <= 0x9f)) return Error::INVALID_TEXT;
-    if (++count > MAX_LABEL_CODEPOINTS) return Error::LIMIT_EXCEEDED;
+    if (count == points.size()) return Error::LIMIT_EXCEEDED;
+    points[count++] = point;
   }
   return Error::NONE;
 }
-}  // namespace
 
 bool State::operator==(const State &other) const {
   return image_url == other.image_url && image_revision == other.image_revision && text == other.text &&
@@ -119,7 +122,9 @@ Error apply_patch(const Command &cmd, const State &base, State &result) {
     candidate.image_revision.assign(cmd.image_revision);
   }
   if (cmd.fields & TEXT) {
-    const auto error = valid_text(cmd.text);
+    std::array<uint32_t, MAX_LABEL_CODEPOINTS> points;
+    size_t count;
+    const auto error = decode_label(cmd.text, points, count);
     if (error != Error::NONE) return error;
     candidate.text.assign(cmd.text);
   }

@@ -37,3 +37,6 @@ idf_component_register(
     PRIV_INCLUDE_DIRS "${deck_usb}/private_include" "."
     PRIV_REQUIRES esp_driver_gpio esp_mm
 )
+if(NOT CMAKE_BUILD_EARLY_EXPANSION)
+    include("${CMAKE_CURRENT_LIST_DIR}/link_application.cmake")
+endif()

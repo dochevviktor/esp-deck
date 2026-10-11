@@ -26,8 +26,8 @@ arbitrary PSRAM. Immutable native BMP assets stay in flash, including the defaul
 blank image; there is no 15-key framebuffer.
 
 P1 adds `ImageRef` ownership for future runtime images. Static assets still avoid
-allocation; owned native BMPs use an injected bounded allocator (the PSRAM adapter
-is P2 work). Desired/applied slots and scheduler/transport jobs retain references.
+allocation; owned native BMPs use an injected bounded allocator (P2 supplies the
+PSRAM-only adapter). Desired/applied slots and scheduler/transport jobs retain references.
 The transport releases its image only when completion is taken or cancellation
 has fully drained. This changes image lifetime, not USB DMA allocation or report
 framing; see the [runtime contract](../runtime-visuals.md).
@@ -83,6 +83,15 @@ The generator checks SHA-256 pins for `usbh.c`, `usb_host.c`, `Kconfig` and the
 upstream CMake recipe, and rejects unexpected versions or patch locations.
 The SDK installation is never written. The firmware checker also requires the
 generated `usbh_stream_deck.c` to appear in the actual compiler commands.
+
+The P2 renderer probe exposed a clean-build dependency issue: ESPHome's built-in
+discovery includes only components below the installed SDK, so this project-local
+`usb` override was omitted from the application's generated requirements.
+`link_application.cmake` now adds an explicit public `idf::usb` dependency to
+ESPHome's application target after all targets exist, using the pinned CMake
+DEFER facility. This works without an old discovery cache and changes no USB
+source/framing. The checker verifies the USB include directory on the application's
+actual transport compile command. A fresh isolated renderer-probe build passed.
 
 The hook runs inside `usbh_dev_set_config_desc` after allocation/copy and before
 the descriptor is published. It changes **only the IN endpoint** MPS from 512

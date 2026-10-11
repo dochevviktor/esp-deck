@@ -1,0 +1,55 @@
+{
+  "method": "Native renderer regression snapshots, not an independent rendering oracle",
+  "independent_checks": "asymmetric BMP/pages match pinned upstream; analytical alpha/contain/crop checks in test_renderer.cpp",
+  "font_manifest_sha256": "fe994d07d053cad6ca085fa11927c3214a60a3cfb5daa8a49fc4e5526253b4f1",
+  "files": {
+    "alpha_contain.native.bmp": {
+      "bytes": 15606,
+      "sha256": "a0988a86ed40fe24aa8ac4672ddc6bf2d0933f387ad52be5b05eef40f0f2a700"
+    },
+    "alpha_crop.native.bmp": {
+      "bytes": 15606,
+      "sha256": "a808d4b5b2812ac5a663fea9d8ce73a45c167cb74adccd6c2c4db048957d29a6"
+    },
+    "asymmetric.native.bmp": {
+      "bytes": 15606,
+      "sha256": "97553f9da8c94f34bb5711f52b6980755265e2705f46ec356f48f9ec6180a343"
+    },
+    "asymmetric.rgb": {
+      "bytes": 15552,
+      "sha256": "96208327b6bf4484467d9bb430feb6a0daa6a52672b6c1ce87f7b2b34018b632"
+    },
+    "combined.native.bmp": {
+      "bytes": 15606,
+      "sha256": "14a72666cf7832085c84d25d61a418af9ffa139eb765b2bbfd2c09efff697a37"
+    },
+    "empty.native.bmp": {
+      "bytes": 15606,
+      "sha256": "62a29f3bc980117f343074520b3aec7c4bef750b4d9a28e4a5f615d458b9c099"
+    },
+    "font_12.native.bmp": {
+      "bytes": 15606,
+      "sha256": "632838f08bb584ece463c8896b00105ecc64feb136915b92ab928e36401d49be"
+    },
+    "font_16.native.bmp": {
+      "bytes": 15606,
+      "sha256": "880c16a0afd9017d9c1ac553cc82502cc022ac984fac666d0fbe95936926969c"
+    },
+    "font_20.native.bmp": {
+      "bytes": 15606,
+      "sha256": "8f0f1953458dfdc59e270733aca3de5589408111f757c3579ad67c7819f852f4"
+    },
+    "truncated.native.bmp": {
+      "bytes": 15606,
+      "sha256": "79448c8692baedae503e85fe753924f149f497f07f40293e60db10213a3580c7"
+    },
+    "two_lines.native.bmp": {
+      "bytes": 15606,
+      "sha256": "fec664e53dcfd99223a6113ce6ca066ffe9b7a7f14aacda029593528be5c0458"
+    },
+    "unsupported.native.bmp": {
+      "bytes": 15606,
+      "sha256": "34aaad4dea666f0b9ed6916704ab88591af72344bc6519bd9acabccea4c4b38a"
+    }
+  }
+}
