@@ -357,6 +357,7 @@ void USBTransport::handle_output_(uint32_t now) {
 bool USBTransport::take_completion(Job &job) {
   if (!completion_ready_ || closing_) return false;
   job = job_;
+  job_ = {};
   completion_ready_ = false;
   return true;
 }
@@ -404,6 +405,9 @@ void USBTransport::drain_(uint32_t now) {
     }
     return;
   }
+  // No transfer callback can still reference this job. Desired images survive
+  // in the scheduler, while obsolete runtime versions can now be reclaimed.
+  job_ = {};
   if (claimed_) {
     if (usb_host_interface_release(client_, device_, interface_.number) != ESP_OK) return;
     claimed_ = false;

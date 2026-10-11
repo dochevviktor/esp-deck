@@ -1,6 +1,6 @@
 #pragma once
 
-#include "protocol.h"
+#include "runtime_image.h"
 
 namespace esphome::stream_deck {
 using protocol::NativeImage;
@@ -12,8 +12,8 @@ struct Job {
   uint32_t sequence{0};
   uint8_t key{0};
   uint8_t brightness{30};
-  const NativeImage *image{nullptr};
-  uint32_t revision{0};
+  ImageRef image{};
+  uint64_t revision{0};
 };
 
 class Scheduler {
@@ -21,6 +21,8 @@ class Scheduler {
   Scheduler();
   void attach(uint32_t generation);
   void detach();
+  bool set_image(int key, const ImageRef &image);
+  // Compatibility entry point for firmware-lifetime static assets only.
   bool set_image(int key, const NativeImage *image);
   bool set_brightness(float percent);
   uint8_t brightness() const { return brightness_; }
@@ -30,10 +32,10 @@ class Scheduler {
   bool initialized() const { return attached_ && !reset_pending_ && applied_brightness_ >= 0; }
 
  protected:
-  std::array<const NativeImage *, protocol::KEY_COUNT> desired_{};
-  std::array<const NativeImage *, protocol::KEY_COUNT> applied_{};
-  std::array<uint32_t, protocol::KEY_COUNT> revisions_{};
-  std::array<uint32_t, protocol::KEY_COUNT> applied_revisions_{};
+  std::array<ImageRef, protocol::KEY_COUNT> desired_{};
+  std::array<ImageRef, protocol::KEY_COUNT> applied_{};
+  std::array<uint64_t, protocol::KEY_COUNT> revisions_{};
+  std::array<uint64_t, protocol::KEY_COUNT> applied_revisions_{};
   Job active_{};
   uint32_t generation_{0}, sequence_{0};
   uint8_t brightness_{30}, cursor_{0};

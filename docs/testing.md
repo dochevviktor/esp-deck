@@ -1,5 +1,45 @@
 # Validation and remaining hardware gates
 
+## Runtime foundations, 2026-10-11
+
+P0/P1 are implemented: the [runtime contract](runtime-visuals.md), bounded owned
+visual state, request/session validation, coalescing and atomic render commit,
+plus immutable native-image ownership through the scheduler and transport.
+The complete host suite passes **28 Python cases**, including three native C++
+executables. All four numbered examples compile with synthetic secrets. P2–P5
+remain pending: no URL fetching, font rendering or runtime API action is exposed
+by those examples, and no runtime feature has been hardware-tested.
+
+New tests exercise image/text/combined/clear patches; strict UTF-8, URL, colour,
+font and size validation; stale/conflicting/duplicate revisions; session mismatch;
+out-of-order completion; unchanged visual suppression; failed rendering and
+allocation preserving the old tile; all 15 coalescing slots and USB reconnect.
+Ownership tests replace images during either page, evict cache references, check
+allocation limits/reclamation, read retained bytes against the unchanged upstream
+fixtures, and hold stale jobs across generations. Production-transport simulations
+delay cancellation during page 1 or 2 on both EP0 and interrupt OUT and check that
+owned pixels remain allocated until callbacks retire. The HA helper's templates
+are tested locally, and its fixed argument signature validates against pinned
+ESPHome; this is not a live HA integration test.
+
+Commands run for this stage:
+
+```sh
+.venv/bin/python -m unittest discover -s tests -v
+.venv/bin/python tools/generate_reference_fixtures.py --check
+.venv/bin/python tools/check_firmware.py --compile
+git diff --check
+```
+
+GCC warnings are errors and assertions remain enabled. Local sanitizer runtime
+libraries are still absent; no ASan/UBSan pass is claimed. Counting/poisoning test
+allocators cover the exercised ownership paths, not every possible execution.
+The owner reconfirmed `192.168.10.238`; two ICMP requests received replies. This
+is reachability only, not a new firmware/USB/HA qualification. No firmware upload
+was made, and the installed example 04 remains the recorded hardware baseline.
+
+## Earlier hardware sessions, 2026-10-10
+
 Initial software validation: 2026-10-10, without hardware, committed as `b17edee`.
 Later on the same day, both devices were connected separately to the PC. Desktop
 USB/HID descriptors, deck firmware and ESP chip/flash identity were read; no ESP
@@ -37,8 +77,8 @@ confirmed. Firmware remained unchanged.
 
 | Category | Result |
 | --- | --- |
-| Implemented | Codec, scheduler, USB transport/entities/images/recovery, diagnostics, desktop probe, private builds, a source-pinned IDF descriptor hook and standalone visual/input test |
-| Unit-tested | 23 Python cases including native C++ suites, raw/normalized S3 descriptors, 64-/512-byte full-report transport simulation, physical-detach recovery, EP0 requests/lifetime and captured reply consistency, pinned artwork, build-hook guards and private staging |
+| Implemented | Codec, scheduler, USB transport/entities/images/recovery, diagnostics, desktop probe, private builds, a source-pinned IDF descriptor hook, standalone visual/input test and P0/P1 runtime contract/owned-image foundations |
+| Unit-tested | 28 Python cases including three native C++ suites, runtime ownership/visual state, API contract/helper templates, raw/normalized S3 descriptors, 64-/512-byte full-report transport simulation, physical-detach recovery, EP0 requests/lifetime and captured reply consistency, pinned artwork, build-hook guards and private staging |
 | Compiled | All four numbered examples with synthetic credentials; examples 01, 02 and 04 also built privately for deployment, ESP-IDF 5.5.5 / ESPHome 2026.9.0 |
 | Hardware-verified | Identity/flash, Wi-Fi, encrypted API/OTA, 8 MB PSRAM initialization, EP0 replies, 17-byte input, visible image feedback, press/release coverage for all 15 key indices, and one deck reconnect with full desired-image redraw and resumed input. Detailed mapping/visual/brightness checks, repeated recovery, ESP-only restarts, electrical and HA qualification remain pending |
 | Remote CI | Workflow provided; not executed in this session |
@@ -63,17 +103,19 @@ errors and assertions enabled, without sanitizers. `SANITIZE=1` enables ASan/UBS
 on a machine with those runtimes; the CI workflow requests them. This document
 does not claim a local sanitizer run passed.
 
-Latest synthetic builds, including the IN-64 / OUT-512 experiment:
+Latest synthetic builds, 2026-10-11, including P0/P1 and the IN-64 / OUT-512 path:
 
 | Example | Static RAM estimate | Application flash estimate |
 | --- | ---: | ---: |
 | 01 USB probe | 108,371 B / 341,760 B | 783,987 B / 8,126,464 B |
-| 02 keys/brightness | 110,563 B / 341,760 B | 814,279 B / 8,126,464 B |
-| 03 images/HA | 111,027 B / 341,760 B | 869,975 B / 8,126,464 B |
-| 04 standalone hardware test | 110,723 B / 341,760 B | 846,139 B / 8,126,464 B |
+| 02 keys/brightness | 110,835 B / 341,760 B | 815,119 B / 8,126,464 B |
+| 03 images/HA | 111,307 B / 341,760 B | 870,855 B / 8,126,464 B |
+| 04 standalone hardware test | 110,995 B / 341,760 B | 847,035 B / 8,126,464 B |
 
 These linker estimates exclude runtime USB/task/network allocation and are not
-free-heap measurements. The checker also verifies the actual generated control
+free-heap measurements. P0's visual store/worker is not instantiated in the static
+examples; these are not estimates for the future complete runtime firmware.
+The checker also verifies the actual generated control
 cap (8192 for driver examples), periodic-OUT FIFO bias and disabled secondary USB
 console. Firmware
 validation binaries remain ignored and contain synthetic credentials; do not

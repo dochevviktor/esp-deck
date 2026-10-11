@@ -25,6 +25,13 @@ supplies DMA-compatible memory. On S3 these buffers use internal memory, not
 arbitrary PSRAM. Immutable native BMP assets stay in flash, including the default
 blank image; there is no 15-key framebuffer.
 
+P1 adds `ImageRef` ownership for future runtime images. Static assets still avoid
+allocation; owned native BMPs use an injected bounded allocator (the PSRAM adapter
+is P2 work). Desired/applied slots and scheduler/transport jobs retain references.
+The transport releases its image only when completion is taken or cancellation
+has fully drained. This changes image lifetime, not USB DMA allocation or report
+framing; see the [runtime contract](../runtime-visuals.md).
+
 Feature writes always use EP0 `SET_REPORT(Feature)`. Output uses interrupt OUT if
 the discovered HID interface has that endpoint, otherwise EP0
 `SET_REPORT(Output)`, matching HIDAPI. Neither interface 0 nor endpoint 0x81 is

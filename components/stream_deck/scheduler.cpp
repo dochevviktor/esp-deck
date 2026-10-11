@@ -4,21 +4,33 @@
 #include <cmath>
 
 namespace esphome::stream_deck {
-Scheduler::Scheduler() { desired_.fill(&protocol::blank_image()); }
+Scheduler::Scheduler() { desired_.fill(ImageRef::from_static(&protocol::blank_image())); }
 void Scheduler::attach(uint32_t generation) {
   generation_ = generation;
   attached_ = reset_pending_ = true;
   busy_ = page2_pending_ = false;
   applied_brightness_ = -1;
-  applied_.fill(nullptr);
+  active_ = {};
+  applied_.fill({});
   cursor_ = 0;
 }
-void Scheduler::detach() { attached_ = busy_ = page2_pending_ = false; }
-bool Scheduler::set_image(int key, const NativeImage *image) {
-  if (protocol::wire_key(key) < 0 || image == nullptr || !protocol::valid_bmp(image->data, image->size))
+void Scheduler::detach() {
+  attached_ = busy_ = page2_pending_ = false;
+  // The transport's independent Job retains any image awaiting cancellation.
+  active_ = {};
+  applied_.fill({});
+}
+bool Scheduler::set_image(int key, const ImageRef &image) {
+  if (protocol::wire_key(key) < 0 || !image)
     return false;
-  desired_[key] = image;
+  if (desired_[key] != image) {
+    desired_[key] = image;
+    revisions_[key]++;
+  }
   return true;
+}
+bool Scheduler::set_image(int key, const NativeImage *image) {
+  return set_image(key, ImageRef::from_static(image));
 }
 bool Scheduler::set_brightness(float percent) {
   if (!std::isfinite(percent)) return false;
@@ -73,6 +85,7 @@ bool Scheduler::complete(const Job &job) {
       cursor_ = (active_.key + 1) % protocol::KEY_COUNT;
       break;
   }
+  if (!page2_pending_) active_ = {};
   return true;
 }
 

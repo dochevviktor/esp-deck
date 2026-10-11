@@ -6,10 +6,13 @@ the ESP32 composes images and text locally and handles USB. Once this capability
 is installed, changing a binding, image or supported text/style must not require
 another firmware build or upload.
 
-Status: architecture approved; runtime image and text support is not yet
-implemented, compiled, unit-tested or hardware-verified. The existing static-image
-driver remains the working baseline. This planning update does not change or
-flash firmware.
+Status, 2026-10-11: P0/P1 implemented and unit-tested (28 Python cases including
+native C++ suites); all four existing examples compile with synthetic secrets.
+The [runtime contract](runtime-visuals.md) fixes payload/presence rules, limits,
+revisions, status and lifecycle. Owned images now survive replacement and delayed
+USB cancellation. P2–P5 remain pending: runtime rendering, downloads and HA API
+actions are not yet exposed. No new firmware was deployed or hardware-verified;
+the existing static-image bench firmware remains installed.
 
 ## Resume in a fresh chat
 
@@ -18,8 +21,10 @@ flash firmware.
    [USB decision](decisions/usb-transport.md), and current
    [hardware evidence](hardware.md) and [test status](testing.md).
 2. Inspect the worktree and current sources; preserve local edits and secrets.
-3. Start with P0 and P1 below: define the runtime contract and safe image ownership
-   before connecting a downloader to the existing scheduler. Add host tests first.
+3. Continue with P2 and [the finalized contract](runtime-visuals.md): add the
+   bounded canvas/font/native-BMP renderer and deterministic fixtures. Use
+   `ImageRef` and `visual::Store` from P0/P1 at the scheduler boundary. Add the
+   PSRAM allocator adapter; do not attach a downloader until rendering is tested.
 4. Keep example 04 as the known-working bench configuration. Add a separate
    generic HA example; do not begin by choosing a light entity to hardcode into
    the ESP firmware or repeating USB packet-size experiments.
@@ -36,7 +41,7 @@ USB startup/decoder changes are in `181c54a`. Version pins are in
 [versions.md](versions.md): ESPHome 2026.9.0, ESP-IDF 5.5.5, Python Stream Deck
 0.10.0 at `43666bb454186d1d7adeba9402f689449705d0b9`, and Pillow 12.3.0.
 
-| Evidence category | Current baseline |
+| Evidence category | Starting baseline (before P0/P1) |
 | --- | --- |
 | Implemented | Original-device codec, scheduler, 15 key entities, brightness, static artwork, diagnostics, reconnect handling and encrypted API/OTA |
 | Compiled | All four existing examples with synthetic secrets |
@@ -46,9 +51,9 @@ USB startup/decoder changes are in `181c54a`. Version pins are in
 The installed firmware is `04_hardware_test`, compiled
 `2026-10-10 21:59:20 +0200`. Its OTA image is 846,240 bytes with SHA-256
 `69854221b91d08647a7f64e0fb6d35535896a085dfdf0aa763ca9c286e88ad12`.
-The last reported device address is `192.168.10.238`; confirm identity/reachability
-before a later deployment. The ESP and deck currently use the externally powered
-host topology, not PC USB flashing wiring.
+The owner reconfirmed `192.168.10.238` on 2026-10-11 and two ICMP probes succeeded;
+confirm API identity again before a later deployment. The ESP and deck use the
+externally powered host topology, not PC USB flashing wiring.
 
 Preserve these established transport details:
 
@@ -94,23 +99,29 @@ flash-persisted layouts, pages and animations are follow-on work. Other Stream
 Deck models, another host stack, MQTT and a permanent desktop bridge remain out
 of scope. A normal HA automation/script interface is sufficient for this stage.
 
-## Proposed runtime contract
+## Runtime contract
 
-The following is the intended visual payload, not a currently available action:
+P0 selected a fixed native API signature with presence flags and an HA patch
+helper. The [complete contract](runtime-visuals.md) is authoritative. The following
+shows the helper payload shape; it is not a currently available firmware action:
 
 ```yaml
 key: 0
-image_url: "http://homeassistant.local:8123/local/streamdeck/desk.png"
-text: "Desk"
-text_color: "#FFFFFF"
-outline_color: "#000000"
+session: "0123456789abcdef"
+revision: 1
+patch:
+  image_url: "http://homeassistant.local:8123/local/streamdeck/desk.png"
+  image_revision: "desk-v1"
+  text: "Desk"
+  text_color: "#FFFFFF"
+  outline_color: "#000000"
 ```
 
 Required semantics:
 
 - Key is always bounded to 0..14. Optional fields preserve their previous values;
-  explicit clear operations remove artwork or text. Define empty-string behaviour
-  separately from omission before implementing it.
+  selected empty URL/text values explicitly clear artwork/text. Omitted fields
+  preserve their values; empty style values are rejected.
 - A text-only tile uses a configured solid background. A label-only update on an
   existing image reuses its cached background and does not fetch it again.
 - A combined image/text change becomes visible only after the entire new tile
@@ -123,22 +134,22 @@ Required semantics:
   Coalesce pending changes per key without modifying an active two-page image.
 
 The pinned native API action implementation expects a fixed argument list.
-Omitted-field semantics therefore need an explicit representation: a bounded
-validated patch object, presence flags, or helper actions with clear operations.
-P0 must choose and document an ergonomic HA-facing contract rather than assuming
-optional YAML fields automatically become optional API arguments. Keep uploaded
-asset transport separate so a future chunked-upload path can reuse the renderer.
+Presence flags now distinguish preserve from explicit clear; the helper supplies
+every argument and maps `text` to wire argument `label_text` because `text` is
+reserved by the pinned schema. Schema/template/native tests cover this choice.
+Keep uploaded asset transport separate so a future chunked-upload path can reuse
+the renderer.
 
 ## Implementation stages
 
 ### P0 Finalize the API and lifecycle contract
 
-- [ ] Define typed per-key visual state, explicit clear/preserve rules, font/style
+- [x] Define typed per-key visual state, explicit clear/preserve rules, font/style
   defaults, request revisions, status/error responses and cache invalidation.
-- [ ] Set finite limits for URLs, encoded bytes, source pixel count, labels,
+- [x] Set finite limits for URLs, encoded bytes, source pixel count, labels,
   queued jobs, cache memory, timeouts and retries before accepting network input.
-- [ ] Choose and test the native API representation and HA script/helper interface.
-- [ ] Define boot, deck-only reconnect, HA restart and offline behaviour. A logging
+- [x] Choose and test the native API representation and HA script/helper interface.
+- [x] Define boot, deck-only reconnect, HA restart and offline behaviour. A logging
   client connecting/disconnecting must not clear images or masquerade as HA state.
 
 Acceptance: concrete payload examples and validation tests cover image-only,
@@ -150,14 +161,14 @@ function is part of the firmware contract.
 Primary files: `components/stream_deck/protocol.*`, `scheduler.*`, a new runtime
 image/visual-state module, and `tests/native/`.
 
-- [ ] Replace or extend the static-pointer-only lifetime model with immutable,
+- [x] Replace or extend the static-pointer-only lifetime model with immutable,
   owned image versions and explicit retention for desired, applied and active jobs.
   Keep flash-resident assets compatible with existing examples.
-- [ ] Hold the active image through both pages and completion/cancellation. Never
+- [x] Hold the active image through both pages and completion/cancellation. Never
   free or overwrite it when a new HA request, disconnect or cache eviction arrives.
-- [ ] Give each update a distinct identity/revision. Mutating pixels behind the
-  same `NativeImage *` is insufficient: the current scheduler compares pointers.
-- [ ] Keep ownership/scheduling logic independent of ESPHome and inject allocation
+- [x] Give each update a distinct identity/revision. Mutating pixels behind the
+  same `NativeImage *` is insufficient; runtime copies now have retained identities.
+- [x] Keep ownership/scheduling logic independent of ESPHome and inject allocation
   where needed so host tests can exercise allocation failure and resource lifetime.
 
 Acceptance: native tests cover rapid replacement during either page, stale
@@ -275,11 +286,12 @@ repeated cold/warm starts, overnight soak and electrical measurements remain in
 waive those gates. A source label or successful image transfer is not power-path
 qualification.
 
-Details to settle during P0 or before the relevant hardware test, without
-blocking host development: font/glyph coverage, initial byte/dimension limits,
-the native API's optional-field representation, HA server/version and asset
-hosting/authentication. Defaults should keep the first version small; additional
-codecs, fonts, upload transports and a polished HA editor can follow separately.
+P0 settled glyph coverage/size choices, byte/dimension limits and native API
+presence semantics in [the contract](runtime-visuals.md). P2 still needs the
+actual licensed/pinned font assets. Before hardware integration, establish HA
+server/version and allowed asset origin/access. These do not block rendering
+development. Additional codecs, fonts, upload transports and an HA editor remain
+follow-on work.
 
 ## Validation and deployment commands
 

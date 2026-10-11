@@ -1,5 +1,6 @@
 #include "usb_transport.h"
 #include "idf_usb/stream_deck_quirk.h"
+#include "image_allocator.h"
 
 #include <algorithm>
 #include <cassert>
@@ -212,7 +213,7 @@ void test_interrupt_report_integrity() {
   std::ifstream f("tests/fixtures/asymmetric.native.bmp", std::ios::binary);
   std::vector<uint8_t> bytes{std::istreambuf_iterator<char>(f), {}};
   NativeImage image(bytes.data(), bytes.size());
-  Job job{JobKind::PAGE1, transport.generation(), 1, 0, 30, &image};
+  Job job{JobKind::PAGE1, transport.generation(), 1, 0, 30, ImageRef::from_static(&image)};
   assert(transport.send(job, 1));
   uint32_t now = 2;
   while (fake::transfer(false)) { fake::complete(fake::transfer(false)); transport.loop(now++); }
@@ -248,6 +249,42 @@ void test_deadline_retains_buffers_until_cancelled() {
   assert(transport.attached() && transport.generation() != generation);
   assert(!transport.send(Job{JobKind::RESET, generation, 2}, 22001));
   fake::finish(transport, 23000);
+}
+
+void test_runtime_image_retained_during_cancellation() {
+  for (const bool interrupt_out : {false, true}) for (const bool page_two : {false, true}) {
+    fake::reset(interrupt_out);
+    TestImageAllocator allocator;
+    USBTransport transport;
+    Scheduler scheduler;
+    assert(transport.setup()); fake::attach(transport, 0);
+    scheduler.attach(transport.generation());
+    Job job;
+    while (scheduler.next(job)) assert(scheduler.complete(job));
+    std::ifstream input("tests/fixtures/asymmetric.native.bmp", std::ios::binary);
+    std::vector<uint8_t> bytes{std::istreambuf_iterator<char>(input), {}};
+    auto image = ImageRef::copy(NativeImage(bytes.data(), bytes.size()), 99, allocator);
+    assert(scheduler.set_image(0, image));
+    assert(scheduler.next(job) && transport.send(job, 1));
+    uint32_t now = 2;
+    if (page_two) {
+      while (fake::transfer(false)) { fake::complete(fake::transfer(false)); transport.loop(now++); }
+      assert(transport.take_completion(job) && scheduler.complete(job));
+      assert(scheduler.next(job) && job.kind == JobKind::PAGE2 && transport.send(job, now++));
+    }
+    assert(scheduler.set_image(0, &p::blank_image()));
+    scheduler.detach();
+    image = {}; job = {};  // Transport is now the only owner.
+    assert(allocator.live.size() == 1);
+    fake::hold_cancellation = true;
+    transport.loop(now + 3000);
+    transport.loop(now + 20000);
+    assert(allocator.live.size() == 1 && !transport.take_completion(job));
+    fake::cancel_all(); fake::hold_cancellation = false;
+    transport.loop(now + 20001);
+    assert(allocator.live.empty() && allocator.used_bytes() == 0);
+    fake::finish(transport, now + 20002);
+  }
 }
 
 void test_short_and_stalled_output() {
@@ -426,6 +463,7 @@ void test_diagnostic_deadline_and_disconnect() {
 }
 
 int main() {
+  test_runtime_image_retained_during_cancellation();
   test_control_and_input(); test_interrupt_report_integrity();
   test_deadline_retains_buffers_until_cancelled(); test_short_and_stalled_output(); test_absence_and_wrong_model();
   test_observed_full_speed_descriptor_rejection();

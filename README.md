@@ -7,9 +7,12 @@ encrypted ESPHome API; encrypted OTA is configured.
 
 Implemented: protocol, asynchronous USB transport, reconnect/recovery, all 15 key
 entities, brightness, diagnostics, images and a state-driven HA lamp example.
+Runtime foundations: validated visual patches/revisions and immutable owned image
+versions retained safely through both USB pages and cancellation (P0/P1).
 Compiled: all four examples on ESPHome 2026.9.0 / ESP-IDF 5.5.5.
 Unit-tested: upstream byte fixtures, scheduler/input behavior, simulated USB
-transfers, schema validation and captured desktop descriptors.
+transfers, schema validation and captured desktop descriptors; 28 Python cases
+including the new native ownership/visual-state suite and HA helper templates.
 Hardware-verified: desktop descriptors, ESP chip/flash identity, 8 MB PSRAM
 initialization, Wi-Fi, encrypted API and encrypted OTA. The S3 enumerates the
 deck at full speed. With the IN-64 / OUT-512 descriptor workaround, HID SET_IDLE
@@ -25,12 +28,13 @@ qualification and HA acceptance remain pending. See
 The original [handover](STREAM_DECK_ESPHOME_CODEX_HANDOVER.md) is preserved.
 Start with the [hardware checklist](docs/hardware.md) before connecting anything.
 
-The approved next stage is [Home Assistant runtime control](docs/implementation-plan.md):
-HA owns bindings and visual configuration; the ESP downloads/caches artwork and
-renders outlined labels locally. This planned feature is not implemented yet.
-The plan contains the current working baseline, staged acceptance tests and the
-starting point for the next chat. Example 03 remains a fixed-entity demo, not the
-intended runtime rebinding workflow.
+The [Home Assistant runtime control plan](docs/implementation-plan.md) has P0/P1
+implemented and tested: [the runtime contract](docs/runtime-visuals.md), bounded
+visual state, stale-request rejection and owned-image scheduling. Next is P2,
+local image/text rendering, followed by URL loading and native API integration.
+Runtime labels/URLs are **not yet available in firmware**. HA will own bindings
+and visual configuration. Example 03 remains a fixed-entity demo; example 04 is
+the installed bench baseline. No firmware was uploaded for the P0/P1 work.
 
 ## Develop and test without a board
 

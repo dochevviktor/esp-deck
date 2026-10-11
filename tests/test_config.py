@@ -3,6 +3,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tools"))
@@ -38,6 +39,13 @@ class ConfigTests(unittest.TestCase):
         for name in EXAMPLES:
             with self.subTest(example=name):
                 self.run_config((self.folder / "examples" / f"{name}.yaml").read_text())
+
+    def test_runtime_api_argument_contract(self):
+        contract = yaml.safe_load((ROOT / "tests/fixtures/visual_api.yaml").read_text())
+        # Schema exercise only: do not advertise a nonfunctional visual action
+        # in the static examples while the P2/P3 renderer/loader is absent.
+        contract["then"] = [{"lambda": "(void) session; (void) key; (void) revision; (void) fields;"}]
+        self.run_config(self.base() + "\n" + yaml.safe_dump({"api": {"actions": [contract]}}))
 
     def test_duplicate_keys(self):
         self.run_config(self.base() + "\nbinary_sensor:\n  - platform: stream_deck\n    name: Duplicate\n    key: 0\n",

@@ -95,7 +95,14 @@ changes by design; use hub key triggers or guarded press/release automations for
 `stream_deck.redraw` requeues desired images. Typed C++ methods `set_image(key,
 const NativeImage*)`, `set_brightness(percent)` and `redraw()` are also available.
 Native image objects and their data must be immutable and live for the firmware's
-entire lifetime. Invalid runtime keys/images return false without queuing work.
+entire lifetime when using the static-pointer overload. The new
+`set_image(key, const ImageRef&)` overload retains owned runtime images. Use
+`ImageRef::copy` with an injected allocator to copy a validated native BMP into
+immutable owned storage; a failed allocation returns an empty handle and leaves
+desired state intact. Desired/applied slots and both scheduler/transport jobs
+retain their own references. See the [runtime contract](runtime-visuals.md) for
+revision, two-page lifetime and cancellation rules. Invalid keys/images return
+false without queuing work.
 
 Every key defaults to a flash-resident blank BMP. After connection the driver
 requests a redraw of all 15 desired images to clear displays retained from a

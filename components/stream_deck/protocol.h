@@ -16,8 +16,8 @@ constexpr size_t SETUP_SIZE = 8;
 constexpr size_t CONTROL_SIZE = SETUP_SIZE + REPORT_SIZE;
 
 struct NativeImage {
-  const uint8_t *data;
-  size_t size;
+  const uint8_t *const data;
+  const size_t size;
   NativeImage(const uint8_t *data, size_t size) : data(data), size(size) {}
 };
 

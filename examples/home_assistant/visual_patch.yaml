@@ -1,0 +1,80 @@
+# Contract/helper for P0. Requires the runtime action from P4, which is not yet
+# exposed by any firmware example. These are HA scripts, not ESPHome YAML.
+# Include under script: or merge into scripts.yaml when P4 is available.
+stream_deck_visual_patch:
+  alias: Stream Deck visual patch
+  description: Change selected fields; omit to preserve, use empty text/image_url to clear.
+  mode: queued
+  max: 15
+  fields:
+    session:
+      description: Current ESP visual boot session, 16 hexadecimal digits.
+      required: true
+      selector:
+        text:
+    key:
+      description: Logical key, 0 through 14.
+      required: true
+      selector:
+        number:
+          min: 0
+          max: 14
+          mode: box
+    revision:
+      description: Increasing positive integer per key in this session; preserve when retrying an identical call.
+      required: true
+      selector:
+        number:
+          min: 1
+          max: 2147483647
+          mode: box
+    patch:
+      description: Selected image_url/image_revision, text, font, colours and fit. See docs/runtime-visuals.md.
+      required: true
+      selector:
+        object:
+  sequence:
+    - if: "{{ patch is not mapping or patch | count == 0 }}"
+      then:
+        - stop: A nonempty patch object is required.
+          error: true
+    - if: >-
+        {{ patch.keys() | reject('in', ['image_url', 'image_revision', 'text', 'font',
+           'text_color', 'outline_color', 'background_color', 'fit']) | list | count > 0
+           or ('image_revision' in patch and 'image_url' not in patch) }}
+      then:
+        - stop: Unknown patch field or image_revision without image_url.
+          error: true
+    - if: >-
+        {%- set check = namespace(invalid=false) -%}
+        {%- for name in ['image_url', 'image_revision', 'text', 'text_color',
+                        'outline_color', 'background_color', 'fit'] -%}
+          {%- if name in patch and patch[name] is not string -%}
+            {%- set check.invalid = true -%}
+          {%- endif -%}
+        {%- endfor -%}
+        {{ check.invalid or ('font' in patch and patch['font'] is not integer) }}
+      then:
+        - stop: Patch strings cannot be null or another type; font must be an integer.
+          error: true
+    - action: esphome.streamdeck_original_set_key_visual
+      data:
+        session: "{{ session }}"
+        key: "{{ key }}"
+        revision: "{{ revision }}"
+        fields: >-
+          {{ (1 if 'image_url' in patch else 0)
+             + (2 if 'text' in patch else 0)
+             + (4 if 'font' in patch else 0)
+             + (8 if 'text_color' in patch else 0)
+             + (16 if 'outline_color' in patch else 0)
+             + (32 if 'background_color' in patch else 0)
+             + (64 if 'fit' in patch else 0) }}
+        image_url: "{{ patch.get('image_url', '') }}"
+        image_revision: "{{ patch.get('image_revision', '') }}"
+        label_text: "{{ patch.get('text', '') }}"
+        font: "{{ patch.get('font', 16) }}"
+        text_color: "{{ patch.get('text_color', '') }}"
+        outline_color: "{{ patch.get('outline_color', '') }}"
+        background_color: "{{ patch.get('background_color', '') }}"
+        fit: "{{ patch.get('fit', '') }}"

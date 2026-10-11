@@ -1,0 +1,15 @@
+# P0 contract fixture. This action is not exposed by the four static examples.
+action: set_key_visual
+variables:
+  session: string
+  key: int
+  revision: int
+  fields: int
+  image_url: string
+  image_revision: string
+  label_text: string
+  font: int
+  text_color: string
+  outline_color: string
+  background_color: string
+  fit: string
