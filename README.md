@@ -59,8 +59,10 @@ are also software-tested. Physical qualification
 and HACS distribution validation remain P9, and P3's
 actual ESP asset-reachability check is still pending. See the
 [HA/HACS architecture decision](docs/decisions/home-assistant-ux.md).
-No firmware was uploaded for P0–P8. The optional local sanitizer run is blocked
-by a missing host `libasan.so.8.0.0`; ordinary unit tests and builds pass.
+No firmware was uploaded for P0–P8. The local host suite also passes with
+ASan/UBSan after installing the missing runtime and guarding the empty-buffer
+copy in the P8 test fetcher. Both `libasan` and `libubsan` are now available;
+see [the sanitizer follow-up](docs/testing.md).
 
 ## Develop and test without a board
 
@@ -93,8 +95,16 @@ in the generated SDK configuration. `--deploy` requires `--compile` and one exam
 
 The direct pins are in `requirements-dev.txt`; the resolved Python environment
 is in `requirements-lock.txt`. Toolchain/source details are in
-[versions](docs/versions.md). On systems with the sanitizer runtime installed,
-prefix the test command with `SANITIZE=1` to enable ASan/UBSan. CI does this.
+[versions](docs/versions.md). With both sanitizer runtimes (`libasan` and
+`libubsan`) installed, run:
+
+```sh
+SANITIZE=1 UBSAN_OPTIONS=halt_on_error=1:print_stacktrace=1 .venv/bin/python -m unittest discover -s tests -v
+```
+
+`SANITIZE=1` enables ASan/UBSan instrumentation, also requested by CI.
+`halt_on_error=1` makes UBSan findings fail the process; without it, a diagnostic
+can appear while unittest still reports success.
 
 Test the real HA interface without a board, with rootless Podman:
 

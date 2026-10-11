@@ -32,10 +32,20 @@ font, rendering and PNG fixture checks. New tests cover applied versus rendered,
 same-image context changes, stale IN epochs/output generations, retained release
 pairs, failed tiles, lost acknowledgements/lease expiry, overflow, bounded origins,
 decode/clock failures, cancellation drain and position limits. Position-only
-updates reuse retained artwork without another fetch. The optional ASan/UBSan
-run failed at link time because this host lacks `/usr/lib64/libasan.so.8.0.0`;
-none of those sanitizer executables ran. Normal tests pass; no sanitizer pass or
-remote CI result is claimed.
+updates reuse retained artwork without another fetch. The initial ASan/UBSan
+attempt failed at link time because `/usr/lib64/libasan.so.8.0.0` was missing.
+
+Sanitizer follow-up, 2026-10-11: both `libasan` and `libubsan` are now installed
+at `16.2.1-2.fc44.x86_64`, with GCC 16.1.1. Enabling the checks exposed an empty
+vector's null source passed to a zero-length `memcpy` in the P8 fake fetcher.
+An empty-buffer guard now skips that copy. All 60 host tests pass without
+sanitizer diagnostics, including nine native executables compiled and run with
+ASan/UBSan. `UBSAN_OPTIONS=halt_on_error=1:print_stacktrace=1` made any UBSan
+finding fatal, avoiding the default recoverable diagnostic's misleading unittest
+success. This follow-up changes only the test helper and documentation;
+firmware builds, HA/browser results and hardware status retain their earlier
+evidence below. No firmware rebuild, deployment, hardware test or remote CI run
+was performed for this guard.
 
 HA-engine-tested: 58 pytest cases against real HA 2026.10.1 with mocked native
 actions. New cases cover page/overlay bounds, inherit/clear precedence, inactive
@@ -79,12 +89,12 @@ npm test --prefix frontend
 .venv/bin/python tools/ha_lab.py down
 .venv/bin/python tools/ha_lab.py up
 .venv/bin/python tools/ha_lab.py test
-SANITIZE=1 .venv/bin/python -m unittest discover -s tests -p 'test_native.py' -v
+SANITIZE=1 UBSAN_OPTIONS=halt_on_error=1:print_stacktrace=1 .venv/bin/python -m unittest discover -s tests -v
 git diff --check
 ```
 
-The sanitizer command has the environment limitation described above. The last
-full ordinary suite, HA-engine and 24 live scenarios passed with no skips.
+The sanitizer command passed after the follow-up above. The full host suite,
+HA-engine and 24 live scenarios passed with no skips in their respective runs.
 Raw logs, JUnit, credentials, screenshots and binaries remain private/ignored;
 [sanitized P8 acceptance metadata](../tests/ha_lab/acceptance-p8-2026-10-11.json)
 records artifact/version identities and results. The lab remains running with a
@@ -399,7 +409,8 @@ The actual asset origin/PNG and device reachability check remain pending; the
 probe uses a configurable placeholder. Example 04 remains the last recorded
 hardware baseline. Internal heap/TLS coexistence, step/download/render timings,
 key/API/OTA responsiveness and network/reconnect tests still need a device run.
-The local ASan/UBSan libraries remain unavailable; no sanitizer pass is claimed.
+At P3 validation time, the local ASan/UBSan libraries were unavailable; no
+sanitizer pass was claimed for that run. See the later P8 follow-up above.
 
 Commands run successfully:
 
@@ -445,9 +456,10 @@ example 04 and the renderer probe; remote CI itself has not run in this session.
 
 Hardware-verified: **none for P2**. No firmware was uploaded. Example 04 remains
 the last recorded hardware baseline; new fonts, PSRAM rendering load, step
-timings and display appearance await device testing. Local ASan/UBSan runtime
-libraries remain unavailable, so native assertions/counting allocators establish
-only the exercised paths, not a sanitizer pass.
+timings and display appearance await device testing. At P2 validation time,
+local ASan/UBSan runtimes were unavailable, so that run's native assertions and
+counting allocators established only the exercised paths, not a sanitizer pass.
+See the later P8 follow-up above.
 
 Commands run successfully:
 
@@ -491,8 +503,8 @@ Commands run for this stage:
 git diff --check
 ```
 
-GCC warnings are errors and assertions remain enabled. Local sanitizer runtime
-libraries are still absent; no ASan/UBSan pass is claimed. Counting/poisoning test
+GCC warnings are errors and assertions remain enabled. Local sanitizer runtimes
+were absent during this stage; no ASan/UBSan pass was claimed then. Counting/poisoning test
 allocators cover the exercised ownership paths, not every possible execution.
 The owner reconfirmed `192.168.10.238`; two ICMP requests received replies. This
 is reachability only, not a new firmware/USB/HA qualification. No firmware upload
@@ -559,10 +571,11 @@ Commands actually run:
 All final commands passed in the implementation session. The later owner-confirmation
 update changes documentation only; no firmware rebuild or upload was performed.
 An initial sanitizer link attempt failed because this
-machine lacks `/usr/lib64/libasan.so.8.0.0`. Local C++ tests ran with warnings as
+machine lacked `/usr/lib64/libasan.so.8.0.0`. Those local C++ tests ran with warnings as
 errors and assertions enabled, without sanitizers. `SANITIZE=1` enables ASan/UBSan
-on a machine with those runtimes; the CI workflow requests them. This document
-does not claim a local sanitizer run passed.
+on a machine with those runtimes; the CI workflow requests them. No sanitizer
+pass was claimed for that earlier run. The P8 follow-up above records the later
+successful local check with both `libasan` and `libubsan` installed.
 
 Latest synthetic builds, 2026-10-11, including P0–P4 and the IN-64 / OUT-512 path:
 

@@ -25,8 +25,10 @@ P7 adds the bundled [visual editor and artwork library](visual-editor.md):
 revocable device reads and firmware-matched previews.
 P8 adds [runtime v2](runtime-v2.md): explicit capabilities, verified persistent
 origins, positioned labels, bounded HA pages/overlays and input correlated with
-USB-applied revisions. The optional local sanitizer run could not link because
-the host lacks `libasan.so.8.0.0`; no sanitizer pass is claimed.
+USB-applied revisions. The local sanitizer blocker is resolved: `libasan` and
+`libubsan` are installed, and all 60 host tests pass with ASan/UBSan on the nine
+native executables after adding an empty-buffer guard to the P8 test fetcher.
+UBSan was configured to halt on errors; see [the follow-up evidence](testing.md).
 No firmware was deployed or newly hardware-verified; example 04 remains the
 installed bench baseline.
 

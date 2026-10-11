@@ -102,7 +102,8 @@ struct Fetcher : assets::Fetcher {
   bool poll(assets::FetchResult &result) override {
     if (!running) return false;
     if (cancelled) return false;  // Exercise cancellation drain retaining the buffer.
-    assert(bytes.size() <= capacity); std::memcpy(output, bytes.data(), bytes.size());
+    assert(bytes.size() <= capacity);
+    if (!bytes.empty()) std::memcpy(output, bytes.data(), bytes.size());
     result = {token, error, bytes.size(), 200}; running = false; return true;
   }
   void cancel() override { cancelled = true; }

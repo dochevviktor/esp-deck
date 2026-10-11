@@ -46,8 +46,20 @@
     "normalized_production_decoder_cases": 10
   },
   "sanitizers": {
-    "status": "blocked_at_link",
-    "reason": "Host GCC cannot find /usr/lib64/libasan.so.8.0.0; no sanitized executable ran."
+    "status": "passed",
+    "tested_at_utc": "2026-10-11T17:22:30Z",
+    "base_commit": "e51dbc126bab494796550fac694a7a639d07d10e",
+    "test_v2_source_sha256": "5a534d47b363aa3d1f2240fd4882f96bba83668848be2dc18b11c9b9db05923d",
+    "host_tests_passed": 60,
+    "native_executables": 9,
+    "compiler": "GCC 16.1.1 (Red Hat 16.1.1-2)",
+    "packages": {
+      "libasan": "16.2.1-2.fc44.x86_64",
+      "libubsan": "16.2.1-2.fc44.x86_64"
+    },
+    "command": "SANITIZE=1 UBSAN_OPTIONS=halt_on_error=1:print_stacktrace=1 .venv/bin/python -m unittest discover -s tests -v",
+    "previous_status": "blocked_at_link: missing /usr/lib64/libasan.so.8.0.0",
+    "notes": "Follow-up after runtime installation and the empty-buffer guard in the P8 fake fetcher. No sanitizer diagnostics. Firmware, HA/browser and hardware results above/below retain their original provenance."
   },
   "firmware": {
     "synthetic_compilations_passed": 7,
