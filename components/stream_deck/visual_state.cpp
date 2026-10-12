@@ -28,6 +28,14 @@ bool color(std::string_view value, uint32_t &out) {
 }
 }  // namespace
 
+bool valid_asset_id(std::string_view id) {
+  if (id.size() != 64) return false;
+  for (char c : id) if (!((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f'))) return false;
+  return true;
+}
+std::string_view uploaded_asset_id(std::string_view url) {
+  return url.substr(0, 8) == "asset://" && valid_asset_id(url.substr(8)) ? url.substr(8) : std::string_view{};
+}
 bool valid_url(std::string_view url) {
   if (url.empty() || url.size() > MAX_URL_BYTES) return false;
   // V1 deliberately has no URL credentials, signed queries, fragments, IPv6
@@ -127,7 +135,9 @@ Error apply_patch(const Command &cmd, const State &base, State &result) {
     if (cmd.image_url.empty()) {
       if (!cmd.image_revision.empty()) return Error::INVALID_IMAGE_REVISION;
     } else {
-      if (!valid_url(cmd.image_url)) return Error::INVALID_URL;
+      const auto asset = uploaded_asset_id(cmd.image_url);
+      if (!valid_url(cmd.image_url) && !(cmd.v2 && !asset.empty())) return Error::INVALID_URL;
+      if (!asset.empty() && cmd.image_revision != asset) return Error::INVALID_IMAGE_REVISION;
       if (cmd.image_revision.empty()) return Error::INVALID_IMAGE_REVISION;
       for (char c : cmd.image_revision)
         if (!alnum(c) && c != '.' && c != '_' && c != '-' && c != ':') return Error::INVALID_IMAGE_REVISION;
@@ -280,6 +290,7 @@ const char *error_name(Error error) {
     case Error::CLOCK_NOT_READY: return "clock_not_ready";
     case Error::INVALID_POSITION: return "invalid_position";
     case Error::INVALID_CONTEXT: return "invalid_context";
+    case Error::ARTWORK_MISSING: return "artwork_missing";
   }
   return "unknown";
 }

@@ -397,17 +397,18 @@ class ArtworkLibrary:
             self.leases[entry_id, asset_id] = time.monotonic() + GRACE_SECONDS
             self.read_leases[entry_id, asset_id] = time.monotonic() + GRACE_SECONDS
 
-    def resolve(self, entry_id, visual):
+    def resolve(self, entry_id, visual, *, direct=False):
         result = dict(visual)
         asset_id = result.pop("asset_id", "")
         if asset_id:
             deck = self.data["decks"][entry_id]
             if asset_id not in deck["variants"]:
                 raise LayoutError("artwork_not_found")
-            if not deck["origin"]:
+            if not direct and not deck["origin"]:
                 raise LayoutError("artwork_origin_required")
             self.leases[entry_id, asset_id] = time.monotonic() + GRACE_SECONDS
-            result.update(image_url=f"{deck['origin']}{DEVICE_PATH}{deck['token']}/{asset_id}.png",
+            result.update(image_url=(f"asset://{asset_id}" if direct else
+                                     f"{deck['origin']}{DEVICE_PATH}{deck['token']}/{asset_id}.png"),
                           image_revision=asset_id)
         return result
 

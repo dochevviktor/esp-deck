@@ -1,6 +1,20 @@
 # Protocol v2 adds new actions; v1's fixed signatures remain unchanged.
 api:
   actions:
+    - action: upload_deck_artwork
+      supports_response: only
+      variables:
+        session: string
+        asset_id: string
+        offset: int
+        total_size: int
+        data: string
+      then:
+        - api.respond:
+            data: !lambda |-
+              id(deck).upload_artwork({session.c_str(), session.size()}, {asset_id.c_str(), asset_id.size()},
+                  offset, total_size, {data.c_str(), data.size()}, root);
+
     - action: get_deck_capabilities
       supports_response: only
       then:

@@ -61,6 +61,12 @@ class StreamDeck : public Component {
     if (!assets_ || !assets_->store.matches_session(session)) { root["error"] = "wrong_session"; return; }
     assets_->inputs.read(reader, ack, millis(), root);
   }
+  template<typename Object> void upload_artwork(std::string_view session, std::string_view asset_id,
+      int32_t offset, int32_t total_size, std::string_view data, Object root) {
+    root["session"] = visual_session();
+    if (!assets_) { root["accepted"] = false; root["error"] = "upload_unavailable"; return; }
+    assets_->pipeline.uploads().receive(session, asset_id, offset, total_size, data, millis()).write(root);
+  }
   template<typename Object> void provision_origins(std::string_view session, std::string_view origins,
                                                   std::string_view url, Object root) {
     root["session"] = visual_session();

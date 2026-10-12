@@ -1,5 +1,13 @@
 # Home Assistant runtime control implementation plan
 
+Direction update, 2026-10-12: the owner requested direct HA-to-ESP API artwork
+uploads. The [bounded upload path](artwork-upload.md) is implemented and becomes
+the default for library images on capability-compatible firmware. This explicitly
+supersedes the earlier deferral of direct/chunked uploads. It reuses encrypted
+native API actions, source hashes, PNG decoding, local rendering and existing
+input/USB fences. HTTP remains for older firmware and external URLs. Hardware
+rules and pending device/electrical gates are unchanged; no deployment occurred.
+
 USB startup follow-up, 2026-10-11: the owner confirmed the 23:05:52 image still
 showed only the logo, unknown keys and no brightness response. Restoring example
 04's full startup on runtime firmware returned real key reports, all 15 key
@@ -191,7 +199,8 @@ A guided editor, upload/crop/fit pipeline, key rearrangement and bounded pages/
 modifier layers are now planned in P6–P8. HA stores them; only the active 15 tiles
 need to reside on the ESP. Keep the P4 YAML interface for advanced use/testing,
 but routine setup must not require hand-editing it. Chunked image uploads to the
-ESP, flash-persisted layouts, animations, unlimited graphical layers/fonts, other
+ESP were subsequently authorized on 2026-10-12; see [the upload contract](artwork-upload.md).
+Flash-persisted layouts, animations, unlimited graphical layers/fonts, other
 models, a second host stack, MQTT and a permanent desktop bridge remain out of
 scope. A test-only virtual deck does not become a deployment dependency.
 
@@ -680,9 +689,10 @@ test baseline independently of the owner. P7 adds JPEG import on HA while the ES
 continues to receive PNG. P8 resolves input/display ordering and origin
 provisioning in [the v2 contract](runtime-v2.md); physical timing/fetch validation
 remains pending. Additional ESP codecs,
-arbitrary fonts, direct/chunked ESP uploads and unlimited graphical composition
-remain follow-on work. Physical tests need a reachable chosen HA endpoint, not
-necessarily the owner's production system.
+arbitrary fonts and unlimited graphical composition remain follow-on work.
+Direct/chunked uploads are now implemented as the default for library artwork.
+Physical HTTP tests still need a reachable chosen HA endpoint; direct artwork
+transfers use the existing native API connection.
 
 ## Validation and deployment commands
 

@@ -41,3 +41,7 @@ V2_SIGNATURES = {
     "read_deck_inputs": {"session": "STRING", "reader": "STRING", "ack": "INT"},
     "provision_asset_origins": {"session": "STRING", "origins": "STRING", "test_url": "STRING"},
 }
+UPLOAD_SIGNATURES = {
+    "upload_deck_artwork": {"session": "STRING", "asset_id": "STRING", "offset": "INT",
+                            "total_size": "INT", "data": "STRING"},
+}

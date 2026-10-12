@@ -1,5 +1,10 @@
 # Bounded URL loading and caching (P3)
 
+Library artwork now uses [direct encrypted API uploads](artwork-upload.md) on
+compatible firmware. The same decoder/renderer serves both transports. The HTTP
+configuration below remains relevant for older firmware and external image URLs;
+it is no longer a prerequisite for routine library artwork on updated devices.
+
 P8 adds [explicit, verified origin provisioning](runtime-v2.md#explicit-origin-provisioning)
 over the encrypted API. A valid persisted v2 origin record replaces compiled
 defaults at boot. The decoder, fetch/TLS limits, retained caches and v1 compiled

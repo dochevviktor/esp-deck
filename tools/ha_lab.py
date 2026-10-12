@@ -33,7 +33,7 @@ LABEL = "io.esp-deck.lab"
 URL = "http://127.0.0.1:18123"
 ARTIFACT = None
 PORTABLE = ("protocol", "runtime_image", "scheduler", "visual_state", "visual_api",
-            "asset_policy", "asset_pipeline", "asset_png", "renderer", "render_font")
+            "asset_policy", "asset_pipeline", "asset_upload", "asset_png", "renderer", "render_font")
 
 
 def podman(*args, check=True, log=None):

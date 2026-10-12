@@ -203,7 +203,8 @@ class DeckController(AdvancedController):
                 self.binding_error = "entity_missing_or_disabled"
             result.update(rule[variant])
         if library := self.hass.data.get(DATA_KEY):
-            return library.resolve(self.entry.entry_id, result)
+            return library.resolve(self.entry.entry_id, result,
+                                   direct=self.capabilities.get("artwork_upload") == "png_chunks_v1")
         result.pop("asset_id", None)
         return result
 
@@ -254,6 +255,14 @@ class DeckController(AdvancedController):
                 if status["revision"] >= MAX_REVISION:
                     self.tiles[key] = {**status, "phase": "failed", "error": "revision_exhausted"}
                     continue
+                if desired["image_url"].startswith("asset://") and (
+                        not previous or previous["visual"]["image_url"] != desired["image_url"]
+                        or status["phase"] == "failed"):
+                    asset_id = desired["image_revision"]
+                    payload = await self.hass.data[DATA_KEY].read(self.entry.entry_id, asset_id)
+                    if not await self.adapter.upload_artwork(deck, asset_id, payload,
+                            current=lambda: self.active and self.epoch == epoch):
+                        return
                 values = {**desired, "label_text": desired["text"], "fields": 127, "revision": status["revision"] + 1}
                 del values["text"]
                 if v2:

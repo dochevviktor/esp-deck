@@ -2,6 +2,7 @@
 #include "asset_fetch.h"
 #include "asset_png.h"
 #include "asset_policy.h"
+#include "asset_upload.h"
 #include <optional>
 
 namespace esphome::stream_deck::assets {
@@ -21,6 +22,7 @@ class Pipeline {
   int last_http_status() const { return last_http_status_; }
   size_t cache_bytes() const { return cached_.used_bytes() + sizeof(entries_); }
   size_t native_bytes() const { return native_.used_bytes(); }
+  UploadCache &uploads() { return uploads_; }
  private:
   static constexpr size_t CACHE_ENTRIES = protocol::KEY_COUNT + 1;
   enum class Phase : uint8_t { IDLE, FETCH, DRAIN, PNG, RENDER };
@@ -51,6 +53,7 @@ class Pipeline {
   ImageAllocator &memory_;
   const OriginPolicy &policy_;
   ImageAllocator &native_;  // Outlives every image retained by the USB scheduler.
+  UploadCache uploads_;
   Pool cached_;
   Buffer workspace_, encoded_;
   PngDecoder decoder_;

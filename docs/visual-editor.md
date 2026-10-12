@@ -1,5 +1,10 @@
 # Visual editor and artwork library (P7)
 
+Direct upload update, 2026-10-12: compatible firmware receives library artwork
+over its existing encrypted API. Upload/crop and Apply need no artwork address.
+The editor moves HTTP settings into an advanced disclosure and explains automatic
+delivery. Old firmware retains the address workflow. [Contract and limits](artwork-upload.md).
+
 P8 update: compatible v2 firmware enables bounded label positioning, named
 pages, sparse overlays and navigation/modifier bindings. Library settings now
 offer Verify & provision address, also available under Configure → Artwork

@@ -1,5 +1,10 @@
 # Runtime v2: capabilities, origins and safe pages
 
+The optional [direct artwork extension](artwork-upload.md) adds
+`upload_deck_artwork`, `artwork_upload: png_chunks_v1` and upload byte/chunk limits.
+Updated HA uses it for library images without origin provisioning. Existing v2
+signatures, protocol version, input correlation and v1 compatibility remain.
+
 P8 extends example 05 with four new encrypted native actions. The four v1
 signatures, manual helper scripts and edge entities remain compatible. Example
 04 has neither runtime version. The owner's requested example-05 update is now

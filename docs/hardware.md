@@ -1,5 +1,11 @@
 # Wiring and hardware acceptance
 
+Direct artwork uploads, 2026-10-12: [the software path](artwork-upload.md) is
+implemented and tested without a physical deployment. Device gates remain open:
+verify uploaded image appearance, ESP SHA/PSRAM behavior, input latency during
+transfers, reconnect/replay and OTA responsiveness after a requested update.
+The earlier physical evidence and all electrical gates below are unchanged.
+
 USB startup follow-up, 2026-10-11: the owner confirmed that the earlier recovery
 still left logo/unknown-key/no-brightness symptoms. Restoring the full bench
 startup recovered real input and HA light actions. The sequence is now

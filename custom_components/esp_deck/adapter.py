@@ -5,6 +5,7 @@ Registry UUIDs survive HA entity renames; native service names are resolved anew
 """
 
 import asyncio
+import base64
 from dataclasses import dataclass
 import re
 
@@ -14,7 +15,7 @@ from homeassistant.core import SupportsResponse
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import device_registry as dr, entity_registry as er
 
-from .const import KEY_COUNT, MAX_REVISION, SIGNATURES, V2_SIGNATURES
+from .const import KEY_COUNT, MAX_REVISION, SIGNATURES, V2_SIGNATURES, UPLOAD_SIGNATURES
 from .model import LayoutError, references
 
 
@@ -111,6 +112,8 @@ class Adapter:
         signatures = dict(SIGNATURES)
         if any(service.name in V2_SIGNATURES for service in runtime.services.values()):
             signatures.update(V2_SIGNATURES)
+        if any(service.name in UPLOAD_SIGNATURES for service in runtime.services.values()):
+            signatures.update(UPLOAD_SIGNATURES)
         for name, signature in signatures.items():
             matches = [service for service in runtime.services.values() if service.name == name]
             if len(matches) != 1:
@@ -180,7 +183,42 @@ class Adapter:
                 origin(address, max_bytes=272)
         except (LayoutError, TypeError):
             raise AdapterError("incompatible_capabilities") from None
+        if "artwork_upload" in result:
+            if (result["artwork_upload"] != "png_chunks_v1" or "upload_deck_artwork" not in deck.actions
+                    or type(result.get("upload_max_bytes")) is not int or result["upload_max_bytes"] != 32768
+                    or type(result.get("upload_chunk_bytes")) is not int or result["upload_chunk_bytes"] != 1024):
+                raise AdapterError("incompatible_capabilities")
         return result
+
+    async def upload_artwork(self, deck, asset_id, payload, current=lambda: True):
+        """Probe/resume one bounded immutable file, awaiting each chunk's ack."""
+        from .artwork import identifier, MAX_PNG
+        identifier(asset_id)
+        if not 0 < len(payload) <= MAX_PNG:
+            raise AdapterError("upload_size")
+        offset, data = 0, ""
+        while current():
+            result = await self.raw_call(deck, "upload_deck_artwork", session=deck.session,
+                asset_id=asset_id, offset=offset, total_size=len(payload), data=data)
+            if not current():
+                return False
+            if (result.get("session") != deck.session or type(result.get("accepted")) is not bool
+                    or not isinstance(result.get("error"), str)
+                    or not re.fullmatch(r"[a-z_]{1,48}", result["error"])):
+                raise AdapterError("invalid_native_response")
+            if not result["accepted"]:
+                raise AdapterError(result["error"])
+            received = result.get("received")
+            if (type(received) is not int or not 0 <= received <= len(payload)
+                    or type(result.get("complete")) is not bool or result["error"] != "none"
+                    or result["complete"] != (received == len(payload))
+                    or (data and received != offset + len(base64.b64decode(data)))):
+                raise AdapterError("invalid_native_response")
+            if result["complete"]:
+                return True
+            offset = received
+            data = base64.b64encode(payload[offset:offset + 1024]).decode("ascii")
+        return False
 
     async def probe(self):
         deck = self.resolve()

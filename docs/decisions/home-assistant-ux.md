@@ -1,5 +1,10 @@
 # HA test lab and guided configuration
 
+2026-10-12 amendment: the owner selected [direct native API artwork uploads](../artwork-upload.md).
+This supersedes the HTTP-only delivery decision for normal library artwork on
+compatible firmware. Restricted HTTP delivery remains the older-firmware fallback
+and external-URL option; HA ownership and local ESP rendering remain unchanged.
+
 Research and recommended design, 2026-10-11. This extends the owner's requested
 direction after P4; it is not an implemented integration or a container test result.
 Implementation stages and acceptance gates are in [the plan](../implementation-plan.md).

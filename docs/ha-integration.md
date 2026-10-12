@@ -1,5 +1,10 @@
 # ESP Deck Home Assistant integration
 
+The backend now negotiates [direct artwork uploads](artwork-upload.md) and sends
+library PNGs through the existing encrypted native connection. Saved layouts and
+asset hashes need no migration. Old firmware keeps the HTTP delivery path;
+compatible firmware needs no HA artwork address for library images.
+
 P9 packages version 0.9.0 as an installable ZIP with the editor, translations,
 brand images and licences. See [installation, upgrades and qualification](release.md).
 It fixes repair translation validation and removal of disabled entries after

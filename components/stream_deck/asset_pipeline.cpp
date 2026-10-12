@@ -6,11 +6,12 @@ namespace esphome::stream_deck::assets {
 Pipeline::Pipeline(visual::Store &store, Fetcher &fetcher, ImageAllocator &memory, ImageAllocator &native,
                    const OriginPolicy &policy)
     : store_(store), fetcher_(fetcher), memory_(memory), policy_(policy), native_(native),
-      cached_(memory, visual::MAX_BACKGROUND_BYTES - sizeof(entries_)), decoder_(memory) {
+      uploads_(store, memory), cached_(memory, visual::MAX_BACKGROUND_BYTES - sizeof(entries_)), decoder_(memory) {
   key_entries_.fill(-1);
 }
 visual::Submission Pipeline::submit(const visual::Command &command) {
-  if ((command.fields & visual::IMAGE) && !command.image_url.empty() && !policy_.allows(command.image_url)) {
+  if ((command.fields & visual::IMAGE) && !command.image_url.empty() &&
+      !(command.v2 && !visual::uploaded_asset_id(command.image_url).empty()) && !policy_.allows(command.image_url)) {
     const auto *status = store_.status(command.key);
     return {false, visual::Error::ORIGIN_NOT_ALLOWED, status ? status->phase : visual::Phase::IDLE,
             status ? status->revision : 0};
@@ -47,7 +48,8 @@ void Pipeline::begin_(uint32_t now) {
     renderer_.emplace(*workspace);
   }
   if (job_.state.image_url.empty()) { render_({}); return; }
-  if (!policy_.allows(job_.state.image_url.view())) { fail_(visual::Error::ORIGIN_NOT_ALLOWED); return; }
+  const auto uploaded = visual::uploaded_asset_id(job_.state.image_url.view());
+  if (uploaded.empty() && !policy_.allows(job_.state.image_url.view())) { fail_(visual::Error::ORIGIN_NOT_ALLOWED); return; }
   const Identity identity(job_.state);
   entry_ = find_(identity);
   if (entry_ >= 0) {
@@ -57,9 +59,17 @@ void Pipeline::begin_(uint32_t now) {
     return;
   }
   entry_ = reserve_();
-  if (entry_ < 0 || !encoded_.allocate(memory_, visual::MAX_ENCODED_BYTES)) { fail_(visual::Error::OUT_OF_MEMORY); return; }
+  if (entry_ < 0) { fail_(visual::Error::OUT_OF_MEMORY); return; }
   entries_[entry_].identity = identity;
   cache_miss_ = true;
+  if (!uploaded.empty()) {
+    if (!uploads_.contains(uploaded)) { fail_(visual::Error::ARTWORK_MISSING); return; }
+    if (!uploads_.copy(uploaded, encoded_)) { fail_(visual::Error::OUT_OF_MEMORY); return; }
+    phase_ = Phase::PNG;
+    if (!decoder_.begin(encoded_.data(), encoded_.size())) fail_(decoder_.error());
+    return;
+  }
+  if (!encoded_.allocate(memory_, visual::MAX_ENCODED_BYTES)) { fail_(visual::Error::OUT_OF_MEMORY); return; }
   if (!fetcher_.start(job_.state.image_url.view(), encoded_.data(), encoded_.size(), job_.token)) {
     fail_(visual::Error::FETCH_FAILED); return;
   }
@@ -103,6 +113,7 @@ void Pipeline::commit_() {
   retire_();
 }
 void Pipeline::loop(uint32_t now) {
+  uploads_.expire(now);
   if (phase_ == Phase::DRAIN) {
     FetchResult result;
     if (fetcher_.poll(result) && result.token == job_.token) retire_();

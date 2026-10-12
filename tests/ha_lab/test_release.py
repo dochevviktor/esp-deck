@@ -31,7 +31,7 @@ def restart_ha():
     lab.wait_for_ha()
 
 
-def test_installed_archive_brand_and_guided_default_address(backend):
+def test_installed_archive_brand_and_automatic_artwork_delivery(backend):
     files = package_release.inspect_archive(artifact())
     installed = lab.LAB / "config/custom_components/esp_deck"
     for name, data in files.items():
@@ -47,12 +47,9 @@ def test_installed_archive_brand_and_guided_default_address(backend):
         page = browser.new_page(viewport={"width": 1280, "height": 1000})
         login(page)
         page.get_by_text("Library settings & backup", exact=True).click()
-        # HA's own configured internal address is already filled in; no URL,
-        # revision counter, YAML or Lovelace resource is entered by the user.
-        expect(page.locator("#origin")).to_have_value("http://ha:8123")
-        page.get_by_role("button", name="Verify & provision address", exact=True).click()
-        expect(page.locator("#set-origin")).to_be_enabled(timeout=30000)
-        assert browser_command(backend, "status")["capabilities"]["origin_probe"] == "verified"
+        expect(page.get_by_text("Artwork is sent securely to your deck automatically. No artwork address is needed.")).to_be_visible()
+        expect(page.locator("#origin")).not_to_be_visible()
+        assert browser_command(backend, "status")["capabilities"]["artwork_upload"] == "png_chunks_v1"
         page.locator("#preset-entity").select_option("light.example_lamp")
         page.get_by_role("button", name="Use preset", exact=True).click()
         page.get_by_role("tab", name="Appearance", exact=True).click()

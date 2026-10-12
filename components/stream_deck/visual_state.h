@@ -31,10 +31,13 @@ enum class Error : uint8_t {
   ORIGIN_NOT_ALLOWED, FETCH_TIMEOUT, HTTP_STATUS, UNSUPPORTED_ENCODING, UNSUPPORTED_PNG,
   CLOCK_NOT_READY,
   INVALID_POSITION, INVALID_CONTEXT,
+  ARTWORK_MISSING,
 };
 const char *error_name(Error error);
 const char *phase_name(Phase phase);
 bool valid_url(std::string_view url);
+bool valid_asset_id(std::string_view id);
+std::string_view uploaded_asset_id(std::string_view url);
 // Shared strict UTF-8 boundary for validation and rendering. Output/count are
 // usable only on success; there are never more than MAX_LABEL_CODEPOINTS.
 Error decode_label(std::string_view text, std::array<uint32_t, MAX_LABEL_CODEPOINTS> &points, size_t &count);

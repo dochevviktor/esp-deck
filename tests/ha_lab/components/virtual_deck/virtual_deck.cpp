@@ -1,5 +1,6 @@
 #include "virtual_deck.h"
 #include "asset_inflate.h"
+#include <noise/protocol.h>
 #include "esphome/components/json/json_util.h"
 #include "esphome/core/hal.h"
 #include <algorithm>
@@ -16,6 +17,20 @@
 extern char **environ;
 
 namespace esphome::virtual_deck {
+// The host image already links Noise's SHA256 for its encrypted API. Production
+// uses ESPHome's SHA256/mbedTLS adapter; this avoids a host OpenSSL-dev dependency.
+bool verify_upload_host(const uint8_t *data, size_t size, std::string_view expected) {
+  NoiseHashState *hash = nullptr;
+  if (noise_hashstate_new_by_id(&hash, NOISE_HASH_SHA256) != NOISE_ERROR_NONE) return false;
+  uint8_t digest[32];
+  const bool valid = noise_hashstate_hash_one(hash, data, size, digest, sizeof(digest)) == NOISE_ERROR_NONE;
+  noise_hashstate_free(hash);
+  if (!valid || expected.size() != 64) return false;
+  const char *hex = "0123456789abcdef";
+  for (size_t i = 0; i < sizeof(digest); ++i)
+    if (expected[i * 2] != hex[digest[i] >> 4] || expected[i * 2 + 1] != hex[digest[i] & 15]) return false;
+  return true;
+}
 uint64_t new_session() {
   // A one-shot override exercises numeric-looking sessions in real HA templates.
   std::ifstream override_file("/lab/next-session");
@@ -96,6 +111,7 @@ bool HostFetcher::poll(assets::FetchResult &result) {
 }
 
 void VirtualDeck::setup() {
+  pipeline_.uploads().set_verifier(verify_upload_host);
   // Test commands are one-shot input, never a retained boot input state.
   std::remove("/lab/control.json");
   char text[17];

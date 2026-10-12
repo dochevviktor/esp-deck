@@ -19,7 +19,7 @@ MULTI_CONF = False
 
 def AUTO_LOAD(config):
     base = ["binary_sensor", "number", "sensor"]
-    return base + ["text_sensor"] if not config or "runtime_visuals" in config else base
+    return base + ["text_sensor", "sha256"] if not config or "runtime_visuals" in config else base
 
 deck_ns = cg.esphome_ns.namespace("stream_deck")
 StreamDeck = deck_ns.class_("StreamDeck", cg.Component)

@@ -88,6 +88,9 @@ template<typename Object> void capabilities(Object root, const assets::OriginPol
   root["text_wrap"] = "word then glyph; two lines with ellipsis";
   root["text_clip"] = "ink clips to box; outline clips to key";
   root["probe_max_bytes"] = 32768;
+  root["artwork_upload"] = "png_chunks_v1";
+  root["upload_max_bytes"] = assets::UploadCache::MAX_BYTES;
+  root["upload_chunk_bytes"] = assets::UploadCache::CHUNK_BYTES;
   root["positioning"] = true; root["origin_provisioning"] = true;
   root["input_correlation"] = "pull_context_v2"; root["input_lease_ms"] = InputChannel::LEASE_MS;
   root["rendered"] = "scheduler_desired"; root["applied"] = "two_usb_reports_completed";

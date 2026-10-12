@@ -5,6 +5,16 @@ ESPHome firmware for the **original 15-key Elgato Stream Deck (0FD9:0060)** on a
 and sends locally rendered images over native USB. Home Assistant uses the
 encrypted ESPHome API; encrypted OTA is configured.
 
+Direct artwork transfer is now implemented: HA sends normalized PNGs through
+the existing encrypted API on compatible firmware. Library artwork needs no
+ESP-to-HA HTTP route or artwork-address setup. Labels remain locally rendered
+and reuse cached images; older firmware and external URLs retain HTTP support.
+See [the upload contract and validation](docs/artwork-upload.md). This update
+has not been deployed to or hardware-verified on the physical ESP.
+Current validation: all seven firmware builds, 73 host tests with sanitizers,
+66 HA-engine tests with mocked actions, five frontend tests, and a real encrypted
+API upload/render test with zero HTTP downloads. [Detailed evidence](docs/testing.md).
+
 Implemented: protocol, asynchronous USB transport, reconnect/recovery, all 15 key
 entities, brightness, diagnostics, images and a state-driven HA lamp example.
 Runtime foundations: validated visual patches/revisions and immutable owned image
@@ -29,7 +39,9 @@ validators and archive installation/upgrade/backup/removal tests. See
 remaining GitHub/HACS and physical gates.
 The real ESP now runs example 05: [the physical lab session](docs/hardware-lab.md)
 verified HA pairing, text/page USB completion and real light-binding actions.
-Artwork fetching still needs a reachable route from the ESP back to the lab VM.
+The installed firmware's HTTP artwork path still needs a reachable route from
+the ESP back to the lab VM; the new upload path removes that requirement after
+the firmware and HA integration are updated.
 The active physical HA is now the owner's retargeted **18123** instance. Its
 association was repaired and the Redraw/applied-state bug fixed and deployed;
 the extra 18124 instance is stopped. Saved image pages remain alongside separate
@@ -93,6 +105,7 @@ python3 -m venv .venv
 .venv/bin/python tools/generate_png_fixtures.py --check
 .venv/bin/python tools/check_firmware.py
 .venv/bin/python tools/check_firmware.py --compile
+.venv/bin/python tools/check_artwork_upload.py
 npm ci --prefix frontend --ignore-scripts --no-audit --no-fund
 npm run check --prefix frontend
 npm test --prefix frontend

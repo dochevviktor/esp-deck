@@ -8,6 +8,9 @@
 #include "esp_log.h"
 #include <new>
 #endif
+#ifdef USE_STREAM_DECK_RUNTIME_API
+#include "asset_upload_esphome.h"
+#endif
 
 namespace esphome::stream_deck {
 static const char *const TAG = "stream_deck";
@@ -30,6 +33,7 @@ void StreamDeck::setup() {
   } else ESP_LOGE(TAG, "Asset service PSRAM allocation failed; USB/API remain independent");
 #endif
 #ifdef USE_STREAM_DECK_RUNTIME_API
+  if (assets_) assets_->pipeline.uploads().set_verifier(assets::verify_upload);
   origin_preferences_ = global_preferences->make_preference<assets::OriginRecord>(0x45534432);
   assets::OriginRecord saved;
   if (origin_preferences_.load(&saved)) saved.policy(asset_policy_);
@@ -170,6 +174,7 @@ void StreamDeck::loop() {
   }
 #ifdef USE_STREAM_DECK_ASSETS
   if (assets_) {
+    assets_->pipeline.uploads().expire(now);
     if (assets_->provisioning.busy()) assets_->provisioning.loop(now);
     else assets_->pipeline.loop(now);
     if (assets_->pipeline.needs_cpu()) asset_loop_.start();

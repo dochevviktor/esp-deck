@@ -68,6 +68,11 @@ class VirtualDeck final : public Component {
     const auto *error = !store_.matches_session(session) ? "wrong_session" : provisioning_.begin(origins, url, millis());
     root["accepted"] = std::string_view(error) == "none"; root["error"] = error;
   }
+  template<typename Object> void upload_artwork(std::string_view session, std::string_view asset_id,
+      int32_t offset, int32_t total_size, std::string_view data, Object root) {
+    root["session"] = session_;
+    pipeline_.uploads().receive(session, asset_id, offset, total_size, data, millis()).write(root);
+  }
  private:
   void input_(uint16_t mask, bool resync = false, uint32_t epoch = 0);
   void control_();

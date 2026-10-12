@@ -52,6 +52,8 @@ def test_editor_upload_crop_relabel_move_touch_and_closed_browser(backend):
     ready(backend)
     call("light.turn_off", {"entity_id": "light.example_lamp"})
     initial_actions = command(backend, "status")["binding_count"]
+    initial_downloads = settled()["downloads"]
+    assert command(backend, "status")["capabilities"]["artwork_upload"] == "png_chunks_v1"
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(headless=True)
         context = browser.new_context(viewport={"width": 1280, "height": 1000}, has_touch=True)
@@ -78,7 +80,7 @@ def test_editor_upload_crop_relabel_move_touch_and_closed_browser(backend):
         ready(backend); first = settled(0)
         assert first["tiles"][0]["text"] == "My lamp"
         assert len(first["tiles"][0]["image_revision"]) == 64
-        assert 0 < first["last_download_bytes"] <= 32768
+        assert first["downloads"] == initial_downloads
         page.locator("#v-text").fill("Relabeled")
         page.locator("#v-text").press("Tab")
         page.get_by_role("button", name="Apply", exact=True).click()
@@ -94,7 +96,8 @@ def test_editor_upload_crop_relabel_move_touch_and_closed_browser(backend):
         expect(page.locator("#draft-status")).to_have_text("Applied layout", timeout=15000)
         ready(backend); replaced = settled(0)
         assert replaced["tiles"][0]["image_revision"] != second["tiles"][0]["image_revision"]
-        assert replaced["downloads"] == second["downloads"] + 1
+        assert replaced["downloads"] == second["downloads"]
+        assert replaced["tiles"][0]["hash"] != second["tiles"][0]["hash"]
         page.locator("#destination").select_option("4")
         page.get_by_role("button", name="Move", exact=True).click()
         page.get_by_role("button", name="Apply", exact=True).click()

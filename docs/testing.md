@@ -1,5 +1,52 @@
 # Validation and remaining hardware gates
 
+## Direct artwork uploads, 2026-10-12
+
+Implemented: [bounded HA-to-ESP uploads](artwork-upload.md) over the existing
+encrypted native API, with 1 KiB acknowledged chunks, 32 KiB files, SHA-256
+verification, timeout/resume behavior and a bounded PSRAM source cache. The HA
+backend selects this capability automatically for library artwork, preserving
+hash-only layouts, zero-transfer label edits and existing input/USB fences.
+Older firmware and explicit external URLs retain HTTP. The editor puts optional
+HTTP configuration under an advanced disclosure. No production HA or ESP was
+modified; no credentials or binaries were committed.
+
+Compiled: all seven synthetic firmware configurations on the unchanged ESPHome
+2026.9.0 / ESP-IDF 5.5.5 pins, plus the pinned ESPHome host virtual deck. Example
+05 reports 115,219 B static RAM and 1,099,163 B flash (linker estimates). Compared
+with the previous documented synthetic build, the main new memory cost is the
+bounded runtime PNG cache in PSRAM, not these static estimates. No synthetic
+image was uploaded.
+
+Unit-tested: **73 host unittest cases pass with ASan/UBSan**, including ten native
+executables across the suite. The upload executable additionally passed its final
+expanded checks for exact 32 KiB admission, decoder rejection, and retaining an
+active two-page image during replacement. Pinned upstream/render/PNG fixtures
+remain passing. **Five frontend tests** pass and the generated bundle reproduces.
+`git diff --check` passes.
+
+HA-engine-tested: **66 cases pass** in fresh private test data using HA 2026.10.1
+and mocked native actions. New cases exercise no-origin delivery, zero-transfer
+labels, reconnect cache probes, replay, capability compatibility, malformed
+acknowledgements and obsolete-layout cancellation.
+
+Encrypted-API-tested: `.venv/bin/python tools/check_artwork_upload.py` builds an
+independent virtual deck and runs it with `--network=none`, no published ports
+and no HA HTTP server. A **20,876-byte** PNG passes real encrypted API framing,
+SHA-256 admission, production PNG decode/render and simulated USB application.
+The test rejects malformed chunks/wrong sessions/bad hashes, resumes after an
+API disconnect, and applies a cached label/position change at revision 2 with
+**zero HTTP downloads**. Sampled host graphics peak is 130,639 B for that one-tile
+scenario; this is not an ESP memory measurement. Host SHA uses pinned Noise;
+the ESPHome/mbedTLS device SHA adapter is compiled, not hardware-tested.
+
+Hardware-verified for this change: **not yet**. No flash or active HA installation
+was requested/performed. The existing physical lab is preserved. Full real-HA
+browser/lifecycle suites were not rerun; their upload assertions were updated
+for direct delivery, and historical results below remain historical. Physical
+artwork, latency/input under transfer load, ESP PSRAM/SHA, recovery and OTA gates
+remain open alongside all electrical/soak gates.
+
 ## USB startup correction, 2026-10-11
 
 Implemented: every driver attachment now uses the complete working bench
