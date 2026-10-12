@@ -1,5 +1,34 @@
 # Validation and remaining hardware gates
 
+## Direct artwork deployment, 2026-10-12
+
+Implemented/deployed: the committed upload implementation needed no source fix.
+The owner-authorized encrypted OTA and updated HA integration are installed;
+the existing HA 18123 setup, artwork and saved revision-27 layouts are preserved.
+[Deployment details and sanitized evidence](hardware-lab.md#direct-artwork-deployment--current-firmware-2026-10-12).
+
+Compiled: private example 05 with local secrets, compiled `18:27:42 +0200`;
+1,099,264-byte OTA uploaded successfully in 53.76 seconds. Synthetic binaries
+were not uploaded. Unit-tested: the deployed commit already passed the 73 host
+sanitizer, 66 HA-engine and five frontend tests recorded below; these suites were
+not unnecessarily rerun for this deployment/documentation-only session.
+
+Hardware/API-tested: the real ESP accepted the existing 415/1,552-byte library
+images over the encrypted API, verified/decoded/rendered them and reported all
+15 current tiles USB-applied in 2.72 seconds, with zero HTTP downloads. Two
+HA-driven simulated-light state redraws applied in 1.53/1.684 seconds with exactly
+two native visual actions and **zero additional artwork upload actions**. Saved
+layouts are unchanged; the test light was restored. USB/overflow/render errors
+remained zero and the boot session stayed stable in the short captures.
+
+Browser-tested: real editor loads, automatic-upload guidance is visible, optional
+HTTP settings are collapsed, the served bundle matches the installed archive,
+and no JavaScript error occurred. The owner's subsequent key activity delivered
+four light bindings and navigation from Main to Other. Fresh release timestamps
+cover ten keys; all 15 binary states became known. HA is left ready on the owner's
+selected Other page with zero USB/overflow errors. Physical image appearance
+still awaits confirmation. Electrical/recovery/soak gates remain pending.
+
 ## Direct artwork uploads, 2026-10-12
 
 Implemented: [bounded HA-to-ESP uploads](artwork-upload.md) over the existing

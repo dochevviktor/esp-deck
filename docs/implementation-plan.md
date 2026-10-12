@@ -1,5 +1,13 @@
 # Home Assistant runtime control implementation plan
 
+Deployment update, 2026-10-12: the owner authorized the direct-upload firmware
+and HA update. Example 05 compiled `18:27:42 +0200` is installed; the existing
+HA 18123 now delivers the saved artwork with zero HTTP downloads. Real ESP
+render/USB completion, two cached state redraws and the editor smoke test pass.
+Revision-27 saved layouts/artwork remain unchanged. Later physical key actions
+and page navigation also pass initial checks. Physical appearance confirmation
+and the wider hardware gates remain pending. [Current record](hardware-lab.md).
+
 Direction update, 2026-10-12: the owner requested direct HA-to-ESP API artwork
 uploads. The [bounded upload path](artwork-upload.md) is implemented and becomes
 the default for library images on capability-compatible firmware. This explicitly

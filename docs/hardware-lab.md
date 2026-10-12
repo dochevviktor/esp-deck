@@ -1,6 +1,77 @@
 # Physical runtime lab (P9)
 
-## USB startup recovery — current firmware
+## Direct artwork deployment — current firmware, 2026-10-12
+
+The owner powered the ESP/deck and explicitly requested the new firmware and HA
+startup/testing. The encrypted preflight matched the recorded physical identity,
+running the previous quiet runtime with USB ready and zero errors. HA 18123 was
+stopped; its saved draft/applied revision was **27**. A blank deck at this point
+is consistent with the configured blank RAM boot layout and absent HA replay.
+
+Example 05 from commit `db0d56bbfc4557a9d47dc2ab36f5517dff1264a4` is now installed:
+
+- Compiled `2026-10-12 18:27:42 +0200`, using local secrets; OTA **1,099,264 B**.
+- SHA-256 `01095c14a42e123e2771dc60abf7003705e5035aa1ba004b295440b5ebf42c98`.
+- Encrypted identity/hash-checked OTA completed in **53.76 s**, using the existing
+  connection-local MSS 536 workaround. No synthetic image was uploaded.
+- Linker estimates: **115,219 B static RAM / 1,099,147 B flash**. USB startup,
+  report framing, UART0 and external unswitched VBUS are unchanged.
+- The previous quiet OTA/factory/ELF and a stopped-HA configuration/credential
+  backup are private under `.build/backups/direct-upload-iucq3Iit/`. Its OTA still
+  matches the recorded `1fc89983…1d6d1c7` hash. The original example-04 rollback
+  artifacts remain available.
+
+The updated integration archive was installed in the existing **18123** HA with
+its old code retained under `.build/ha-lab/installations/`. Layout/artwork stores
+and pairing compared byte-for-byte before startup. HA 2026.10.1 is running at
+**http://127.0.0.1:18123/esp-deck** and is the sole physical controller. The old
+18124 instance was not started. No virtual tests or synthetic inputs ran against
+this instance.
+
+HA discovered 40 entities/nine native actions, negotiated `png_chunks_v1`, and
+restored Hardware Main. Selecting the owner's existing **Main** page delivered
+the saved images on logical keys 0/1 (top row's first two keys): normalized PNGs
+of **415 / 1,552 B**, including a multi-chunk transfer. All 15 current tiles
+reached rendered and USB-applied status without error in **2.72 s**, including
+HA polling. ESP diagnostics show **zero HTTP downloads** and no render failures.
+This exercises real ESP SHA verification, PSRAM staging, decode/render and USB
+completion, without the old ESP-to-VM HTTP route.
+
+The lab's template light was switched ON and back OFF through HA, then restored
+to its original state. Its key-0 visuals reached applied revisions 3/4 in
+**1.53 / 1.684 s**. An authenticated HA service-event observer counted exactly
+two native visual calls and **zero artwork-upload calls** during those changes.
+The decoded-background cache subsequently reports one hit. Saved draft/applied/
+backup layout data remains identical at revision 27. Its saved default remains
+Hardware Main. The owner subsequently navigated from Main to Other; the selected
+runtime page was left in place.
+
+A real Chromium session loaded the updated editor with no JavaScript errors,
+confirmed automatic-upload guidance and the collapsed optional HTTP settings,
+and verified the served bundle matches the installed archive. No editor/layout
+write was needed for this test. Screenshot and raw captures stay private.
+
+The later owner interaction delivered **four physical light-binding actions**
+through HA and changed the active page from Main to Other. Fresh HA release-event
+timestamps cover logical keys **0, 1, 5, 6, 7, 8, 10, 11, 12, 14**; older restored
+event timestamps were excluded. All 15 binary key states are now known, queue
+high-water is one, and the decoded-background cache has five hits. No physical
+input was injected by a tool. This is initial input/navigation evidence, not
+all-key or lossless/repeated-recovery qualification.
+
+Final sampled state: HA ready on Other, stable ESP boot session, USB errors/overflows zero,
+internal free/minimum heap **216,620 / 194,776 B**, graphics used/peak
+**394,823 / 432,223 B**. These are short samples, not soak or latency guarantees.
+Physical image appearance remains awaiting owner confirmation; USB status and
+working input are not display readback.
+
+[Sanitized deployment and acceptance record](../tests/fixtures/s3_0060/direct_upload_2026-10-12.json).
+The committed software previously passed 73 sanitizer host tests, 66 HA-engine
+tests and five frontend tests. No implementation fix was required during this
+deployment; the private firmware compile and physical API/browser checks above
+are new evidence. Electrical, first-click, repeated recovery and soak gates remain.
+
+## USB startup recovery — previous firmware baseline
 
 The owner reported that the 23:05:52 runtime image still left the deck on its
 logo, with unknown keys and no visible brightness response. Read-only checks

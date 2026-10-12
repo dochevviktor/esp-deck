@@ -1,0 +1,90 @@
+{
+  "date": "2026-10-12",
+  "source_commit": "db0d56bbfc4557a9d47dc2ab36f5517dff1264a4",
+  "source_changes_required": false,
+  "target": "Stream Deck Original 0FD9:0060 on XIAO ESP32-S3 Plus",
+  "identity_verified_privately": true,
+  "home_assistant": "2026.10.1",
+  "esphome": "2026.9.0",
+  "esp_idf": "5.5.5",
+  "deployment": {
+    "example": "05_home_assistant_runtime",
+    "compilation_time": "2026-10-12 18:27:42 +0200",
+    "local_secrets": true,
+    "ota_bytes": 1099264,
+    "ota_sha256": "01095c14a42e123e2771dc60abf7003705e5035aa1ba004b295440b5ebf42c98",
+    "static_ram_linker_bytes": 115219,
+    "flash_linker_bytes": 1099147,
+    "encrypted_ota_seconds": 53.76,
+    "connection_local_tcp_mss": 536,
+    "plaintext_fallback": false,
+    "prior_ota_backup_sha256": "1fc89983e9a496e7340ac5022a19417dd2e6f476af0e9fa44e41146791d6d1c7"
+  },
+  "ha": {
+    "instance_port": 18123,
+    "single_physical_controller": true,
+    "previous_code_and_config_backed_up": true,
+    "installed_code_matches_archive": true,
+    "pairing_and_library_preserved": true,
+    "draft_revision": 27,
+    "applied_layout_revision": 27,
+    "saved_layout_equal_before_after": true,
+    "active_page": "other",
+    "default_page_unchanged": "hardware_main",
+    "entities": 40,
+    "native_actions": 9,
+    "artwork_upload_capability": "png_chunks_v1",
+    "final_state": "ready"
+  },
+  "physical_device_api_tests": {
+    "artwork_keys": [0, 1],
+    "normalized_png_bytes": [415, 1552],
+    "image_application_to_status_seconds": 2.72,
+    "successful_current_usb_applied_tiles": 15,
+    "http_downloads": 0,
+    "render_failures": 0,
+    "light_state_updates": [
+      {"state": "on", "seconds_to_status": 1.53, "key_0_revision": 3, "applied_revision": 3},
+      {"state": "off", "seconds_to_status": 1.684, "key_0_revision": 4, "applied_revision": 4}
+    ],
+    "native_visual_calls_during_state_updates": 2,
+    "artwork_upload_calls_during_state_updates": 0,
+    "simulated_ha_light_restored": true,
+    "decoded_background_cache_hits_after_state_updates": 1,
+    "usb_errors": 0,
+    "input_overflows": 0,
+    "internal_free_heap_final_sample": 216620,
+    "internal_minimum_heap": 194776,
+    "graphics_bytes_final_sample": 394823,
+    "graphics_peak": 432223,
+    "boot_session_unchanged_during_tests": true,
+    "physical_light_bindings_observed": 4,
+    "fresh_ha_release_event_keys": [0, 1, 5, 6, 7, 8, 10, 11, 12, 14],
+    "known_binary_key_states": 15,
+    "input_queue_high_water": 1,
+    "physical_page_navigation_observed": "main to other",
+    "decoded_background_cache_hits_final": 5,
+    "physical_key_input_injected": false,
+    "display_readback": false
+  },
+  "browser": {
+    "editor_loaded": true,
+    "direct_upload_notice_visible": true,
+    "optional_http_address_hidden": true,
+    "served_bundle_matches_installed": true,
+    "javascript_errors": 0
+  },
+  "unit_tests": {
+    "source_commit_previously_passed_host_with_sanitizers": 73,
+    "source_commit_previously_passed_ha_engine": 66,
+    "source_commit_previously_passed_frontend": 5,
+    "rerun_for_documentation_only_deployment_record": false
+  },
+  "remaining": [
+    "owner confirmation of physical artwork appearance",
+    "detailed color/orientation and all-key acceptance",
+    "input latency and memory under sustained upload load",
+    "repeated reconnect/restart and outage qualification",
+    "electrical measurements and soak"
+  ]
+}

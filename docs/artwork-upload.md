@@ -7,7 +7,9 @@ that connection removes the need for an ESP-to-HA HTTP route, an artwork server
 address, and download tokens in the normal editing flow.
 
 Install the updated HA integration and compatible example-05 firmware to use it.
-This change has been built and tested without deploying to the physical ESP.
+The owner-requested update is now deployed to the physical ESP and HA; real
+upload/decode/render/USB completion and cached state redraws passed with zero
+HTTP downloads. [Physical session and remaining gates](hardware-lab.md).
 Existing saved artwork hashes and layouts need no migration. Older v1/v2 firmware
 continues using the restricted HTTP route; explicitly configured external image
 URLs still use the original allowlist/TLS/fetch limits. Origin provisioning is
@@ -100,8 +102,10 @@ The isolated encrypted test transfers a 20,876-byte PNG, rejects a bad hash,
 resumes after API disconnect and reaches simulated USB-applied revision 2 after
 a cached label/position edit, with zero HTTP downloads.
 
-Physical image appearance, ESP SHA/PSRAM behavior, transfer/input latency under
-load, reconnects and OTA responsiveness still require a requested deployment
-and device testing. Existing electrical, first-click, recovery and soak gates in
+ESP SHA/PSRAM staging and USB completion now have an initial successful physical
+run, followed by physical key actions and page navigation. Physical image
+appearance confirmation, transfer/input latency under
+load, repeated reconnects and OTA responsiveness during uploads remain pending.
+Existing electrical, first-click, recovery and soak gates in
 [hardware.md](hardware.md) remain pending. Native USB remains the host, logs use
 UART0, and VBUS remains externally supplied and unswitched.

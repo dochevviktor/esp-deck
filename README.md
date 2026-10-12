@@ -9,8 +9,10 @@ Direct artwork transfer is now implemented: HA sends normalized PNGs through
 the existing encrypted API on compatible firmware. Library artwork needs no
 ESP-to-HA HTTP route or artwork-address setup. Labels remain locally rendered
 and reuse cached images; older firmware and external URLs retain HTTP support.
-See [the upload contract and validation](docs/artwork-upload.md). This update
-has not been deployed to or hardware-verified on the physical ESP.
+See [the upload contract and validation](docs/artwork-upload.md). This update is
+now deployed: real ESP API uploads, rendering, USB completion, zero-upload state
+redraws, physical key actions and page navigation passed initial checks. Physical
+appearance confirmation remains pending.
 Current validation: all seven firmware builds, 73 host tests with sanitizers,
 66 HA-engine tests with mocked actions, five frontend tests, and a real encrypted
 API upload/render test with zero HTTP downloads. [Detailed evidence](docs/testing.md).
@@ -39,9 +41,9 @@ validators and archive installation/upgrade/backup/removal tests. See
 remaining GitHub/HACS and physical gates.
 The real ESP now runs example 05: [the physical lab session](docs/hardware-lab.md)
 verified HA pairing, text/page USB completion and real light-binding actions.
-The installed firmware's HTTP artwork path still needs a reachable route from
-the ESP back to the lab VM; the new upload path removes that requirement after
-the firmware and HA integration are updated.
+The updated firmware and HA integration now deliver library artwork directly,
+with zero HTTP downloads. [The current physical session](docs/hardware-lab.md)
+records two saved images applied on the real ESP and preserved user layouts.
 The active physical HA is now the owner's retargeted **18123** instance. Its
 association was repaired and the Redraw/applied-state bug fixed and deployed;
 the extra 18124 instance is stopped. Saved image pages remain alongside separate
