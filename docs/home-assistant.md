@@ -39,7 +39,7 @@ The firmware adapter compiles against pinned ESPHome 2026.9.0. See
    Never upload it. For a later explicitly requested upload, build privately
    with `--deploy`, using local `examples/secrets.yaml`, and upload only the
    resulting `.build/deploy/05_home_assistant_runtime/build/firmware.ota.bin`.
-   The existing [OTA and wiring instructions](../README.md#flash-ota-and-recovery-when-hardware-is-available)
+   The [OTA and wiring instructions](getting-started.md#ota-logs-and-recovery)
    still apply; native USB is the host, UART0 is for logs, and VBUS is unswitched.
 3. Connect through the encrypted ESPHome integration. This example has no
    firmware-originated HA service calls. Its native event entities do not require

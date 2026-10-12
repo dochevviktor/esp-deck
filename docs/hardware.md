@@ -503,8 +503,8 @@ USB-A male-to-male cables between host-style sockets.
 
 UART0 at 115200: D6/GPIO43 TX → adapter RX, common GND. Optional D7/GPIO44 RX ←
 adapter TX. Leave adapter VCC open. BOOT/reset recovery and OTA commands are in
-the README. USB root-port recovery changes controller state; it does not switch
-this VBUS rail.
+the [setup guide](getting-started.md#ota-logs-and-recovery). USB root-port recovery
+changes controller state; it does not switch this VBUS rail.
 
 ## Measurements to supply later
 
