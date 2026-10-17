@@ -5,6 +5,7 @@ substitutions:
 
 packages:
   base: !include packages/base.yaml
+  wifi_setup: !include packages/wifi_setup.yaml
   deck: !include packages/deck.yaml
   runtime_api: !include packages/runtime_api.yaml
 

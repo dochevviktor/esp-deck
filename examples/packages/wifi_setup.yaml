@@ -1,0 +1,120 @@
+# Browser Wi-Fi setup for example 05. See docs/getting-started.md.
+# Keep these controls internal so credentials are not published to Home Assistant.
+wifi:
+  ap:
+    ssid: "${device_name}-setup"
+    password: !secret wifi_setup_password
+    ap_timeout: 60s
+
+captive_portal:
+
+web_server:
+  port: 80
+  version: 3
+  local: true
+  log: false
+  ota: false
+  include_internal: true
+  auth:
+    type: digest
+    username: admin
+    password: !secret wifi_setup_password
+  sorting_groups:
+    - id: wifi_settings
+      name: Wi-Fi settings
+      sorting_weight: -10
+
+text:
+  - platform: template
+    id: new_wifi_ssid
+    name: Wi-Fi network (SSID)
+    internal: true
+    mode: TEXT
+    min_length: 1
+    max_length: 32
+    optimistic: true
+    restore_value: false
+    web_server:
+      sorting_group_id: wifi_settings
+      sorting_weight: 10
+  - platform: template
+    id: new_wifi_password
+    name: Wi-Fi password
+    internal: true
+    mode: PASSWORD
+    max_length: 63
+    optimistic: true
+    restore_value: false
+    web_server:
+      sorting_group_id: wifi_settings
+      sorting_weight: 20
+
+text_sensor:
+  - platform: template
+    id: wifi_setup_status
+    name: Wi-Fi setup status
+    internal: true
+    update_interval: never
+    web_server:
+      sorting_group_id: wifi_settings
+      sorting_weight: 40
+
+button:
+  - platform: template
+    name: Apply Wi-Fi settings
+    internal: true
+    web_server:
+      sorting_group_id: wifi_settings
+      sorting_weight: 30
+    on_press:
+      - script.execute: apply_wifi_settings
+
+script:
+  - id: apply_wifi_settings
+    mode: single
+    then:
+      - if:
+          condition:
+            lambda: |-
+              const auto &ssid = id(new_wifi_ssid).state;
+              const auto &password = id(new_wifi_password).state;
+              return !ssid.empty() && (password.empty() || password.size() >= 8);
+          then:
+            - text_sensor.template.publish:
+                id: wifi_setup_status
+                state: "Connecting; reopen this page on the selected network."
+            # Let the browser receive the response before disconnecting.
+            - delay: 500ms
+            # ESPHome 2026.9.0 otherwise skips changes to the current SSID,
+            # including a new password. The selected old network is retained
+            # for wifi.configure's automatic rollback on failure.
+            - wifi.disable:
+            - wifi.configure:
+                ssid: !lambda return id(new_wifi_ssid).state;
+                password: !lambda return id(new_wifi_password).state;
+                save: true
+                timeout: 30s
+                on_connect:
+                  - text.set:
+                      id: new_wifi_password
+                      value: ""
+                  - text_sensor.template.publish:
+                      id: wifi_setup_status
+                      state: "Connected. Wi-Fi settings saved."
+                on_error:
+                  - text.set:
+                      id: new_wifi_password
+                      value: ""
+                  - text_sensor.template.publish:
+                      id: wifi_setup_status
+                      state: "Connection failed; previous Wi-Fi settings restored."
+            # Keep the script busy through the attempt and optional rollback,
+            # so a second click cannot disable Wi-Fi during an active change.
+            - wait_until:
+                condition:
+                  wifi.connected:
+                timeout: 65s
+          else:
+            - text_sensor.template.publish:
+                id: wifi_setup_status
+                state: "Enter an SSID and an 8-63 character password (empty for an open network)."

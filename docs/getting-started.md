@@ -20,7 +20,8 @@ chmod 600 examples/secrets.yaml
 Edit `examples/secrets.yaml` with your 2.4 GHz Wi-Fi credentials and a unique
 base64 32-byte API key. The template includes the key-generation command; the key
 protects both the native API and encrypted OTA. Keep this file and build artifacts
-private. Existing secrets must be preserved.
+private. Existing secrets must be preserved. For example 05, also add a unique
+8-63 character `wifi_setup_password` for its web login and recovery hotspot.
 
 [Example 05](../examples/05_home_assistant_runtime.yaml) supports direct delivery
 of library artwork over the encrypted API. That path needs no HA artwork address.
@@ -53,6 +54,34 @@ For example 03, replace `light_entity` with your entity and allow the ESPHome
 device to perform HA actions. Avoid a second toggle automation on the same key.
 Example 05 instead uses HA-owned bindings through the
 [ESP Deck integration](ha-integration.md).
+
+## Change Wi-Fi from a browser
+
+Once the updated example 05 firmware is installed, open
+`http://streamdeck-original.local/` (or the device's IP address). Log in as
+`admin` with `wifi_setup_password`. The page is served by the ESP, including its
+assets, and works without an internet connection.
+
+Under **Wi-Fi settings**, enter and submit **Wi-Fi network (SSID)** and
+**Wi-Fi password**, then press **Apply Wi-Fi settings**. Use a 2.4 GHz network;
+leave the password empty only for an open network. The device disconnects while
+trying the new credentials. Join that network on your computer/phone and reopen
+the page; its IP may have changed. Settings are saved on the device across
+restarts. If the connection attempt fails after 30 seconds, it tries the previous
+credentials again. **Wi-Fi setup status** reports the outcome.
+
+If Wi-Fi cannot connect, the fallback hotspot starts after its 60-second timeout
+(a failed browser change first tries the previous network). Join
+`streamdeck-original-setup` using `wifi_setup_password`, then open
+`http://192.168.4.1/` if the setup page does not appear automatically. Select the
+network and save its credentials in ESPHome's built-in
+[captive portal](https://esphome.io/components/captive_portal/).
+
+The web page uses HTTP; use it on a trusted local network. Its password fields
+are kept out of Home Assistant, and the entry field is cleared after a connection
+attempt. Update `wifi_ssid`/`wifi_password` in your local `examples/secrets.yaml`
+after changing networks too: a later firmware build can replace device-saved
+credentials. The setup password remains the separately configured secret.
 
 ## Build for your device
 

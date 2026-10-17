@@ -27,6 +27,7 @@ def stage(folder, device_secrets=None):
         secrets.write_text(
             'wifi_ssid: "CI-NOT-A-REAL-NETWORK"\n'
             'wifi_password: "CI-NOT-A-REAL-PASSWORD"\n'
+            'wifi_setup_password: "CI-NOT-A-REAL-SETUP-PASSWORD"\n'
             f'api_encryption_key: "{base64.b64encode(bytes(range(32))).decode()}"\n')
 
 
