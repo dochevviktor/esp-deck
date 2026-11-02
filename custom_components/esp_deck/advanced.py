@@ -19,6 +19,10 @@ class AdvancedController:
         self.contexts = {}
         self.captured = {}
         self.input_worker = None
+        self.input_error = None
+        self.input_failures = 0
+        self.input_polls = 0
+        self.input_stream_resets = 0
         self.reset_reader()
 
     def reset_reader(self):
@@ -70,7 +74,11 @@ class AdvancedController:
             started = time.monotonic()
             try:
                 deck = self.adapter.resolve()
-                result = await self.adapter.raw_call(deck, "read_deck_inputs", session=deck.session, reader=reader, ack=ack)
+                # The firmware expires this reader after one second. Waiting
+                # for the generic ten-second action timeout only prolongs an
+                # outage; expired input must never be replayed.
+                async with asyncio.timeout(1):
+                    result = await self.adapter.raw_call(deck, "read_deck_inputs", session=deck.session, reader=reader, ack=ack)
                 if reader != self.reader:
                     continue
                 if time.monotonic() - started >= 1:
@@ -84,7 +92,10 @@ class AdvancedController:
                 if not isinstance(events, list) or len(events) != result["count"]:
                     raise AdapterError("invalid_input_response")
                 reset = (result["generation"], result["reset"])
+                self.input_polls += 1
                 if reset != self.input_reset:
+                    self.input_stream_resets += 1
+                    self._clear_bindings()
                     self.captured.clear()
                     if self.overlay:
                         self.overlay = self.modifier = None
@@ -93,6 +104,7 @@ class AdvancedController:
                     # The first response and all reset responses are synchronization,
                     # not actionable input. Never infer missing press/release edges.
                     self.input_ack = result["sequence"]
+                    self._input_recovered()
                     continue
                 for packet in events:
                     if (not isinstance(packet, dict) or type(packet.get("key")) is not int
@@ -105,12 +117,37 @@ class AdvancedController:
                         raise AdapterError("invalid_input_response")
                     self.input_ack = packet["sequence"]
                     self._correlated_edge(packet)
+                    if reader != self.reader:
+                        break
+                if reader != self.reader:
+                    continue
                 if self.input_ack != result["sequence"]:
                     raise AdapterError("input_sequence_gap")
-            except AdapterError:
-                self._invalidate_input()
-                self.contexts.clear()
-                self.request_sync()
+                self._input_recovered()
+            except (AdapterError, TimeoutError) as err:
+                # A layout/reconnect can replace the reader while this action
+                # is pending. Its failure belongs to the obsolete reader too.
+                if reader != self.reader or not self.active:
+                    continue
+                code = err.code if isinstance(err, AdapterError) else "input_delivery_timeout"
+                self.input_failures += 1
+                changed = self.input_error != code
+                if self.input_error is None:
+                    self._invalidate_input()
+                    self.request_sync()
+                else:
+                    self.reset_reader()
+                # Keep unchanged binding contexts. Replacing all fifteen tokens
+                # on each read failure triggers needless visual writes and can
+                # keep input gated during a slow connection's recovery.
+                self.input_error = code
+                if changed:
+                    self._publish()
+
+    def _input_recovered(self):
+        if self.input_error is not None:
+            self.input_error = None
+            self._publish()
 
     def _correlated_edge(self, packet):
         if self.input_blocked:

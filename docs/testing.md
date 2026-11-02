@@ -1,5 +1,50 @@
 # Validation and remaining hardware gates
 
+## HA input recovery audit, 2026-11-02
+
+Implemented: correlated reads now use the firmware's one-second deadline;
+obsolete-reader failures cannot reset a replacement reader. Transient failures
+preserve unchanged visual binding contexts and coalesce recovery work. Firmware
+stream resets cancel pending bindings without creating a reader-reset loop.
+Input health counters are exposed through status/diagnostics and input errors
+appear in the editor. Layouts, firmware contracts and hardware rules are unchanged.
+
+Unit-tested: **73 host tests**, **74 HA-engine tests** (eight new recovery
+regressions), and **five frontend tests** pass. Four regressions reproduced
+against the previously installed integration: stale-reader invalidation,
+unnecessary context rewrites, reads exceeding the lease, and bindings surviving
+stream reset. The accelerated offline test completes 120 retry cycles and 8,640
+coalesced wake requests with stable task/listener counts, bounded queues and
+working actions after reconnection. Sustained read failures, held-overlay
+recovery and v2-to-v1 reconnect are also covered. This is resource-retention
+coverage, not a multi-day process-heap measurement or proof of the reported
+incident's cause. No unbounded retention was found in the audited controller or
+native response callback lifecycle.
+
+Compiled: editor bundle rebuilt and reproducibility checked; host tests compile
+their native executables. Firmware was unchanged and was not rebuilt or flashed.
+Packaging tests and `git diff --check` pass. Hardware-verified: **not performed**;
+neither local HA instance was running. No installed integration was replaced.
+The physical repeated-recovery and overnight-soak gates remain pending.
+
+The existing lab's `installation.json` selects its old release ZIP for engine
+tests. Updated-source validation therefore used a separate private directory,
+preserving that installation and its data:
+
+```sh
+PYTHONPATH=tools .venv/bin/python - <<'PY'
+import ha_lab as lab
+from ha_lab_tests import run_engine_tests
+lab.LAB = lab.ROOT / ".build/ha-input-recovery"
+lab.PREFIX += "-input-recovery"
+run_engine_tests()
+PY
+```
+
+Results are in `.build/ha-input-recovery/ha-engine.log` and
+`pytest/ha-engine.xml` beneath that directory. This runs HA 2026.10.1 with mocked
+native actions; it does not start the saved HA instance or connect to an ESP.
+
 ## Direct artwork deployment, 2026-10-12
 
 Implemented/deployed: the committed upload implementation needed no source fix.

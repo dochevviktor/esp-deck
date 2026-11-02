@@ -94,7 +94,7 @@ class ESPDeckPanel extends HTMLElement {
     this.$("#draft-status").textContent = this.dirty ? "Unsaved edits" : this.record.draft_revision !== this.status.applied_revision ? "Saved draft · not applied" : "Applied layout";
     const state = this.status?.state || "offline";
     this.$("#connection").textContent = this.busy ? "Working…" : state.replaceAll("_", " ");
-    const failure = this.status?.error || this.status?.binding_error || this.status?.tiles?.find(t => t.phase === "failed")?.error;
+    const failure = this.status?.error || this.status?.binding_error || this.status?.input_error || this.status?.tiles?.find(t => t.phase === "failed")?.error;
     this.$("#status-text").textContent = failure ? (messages[failure] || `Deck needs attention: ${failure}. Retry synchronization or open repair settings.`) : state === "ready" ? "Visuals rendered. Physical display readback is unavailable." : "The backend keeps bindings and visuals synchronized when this editor is closed.";
     for (const control of this.$$("button, input, select, textarea")) control.disabled = this.busy;
     this.$("#undo").disabled = this.busy || !this.history.length;

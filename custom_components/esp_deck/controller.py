@@ -84,20 +84,25 @@ class DeckController(AdvancedController):
             pass
 
     @callback
+    def _clear_bindings(self):
+        """Drop pending actions without rotating the firmware reader."""
+        self.binding_epoch += 1
+        self.held.clear()
+        self.queue.clear()
+        if self.binding_worker and not self.binding_worker.done():
+            self.binding_worker.cancel()
+
+    @callback
     def _invalidate_input(self):
         self.reset_reader()
         self.epoch += 1
-        self.binding_epoch += 1
+        self._clear_bindings()
         self.input_after = utcnow()
         if self.inflight_key is not None:
             # A previous request may still reach the ESP. Re-query its revision
             # on the next pass instead of reporting our own write as a rival.
             self.sent.pop(self.inflight_key, None)
             self.pending = True
-        self.held.clear()
-        self.queue.clear()
-        if self.binding_worker and not self.binding_worker.done():
-            self.binding_worker.cancel()
 
     @callback
     def layout_changed(self):
@@ -144,7 +149,7 @@ class DeckController(AdvancedController):
         phases = {tile.get("phase") for tile in self.tiles}
         if not self.connected:
             state = "offline" if self.error in (None, "offline", "actions_unavailable", "native_action_failed") else "repair_required"
-        elif self.error or self.binding_error or "failed" in phases:
+        elif self.error or self.binding_error or self.input_error or "failed" in phases:
             state = "failed"
         elif self.pending or "queued" in phases or "rendering" in phases or None in phases or (
                 self.capabilities.get("protocol_version") == 2 and any(
@@ -154,6 +159,10 @@ class DeckController(AdvancedController):
             state = "ready"
         return {"state": state, "connected": self.connected, "error": self.error,
                 "binding_error": self.binding_error, "binding_count": self.binding_count,
+                "input_error": self.input_error, "input_failures": self.input_failures,
+                "input_polls": self.input_polls, "input_stream_resets": self.input_stream_resets,
+                "input_worker_running": bool(self.input_worker and not self.input_worker.done()),
+                "binding_queue_depth": len(self.queue),
                 "draft_revision": self.repository.data["draft_revision"],
                 "applied_revision": self.repository.data["applied_revision"],
                 "tiles": deepcopy(self.tiles), "rendered_is_display_readback": False,
@@ -215,6 +224,8 @@ class DeckController(AdvancedController):
             self.sent.clear()
             self.contexts.clear()
             self.capabilities = await self.adapter.capabilities(deck)
+            if self.capabilities.get("input_correlation") != "pull_context_v2":
+                self.input_error = None
             self.input_blocked = False
             if self.binding_error == "binding_queue_overflow":
                 self.binding_error = None

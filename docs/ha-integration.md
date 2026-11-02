@@ -153,6 +153,28 @@ already executed by another integration. This guards HA-observed work; v1 does
 not correlate a physical input with completed USB pixels. Page/layer switching
 and that stronger ordering guarantee remain P8 work.
 
+### Input recovery diagnostics
+
+The v2 input reader polls independently of the editor and visual writer. A
+responsive UI or ESPHome key entity alone does not establish that correlated
+input is reaching the binding controller. Reads now time out at the firmware's
+one-second lease. Late failures from replaced readers are ignored; transient
+read failures discard pending input without replacing unchanged visual binding
+contexts. Consecutive failures coalesce recovery work instead of repeatedly
+interrupting the visual writer. Firmware stream resets also cancel pending
+bindings, without rotating the reader and creating a reset loop.
+
+The status action, synchronization sensor attributes and integration diagnostics
+include `input_error`, cumulative `input_failures`, `input_polls` (validated
+response envelopes), `input_stream_resets`, `input_worker_running` and
+`binding_queue_depth`. These counters reset on integration reload and retain no
+event history or action payloads. An input error marks synchronization failed and
+appears in the editor; a valid read clears it automatically. Status updates are
+published on error/recovery transitions and normal synchronization, not every
+poll. If responsiveness degrades, compare two status snapshots: stopped polls,
+increasing failures/resets or a growing queue distinguish reader trouble from
+slow bound actions. These are controller diagnostics, not process heap measurements.
+
 ## Storage and authenticated API
 
 HA `.storage/esp_deck.<config-entry-id>` holds a versioned private record:
